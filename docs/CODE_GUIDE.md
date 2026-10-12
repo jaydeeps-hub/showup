@@ -1,0 +1,161 @@
+# Code guide
+
+A practical map of the code for future you. Read [ARCHITECTURE.md](ARCHITECTURE.md) first for the big picture; this guide is about *where to go to change things*.
+
+## Ten-second orientation
+
+- **Want to change a number or setting?** → `src/config/constants.ts`
+- **Want to change wording after SHOW UP?** → `src/config/messages.ts`
+- **Want to change what a screen looks like?** → `src/features/<feature>/…Screen.tsx`
+- **Want to change colours or rounded corners?** → `src/app/theme.ts`
+- **Want to change the rules for what counts?** → `src/services/attendanceService.ts`
+- **Want to change how data is saved?** → `src/services/storageService.ts`
+- **Want to change app state or add a new action?** → `src/hooks/useShowup.ts`
+
+## How a click becomes a Showup
+
+Follow one press of the button through the files:
+
+1. `components/ShowUpButton.tsx`: the button calls its `onClick` prop.
+2. `features/attendance/HomeScreen.tsx`: `handleShowUp` calls `onShowUp()` and waits for the outcome.
+3. `app/App.tsx`: connects `onShowUp` to `showup.showUp` from the hook.
+4. `hooks/useShowup.ts`: `showUp` blocks double taps, sets `isVerifying`, and calls `attemptShowup`.
+5. `services/attendanceService.ts`: `attemptShowup` gets the position, calls `evaluatePosition`, and on success, `recordShowup`.
+6. `services/geolocationService.ts`: `getCurrentPosition` asks the browser for coordinates.
+7. `utils/distance.ts`: `distanceInMetres` does the maths.
+8. Back in the hook: on success, `commit` saves the new data via `storageService.saveData`.
+9. Back in `HomeScreen`: `getFeedbackForOutcome` (`config/messages.ts`) picks the message, and `FeedbackMessage` shows it.
+
+---
+
+## Feature by feature
+
+### Temporary user (welcome screen)
+
+1. **Which file controls it?** `src/features/authentication/TemporaryUserScreen.tsx`
+2. **What does it do?** Shows the username and password form, checks both are filled in, then calls `onContinue(username)`. The password goes nowhere.
+3. **Depends on:** `components/ScreenLayout.tsx`; `hooks/useShowup.ts` (`createUser`) via `App.tsx`.
+4. **To change it, start at:** the screen file for wording and layout; `createUser` in `useShowup.ts` for what gets saved.
+5. **Test after changing:** empty fields show errors; Continue moves to gym setup; reloading keeps you logged in; the saved data in DevTools (Application → Local Storage) contains no password.
+
+### Gym search and setup
+
+1. **Which files control it?** `src/features/gym/GymSetupScreen.tsx` (heading, selected gym card, Save button) and `src/features/gym/GymSearch.tsx` (the search box and its loading/error states).
+2. **What do they do?** `GymSearch` loads Google Maps, fetches suggestions as you type, and fetches full details when you pick one. `GymSetupScreen` shows the result and calls `onSave`.
+3. **Depends on:** `services/mapsService.ts` (all Google calls), `config/constants.ts` (debounce delay, minimum characters, `PRIMARY_GYM_LABEL`), `components/GymSummary.tsx`, and `useShowup.saveGym`.
+4. **To change it, start at:**
+   - Search behaviour (e.g. restrict to gyms, or to one country): `searchPlaces` in `mapsService.ts`. Add options such as `includedPrimaryTypes: ['gym']` or `includedRegionCodes: ['in']` to the request.
+   - Which fields are saved: `getPlaceDetails` in `mapsService.ts`, the `SelectedPlace` and `Gym` types in `types/index.ts`, and `isGym` in `storageService.ts`.
+5. **Test after changing:** `npm test` (the maps tests use a fake Google library), then search in the browser for a real gym, a nonsense string (expect "No places found") and with the key removed (expect the setup warning).
+
+### Home screen
+
+1. **Which file controls it?** `src/features/attendance/HomeScreen.tsx`
+2. **What does it do?** Lays out the gym card, the SHOW UP button, the counter and the Change gym / Log out links. Shows feedback after each press and the reset confirmation dialog.
+3. **Depends on:** `components/ShowUpButton.tsx`, `ShowUpCounter.tsx`, `GymSummary.tsx`, `FeedbackMessage.tsx`, `config/messages.ts`.
+4. **To change it, start at:** the screen for layout; the individual component for the button's size or the counter's label.
+5. **Test after changing:** check at phone width (DevTools device toolbar, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>) and desktop width; the button is disabled with "Checking location…" while verifying.
+
+### Location verification rules
+
+1. **Which file controls it?** `src/services/attendanceService.ts`
+2. **What does it do?** `evaluatePosition` decides success, outside or poor accuracy. `attemptShowup` runs the whole check-and-record flow. `countShowups` produces the counter.
+3. **Depends on:** `utils/distance.ts`, `services/geolocationService.ts` (only for the `GeolocationError` type), `config/constants.ts`.
+4. **To change it, start at:** the constants first; then `evaluatePosition` if you need different logic.
+5. **Test after changing:** `npm test`, especially `attendanceService.test.ts`. Add a test for any new rule. Then use DevTools → Sensors to fake a location near and far from the gym.
+
+### Getting the device location
+
+1. **Which file controls it?** `src/services/geolocationService.ts`
+2. **What does it do?** Turns the browser's callback API into a Promise, and turns error codes into readable reasons.
+3. **Depends on:** `GEOLOCATION_OPTIONS` in `config/constants.ts`.
+4. **To change it, start at:** `GEOLOCATION_OPTIONS` for the timeout or high accuracy.
+5. **Test after changing:** `geolocationService.test.ts`; in the browser, block location for the site (padlock icon → Location → Block) and press SHOW UP.
+
+### Saving data
+
+1. **Which file controls it?** `src/services/storageService.ts`
+2. **What does it do?** Loads, validates, saves and clears the single `showup:data:v1` entry.
+3. **Depends on:** `STORAGE_KEY` in `config/constants.ts`; the types in `types/index.ts`.
+4. **To change it, start at:** this file. If you change the data shape, see "Changing the data model" below.
+5. **Test after changing:** `storageService.test.ts`; in the browser, reload and confirm the count stays. In DevTools → Application → Local Storage, edit the value into nonsense and reload (expect the "Saved data could not be read" screen).
+
+### App state and screen switching
+
+1. **Which files control it?** `src/hooks/useShowup.ts` and `src/app/App.tsx`
+2. **What do they do?** The hook holds all saved data and exposes actions. `App` decides which screen to show from that data.
+3. **Depends on:** every service.
+4. **To change it, start at:** `App.tsx` to add or reorder screens; the hook to add a new action.
+5. **Test after changing:** the full manual checklist in [versions/v0.1.0.md](versions/v0.1.0.md).
+
+### Look and feel
+
+1. **Which file controls it?** `src/app/theme.ts`
+2. **What does it do?** Defines the dark palette, the accent colour, rounded corners and fonts, and turns off ripples and transitions.
+3. **Depends on:** nothing.
+4. **To change it, start at:** `ACCENT` for the brand colour; `shape.borderRadius` for corner rounding.
+5. **Test after changing:** text contrast is still readable, especially the dark text on the accent-coloured button.
+
+---
+
+## Worked examples of likely changes
+
+### Adjust the geofence radius
+
+Change `GEOFENCE_RADIUS_METRES` in `src/config/constants.ts`, for example to `150`. Consider changing `MAX_LOCATION_ACCURACY_METRES` to match, since accepting a reading less precise than the radius itself makes little sense. Run `npm test`; the "uses the configured radius" test adapts automatically.
+
+### Change the success message
+
+Edit the `'success'` case in `getFeedbackForOutcome`, `src/config/messages.ts`. No other file needs to change. Other messages (outside the gym, permission denied, and so on) are in the same file.
+
+### Allow only one Showup per day
+
+Add a check in `attemptShowup` (`attendanceService.ts`) *before* `recordShowup`: if `data.events` already has an event for this user with today's date, return a new outcome such as `{ type: 'already-recorded-today' }`. Then:
+
+1. add that outcome to the `ShowupOutcome` type in `types/index.ts`;
+2. add a message for it in `messages.ts` (TypeScript will flag the missing case);
+3. add a test in `attendanceService.test.ts`.
+
+### Add a weekly workout goal
+
+1. **Data:** add `weeklyGoal: number | null` to `TemporaryUser` (or a new `settings` object) in `types/index.ts`.
+2. **Storage:** update `isTemporaryUser` in `storageService.ts`, and handle data saved *before* the field existed (see the next section).
+3. **Logic:** add a pure function such as `countShowupsThisWeek(data, userId, now)` to `attendanceService.ts`, with tests. Decide what "week" means (Monday start? local time zone?).
+4. **State:** expose `showupsThisWeek` and `setWeeklyGoal` from `useShowup.ts`.
+5. **UI:** show "3 / 4 this week" in `ShowUpCounter` or a new small component, and add a way to set the goal.
+
+### Changing the data model safely
+
+Users already have data saved in the old shape. Options:
+
+- **Backwards-compatible addition:** make the new field optional, and treat a missing value as a default when reading.
+- **Breaking change:** bump `schemaVersion` to `2`, then in `loadData` check for version 1 data and convert it (a "migration") before validating. Without a migration, old data will show the "could not be read" screen, which is safe but loses users' history.
+
+Record any data-model change in `CHANGELOG.md`.
+
+### Replace localStorage with a backend
+
+The app was shaped for this:
+
+1. Build an API (any stack) with `users`, `gyms` and `showup_events` tables matching the types in `types/index.ts`, and real authentication.
+2. **Move the decision to the server.** The client should send its position, and the *server* should run `evaluatePosition` and create the event. Otherwise anyone could call the API with "success". `attendanceService.ts` has no browser dependencies, so it can be copied to a Node backend as-is.
+3. Replace `storageService.ts` with functions that call the API. They become `async`, so `useShowup` will need loading states for the initial load.
+4. Add a one-time import of existing `localStorage` data, if early users' history matters.
+
+### Support multiple gyms
+
+`ShowupData.gyms` is already an array and events already store `gymId`. You would change `saveGym` to add instead of replace, give each gym its own label, let `evaluatePosition` run against every gym (picking the nearest one inside the radius), and add a gym list to the UI.
+
+---
+
+## Testing cheat-sheet
+
+| Command | When |
+|---|---|
+| `npm test` | After any logic change |
+| `npm run test:watch` | While writing tests |
+| `npm run typecheck` | After changing types; catches broken props |
+| `npm run lint` | Before committing |
+| `npm run build` | Before committing; catches everything the deploy would |
+
+Tests sit next to their code: `distance.ts` ↔ `distance.test.ts`. Shared sample data is in `src/test/fixtures.ts`. Tests never touch the real Google Maps, GPS or localStorage. Each file swaps in a small fake using `vi.stubGlobal` or `vi.mock`.

@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
+coverage
+
+# Environment files contain API keys. Only .env.example is committed.
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
