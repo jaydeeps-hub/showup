@@ -93,9 +93,10 @@ The password is checked for being non-empty, then dropped when the screen unmoun
 
 1. `GymSearch` asks `mapsService.loadPlacesLibrary()` to load the Google Maps script (only once per page). It then creates an **autocomplete session token**.
 2. As the user types (at least 3 characters, 300 ms after they stop), it calls `searchPlaces(text, token)`. That uses `AutocompleteSuggestion.fetchAutocompleteSuggestions` from Places API (New).
-3. Suggestions appear in an MUI `Autocomplete`. When one is picked, `getPlaceDetails` calls `prediction.toPlace().fetchFields(['id', 'displayName', 'formattedAddress', 'location'])`.
-4. The result is a `SelectedPlace`. `GymSetupScreen` shows it in a `GymSummary` card and enables **Save as Gym 1**.
-5. `useShowup.saveGym` turns it into a `Gym` with its own Showup `id`, the user's `userId`, the label "Gym 1", and a `createdAt` timestamp. It replaces any previous gym for that user.
+3. Suggestions appear in an MUI `Autocomplete`. When one is picked, `getPlaceDetails` calls `prediction.toPlace().fetchFields(['id', 'displayName', 'formattedAddress', 'location', 'types'])`.
+4. **Gym check:** `isFitnessPlace(types)` in `services/gymValidation.ts` checks Google's categories for the place against `ALLOWED_GYM_PLACE_TYPES` (`config/constants.ts`), e.g. `gym`, `fitness_center` or `yoga_studio`. If none match, `GymSearch` shows "Not a gym … Please select another place." and nothing can be saved. This stops people saving a random spot, such as their home, and earning Showups there. The types are used only for this check and are not stored.
+5. If it passes, the result is a `SelectedPlace`. `GymSetupScreen` shows it in a `GymSummary` card and enables **Save as Gym 1**.
+6. `useShowup.saveGym` turns it into a `Gym` with its own Showup `id`, the user's `userId`, the label "Gym 1", and a `createdAt` timestamp. It replaces any previous gym for that user.
 
 The gym gets its **own** ID, separate from Google's `googlePlaceId`, so events never depend on Google's identifiers.
 

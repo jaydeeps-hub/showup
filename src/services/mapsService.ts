@@ -81,20 +81,29 @@ export async function searchPlaces(
   })
 }
 
-/** Fetches the details we save for a gym. Throws if Google has no coordinates. */
-export async function getPlaceDetails(suggestion: PlaceSuggestion): Promise<SelectedPlace> {
+export interface PlaceDetails {
+  place: SelectedPlace
+  /** Google's categories for the place, e.g. ["gym", "point_of_interest"]. Used for checking, not saved. */
+  types: string[]
+}
+
+/** Fetches the details we need for a gym. Throws if Google has no coordinates. */
+export async function getPlaceDetails(suggestion: PlaceSuggestion): Promise<PlaceDetails> {
   const place = suggestion.prediction.toPlace()
-  await place.fetchFields({ fields: ['id', 'displayName', 'formattedAddress', 'location'] })
+  await place.fetchFields({ fields: ['id', 'displayName', 'formattedAddress', 'location', 'types'] })
 
   if (!place.location) {
     throw new Error('Google Maps did not return coordinates for this place.')
   }
 
   return {
-    googlePlaceId: place.id || null,
-    name: place.displayName ?? suggestion.primaryText,
-    formattedAddress: place.formattedAddress ?? suggestion.secondaryText,
-    latitude: place.location.lat(),
-    longitude: place.location.lng(),
+    place: {
+      googlePlaceId: place.id || null,
+      name: place.displayName ?? suggestion.primaryText,
+      formattedAddress: place.formattedAddress ?? suggestion.secondaryText,
+      latitude: place.location.lat(),
+      longitude: place.location.lng(),
+    },
+    types: place.types ?? [],
   }
 }

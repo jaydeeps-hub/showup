@@ -42,11 +42,12 @@ Follow one press of the button through the files:
 
 1. **Which files control it?** `src/features/gym/GymSetupScreen.tsx` (heading, selected gym card, Save button) and `src/features/gym/GymSearch.tsx` (the search box and its loading/error states).
 2. **What do they do?** `GymSearch` loads Google Maps, fetches suggestions as you type, and fetches full details when you pick one. `GymSetupScreen` shows the result and calls `onSave`.
-3. **Depends on:** `services/mapsService.ts` (all Google calls), `config/constants.ts` (debounce delay, minimum characters, `PRIMARY_GYM_LABEL`), `components/GymSummary.tsx`, and `useShowup.saveGym`.
+3. **Depends on:** `services/mapsService.ts` (all Google calls), `services/gymValidation.ts` (is the place a gym?), `config/constants.ts` (debounce delay, minimum characters, `PRIMARY_GYM_LABEL`, `ALLOWED_GYM_PLACE_TYPES`), `components/GymSummary.tsx`, and `useShowup.saveGym`.
 4. **To change it, start at:**
    - Search behaviour (e.g. restrict to gyms, or to one country): `searchPlaces` in `mapsService.ts`. Add options such as `includedPrimaryTypes: ['gym']` or `includedRegionCodes: ['in']` to the request.
+   - Which kinds of places count as a gym: add or remove Google place types in `ALLOWED_GYM_PLACE_TYPES` (`config/constants.ts`). The full list is at https://developers.google.com/maps/documentation/places/web-service/place-types. The "Not a gym" wording is in `handleSelect` in `GymSearch.tsx`.
    - Which fields are saved: `getPlaceDetails` in `mapsService.ts`, the `SelectedPlace` and `Gym` types in `types/index.ts`, and `isGym` in `storageService.ts`.
-5. **Test after changing:** `npm test` (the maps tests use a fake Google library), then search in the browser for a real gym, a nonsense string (expect "No places found") and with the key removed (expect the setup warning).
+5. **Test after changing:** `npm test` (the maps tests use a fake Google library), then search in the browser for a real gym, a nonsense string (expect "No places found"), a non-gym such as a street address or restaurant (expect "Not a gym") and with the key removed (expect the setup warning).
 
 ### Home screen
 

@@ -51,23 +51,35 @@ describe('mapsService', () => {
     await expect(searchPlaces('zzzz', {} as google.maps.places.AutocompleteSessionToken)).resolves.toEqual([])
   })
 
-  it('extracts name, address and coordinates from place details', async () => {
+  it('extracts name, address, coordinates and types from place details', async () => {
     const prediction = fakePrediction({
       id: 'place-123',
       displayName: 'Iron Gym',
       formattedAddress: '5 Main Road, Springfield',
       location: { lat: () => 10.5, lng: () => 20.25 },
+      types: ['gym', 'point_of_interest'],
     })
 
     const details = await getPlaceDetails({ placeId: 'place-123', primaryText: 'Iron Gym', secondaryText: '', prediction })
 
     expect(details).toEqual({
-      googlePlaceId: 'place-123',
-      name: 'Iron Gym',
-      formattedAddress: '5 Main Road, Springfield',
-      latitude: 10.5,
-      longitude: 20.25,
+      place: {
+        googlePlaceId: 'place-123',
+        name: 'Iron Gym',
+        formattedAddress: '5 Main Road, Springfield',
+        latitude: 10.5,
+        longitude: 20.25,
+      },
+      types: ['gym', 'point_of_interest'],
     })
+  })
+
+  it('returns no types when Google provides none', async () => {
+    const prediction = fakePrediction({ id: 'place-9', location: { lat: () => 1, lng: () => 2 } })
+
+    const details = await getPlaceDetails({ placeId: 'place-9', primaryText: 'Home', secondaryText: '', prediction })
+
+    expect(details.types).toEqual([])
   })
 
   it('throws if Google returns no coordinates', async () => {

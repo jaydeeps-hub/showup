@@ -13,6 +13,7 @@ import {
   searchPlaces,
   type PlaceSuggestion,
 } from '../../services/mapsService'
+import { isFitnessPlace } from '../../services/gymValidation'
 import type { SelectedPlace } from '../../types'
 
 type MapsStatus = 'not-configured' | 'loading' | 'ready' | 'load-failed'
@@ -92,7 +93,14 @@ export function GymSearch({ onPlaceSelected }: GymSearchProps) {
     setIsLoadingDetails(true)
     setErrorMessage(null)
     try {
-      onPlaceSelected(await getPlaceDetails(suggestion))
+      const { place, types } = await getPlaceDetails(suggestion)
+      if (isFitnessPlace(types)) {
+        onPlaceSelected(place)
+      } else {
+        setErrorMessage(
+          `Not a gym. "${place.name}" isn't listed on Google Maps as a gym, fitness centre or sports facility. Please select another place.`,
+        )
+      }
     } catch (error) {
       console.error('Google Maps place details failed', error)
       setErrorMessage('Could not load the details for that place. Please try again or pick another result.')

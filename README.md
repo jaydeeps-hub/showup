@@ -1,6 +1,6 @@
 # Showup
 
-**Version 0.1.0** · a location-verified gym attendance tracker.
+**Version 0.1.1** · a location-verified gym attendance tracker.
 
 Save your gym once. When you arrive, press **SHOW UP**. Showup checks the location your device reports against your saved gym. If you're within 100 metres, it records one Showup. If not, nothing is recorded.
 
@@ -12,6 +12,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 
 - **Temporary demo profile.** You enter a username and a password. This is **not real authentication**: the password is never saved or checked, and everything stays in your browser.
 - **Gym search with Google Maps.** Uses Places API (New) autocomplete to find a real gym, then saves its name, address and coordinates as **Gym 1**.
+- **Gym-only check.** A selected place is only accepted if Google Maps lists it as a gym, fitness centre or similar sports facility. Homes, shops and other random locations are rejected with a "Not a gym" message.
 - **SHOW UP button.** Gets your current location (high accuracy), measures the distance to your gym with the Haversine formula, and accepts the visit if you're inside the geofence.
 - **Accuracy safeguard.** A location reading that's too imprecise is rejected with a "try again" message instead of being guessed.
 - **Clear error messages** when location permission is denied, location is unavailable, the request times out, or the browser doesn't support geolocation.
@@ -174,6 +175,8 @@ gh repo create showup --private --source=. --push
 Starting a brand-new folder instead? Run `git init` first, then follow the same steps.
 
 ## Known limitations
+
+- **Gym check relies on Google's categories.** A real gym that Google has categorised wrongly (or not at all) will be rejected. The accepted categories are listed in `ALLOWED_GYM_PLACE_TYPES` in `src/config/constants.ts`. Someone could still pick a real gym they never visit, but they would have to physically go there to earn Showups.
 
 - **Not real authentication.** Anyone using the same browser sees the same data. The password is ignored.
 - **Data lives in one browser.** Clearing site data, switching browsers or switching devices loses it. There is no sync or backup.

@@ -2,7 +2,7 @@
  * App-wide settings. Change behaviour here rather than inside components.
  */
 
-export const APP_VERSION = '0.1.0'
+export const APP_VERSION = '0.1.1'
 
 /**
  * How close (in metres) the user must be to the saved gym's coordinates for a
@@ -26,6 +26,25 @@ export const GEOLOCATION_OPTIONS: PositionOptions = {
   timeout: 15_000, // give up after 15 seconds
   maximumAge: 0, // never reuse a cached position
 }
+
+/**
+ * Google Maps place types accepted as a "gym". A selected place must have at
+ * least one of these, which stops people saving a random location (such as
+ * their home) and earning Showups there. Add or remove types here.
+ * Full list: https://developers.google.com/maps/documentation/places/web-service/place-types
+ */
+export const ALLOWED_GYM_PLACE_TYPES: readonly string[] = [
+  'gym',
+  'fitness_center',
+  'yoga_studio',
+  'sports_club',
+  'sports_complex',
+  'sports_activity_location',
+  'sports_coaching',
+  'swimming_pool',
+  'athletic_field',
+  'ice_skating_rink',
+]
 
 /** Label given to the single gym supported in v0.1.0. */
 export const PRIMARY_GYM_LABEL = 'Gym 1'
