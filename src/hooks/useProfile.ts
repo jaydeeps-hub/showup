@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchProfile, updateProfile } from '../services/profileService'
-import type { Profile, ProfileEdits, SaveResult } from '../types'
+import { fetchProfile, updatePlaceSearchMode, updateProfile } from '../services/profileService'
+import type { PlaceSearchMode, Profile, ProfileEdits, SaveResult } from '../types'
 
 export type ProfileState =
   | { status: 'loading' }
@@ -13,7 +13,14 @@ export type ProfileState =
  * Loads the profile for the signed-in user. It is independent of useAuth: authentication
  * answers "who are you?", this answers "what do we know about you?".
  */
-export function useProfile(userId: string): ProfileState & { reload: () => void; save: (edits: ProfileEdits) => Promise<SaveResult> } {
+export interface ProfileActions {
+  reload: () => void
+  save: (edits: ProfileEdits) => Promise<SaveResult>
+  /** Administrators only (the database refuses anyone else). Updates the profile on success. */
+  setPlaceSearchMode: (mode: PlaceSearchMode) => Promise<SaveResult>
+}
+
+export function useProfile(userId: string): ProfileState & ProfileActions {
   const [state, setState] = useState<ProfileState>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
@@ -59,5 +66,15 @@ export function useProfile(userId: string): ProfileState & { reload: () => void;
     [userId],
   )
 
-  return { ...state, reload, save }
+  const setPlaceSearchMode = useCallback(async (mode: PlaceSearchMode): Promise<SaveResult> => {
+    const result = await updatePlaceSearchMode(mode)
+    if (result.status === 'error') return { ok: false, message: result.message }
+    // Only change what we show once the database has confirmed it.
+    setState((current) =>
+      current.status === 'ready' ? { status: 'ready', profile: { ...current.profile, placeSearchMode: result.mode } } : current,
+    )
+    return { ok: true }
+  }, [])
+
+  return { ...state, reload, save, setPlaceSearchMode }
 }

@@ -5,8 +5,9 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { ScreenLayout } from '../../components/ScreenLayout'
-import type { Profile, ProfileEdits, SaveResult } from '../../types'
+import type { PlaceSearchMode, Profile, ProfileEdits, SaveResult } from '../../types'
 import { profileToFormValues } from '../../utils/profileValidation'
+import { PlaceSearchModeSetting } from './PlaceSearchModeSetting'
 import { ProfileForm } from './ProfileForm'
 
 interface ManageProfileScreenProps {
@@ -14,6 +15,8 @@ interface ManageProfileScreenProps {
   /** The Google account's email, when Google provided one. Shown read-only. */
   email: string | null
   onSave: (edits: ProfileEdits) => Promise<SaveResult>
+  /** Changes the gym search mode. Only used (and only shown) for administrators. */
+  onChangeSearchMode: (mode: PlaceSearchMode) => Promise<SaveResult>
   /** Leave the page and go back to the home screen. */
   onClose: () => void
   onSignOut: () => void
@@ -21,9 +24,11 @@ interface ManageProfileScreenProps {
 
 /**
  * Lets a signed-in user view and edit their name and birthday, see which Google account
- * they use, and sign out. There is deliberately no admin control here.
+ * they use, and sign out. Administrators also see the gym search mode setting; regular users
+ * never do, and cannot change it even by calling the database directly.
  */
-export function ManageProfileScreen({ profile, email, onSave, onClose, onSignOut }: ManageProfileScreenProps) {
+export function ManageProfileScreen(props: ManageProfileScreenProps) {
+  const { profile, email, onSave, onChangeSearchMode, onClose, onSignOut } = props
   return (
     <ScreenLayout>
       <Stack spacing={6}>
@@ -51,6 +56,14 @@ export function ManageProfileScreen({ profile, email, onSave, onClose, onSignOut
             helperText="You sign in with this Google account. It can't be changed here."
           />
         </ProfileForm>
+
+        {/* Shown only to administrators. The database refuses anyone else, so this is a convenience, not the security. */}
+        {profile.isAdmin && (
+          <>
+            <Divider />
+            <PlaceSearchModeSetting mode={profile.placeSearchMode} onChange={onChangeSearchMode} />
+          </>
+        )}
 
         <Divider />
 

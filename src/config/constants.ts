@@ -78,3 +78,11 @@ export const GOOGLE_MAPS_API_KEY: string = import.meta.env.VITE_GOOGLE_MAPS_API_
  */
 export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
 export const SUPABASE_PUBLISHABLE_KEY: string = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
+
+/**
+ * Optional. The public address of the deployed app (for example https://showup.example.com), used
+ * as the sign-in return address in production. Normally leave this unset: the app returns to the
+ * address it is running on, which is correct for localhost, the main Vercel domain and previews.
+ * It is ignored when running on localhost.
+ */
+export const SITE_URL: string = import.meta.env.VITE_SITE_URL?.trim() ?? ''

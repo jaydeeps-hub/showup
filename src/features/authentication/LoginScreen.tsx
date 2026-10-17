@@ -6,7 +6,12 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
 import { ScreenLayout } from '../../components/ScreenLayout'
-import { AuthNotConfiguredError, consumeRedirectError, signInWithGoogle } from '../../services/authService'
+import {
+  AuthNotConfiguredError,
+  AuthRedirectUnavailableError,
+  consumeRedirectError,
+  signInWithGoogle,
+} from '../../services/authService'
 import { isSupabaseConfigured } from '../../services/supabaseClient'
 
 /** Sign-in screen shown to anyone who is signed out. */
@@ -36,7 +41,9 @@ export function LoginScreen() {
       setErrorMessage(
         error instanceof AuthNotConfiguredError
           ? 'Sign-in is not set up yet. See the README to add your Supabase settings.'
-          : 'We could not start Google sign-in. Check your internet connection and try again.',
+          : error instanceof AuthRedirectUnavailableError
+            ? 'Sign-in cannot start from this address. Open Showup from its normal web address (https://...) and try again.'
+            : 'We could not start Google sign-in. Check your internet connection and try again.',
       )
     }
   }

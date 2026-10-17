@@ -13,18 +13,23 @@ import {
   searchPlaces,
   type PlaceSuggestion,
 } from '../../services/mapsService'
-import { isFitnessPlace } from '../../services/gymValidation'
-import type { SelectedPlace } from '../../types'
+import { isPlaceAllowed } from '../../services/gymValidation'
+import type { PlaceSearchMode, SelectedPlace } from '../../types'
 
 type MapsStatus = 'not-configured' | 'loading' | 'ready' | 'load-failed'
 
 interface GymSearchProps {
   /** Called with full place details once the user picks a suggestion. */
   onPlaceSelected: (place: SelectedPlace | null) => void
+  /**
+   * Which places may be chosen. Defaults to the restrictive `fitness_only`, so forgetting to pass
+   * it can never widen the search.
+   */
+  searchMode?: PlaceSearchMode
 }
 
 /** Search box backed by Google Maps Places autocomplete. */
-export function GymSearch({ onPlaceSelected }: GymSearchProps) {
+export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymSearchProps) {
   const [mapsStatus, setMapsStatus] = useState<MapsStatus>(isMapsConfigured() ? 'loading' : 'not-configured')
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
@@ -94,7 +99,7 @@ export function GymSearch({ onPlaceSelected }: GymSearchProps) {
     setErrorMessage(null)
     try {
       const { place, types } = await getPlaceDetails(suggestion)
-      if (isFitnessPlace(types)) {
+      if (isPlaceAllowed(types, searchMode)) {
         onPlaceSelected(place)
       } else {
         setErrorMessage(

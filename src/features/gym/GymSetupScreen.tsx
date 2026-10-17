@@ -5,16 +5,18 @@ import { useState } from 'react'
 import { GymSummary } from '../../components/GymSummary'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { PRIMARY_GYM_LABEL } from '../../config/constants'
-import type { SelectedPlace } from '../../types'
+import type { PlaceSearchMode, SelectedPlace } from '../../types'
 import { GymSearch } from './GymSearch'
 
 interface GymSetupScreenProps {
   onSave: (place: SelectedPlace) => void
   /** Present only when the user already has a gym and is changing it. */
   onCancel?: () => void
+  /** Which places the search may offer. Defaults to fitness places only. */
+  searchMode?: PlaceSearchMode
 }
 
-export function GymSetupScreen({ onSave, onCancel }: GymSetupScreenProps) {
+export function GymSetupScreen({ onSave, onCancel, searchMode }: GymSetupScreenProps) {
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null)
 
   return (
@@ -29,7 +31,7 @@ export function GymSetupScreen({ onSave, onCancel }: GymSetupScreenProps) {
           </Typography>
         </Stack>
 
-        <GymSearch onPlaceSelected={setSelectedPlace} />
+        <GymSearch onPlaceSelected={setSelectedPlace} searchMode={searchMode} />
 
         {selectedPlace && (
           <GymSummary

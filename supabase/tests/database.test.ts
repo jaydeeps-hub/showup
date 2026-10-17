@@ -555,3 +555,128 @@ describe('showups: access rules', () => {
     ])
   })
 })
+
+describe('place search mode (admin-only "any place")', () => {
+  let db: PGlite
+  let regular: string
+  let admin: string
+  beforeEach(async () => {
+    db = await createDatabase()
+    regular = await registerAuthUser(db)
+    admin = await registerAuthUser(db)
+    // Only the SQL Editor / service role can make an administrator.
+    await db.query('update public.profiles set is_admin = true where id = $1', [admin])
+  })
+  afterEach(async () => {
+    await db.close()
+  })
+
+  const setMode = (userId: string | null, mode: string | null) =>
+    asUser(db, userId, async () => (await db.query<{ set_place_search_mode: string }>('select public.set_place_search_mode($1)', [mode])).rows[0])
+  const effective = (userId: string) =>
+    asUser(db, userId, async () => (await db.query<{ effective_place_search_mode: string }>('select public.effective_place_search_mode()')).rows[0].effective_place_search_mode)
+  const stored = async (userId: string) =>
+    (await db.query<{ place_search_mode: string }>('select place_search_mode from public.profiles where id = $1', [userId])).rows[0].place_search_mode
+
+  it('starts every user, including a new administrator, on fitness places only', async () => {
+    expect(await stored(regular)).toBe('fitness_only')
+    expect(await stored(admin)).toBe('fitness_only')
+    expect(await effective(regular)).toBe('fitness_only')
+  })
+
+  it('lets a user read their own mode', async () => {
+    const rows = await asUser(db, regular, async () => (await db.query('select place_search_mode from public.profiles')).rows)
+    expect(rows).toEqual([{ place_search_mode: 'fitness_only' }])
+  })
+
+  it('lets an administrator switch to any place and back', async () => {
+    expect(await setMode(admin, 'any_place')).toEqual({ set_place_search_mode: 'any_place' })
+    expect(await stored(admin)).toBe('any_place')
+    expect(await effective(admin)).toBe('any_place')
+
+    await setMode(admin, 'fitness_only')
+    expect(await stored(admin)).toBe('fitness_only')
+    expect(await effective(admin)).toBe('fitness_only')
+  })
+
+  it('does NOT let a regular user switch to any place', async () => {
+    await expect(setMode(regular, 'any_place')).rejects.toThrow(/Only administrators can search any place/)
+    expect(await stored(regular)).toBe('fitness_only')
+    expect(await effective(regular)).toBe('fitness_only')
+  })
+
+  it('does not let a regular user write the column directly, by any route', async () => {
+    await expect(
+      asUser(db, regular, () => db.query("update public.profiles set place_search_mode = 'any_place' where id = $1", [regular])),
+    ).rejects.toThrow(PERMISSION_DENIED)
+    await expect(
+      asUser(db, regular, () => db.query("update public.profiles set first_name = 'x', place_search_mode = 'any_place' where id = $1", [regular])),
+    ).rejects.toThrow(PERMISSION_DENIED)
+    expect(await stored(regular)).toBe('fitness_only')
+  })
+
+  it('does not let an administrator write the column directly either (only via the function)', async () => {
+    await expect(
+      asUser(db, admin, () => db.query("update public.profiles set place_search_mode = 'any_place' where id = $1", [admin])),
+    ).rejects.toThrow(PERMISSION_DENIED)
+  })
+
+  it('does not let a user promote themselves in order to unlock the setting', async () => {
+    await expect(
+      asUser(db, regular, () => db.query('update public.profiles set is_admin = true where id = $1', [regular])),
+    ).rejects.toThrow(PERMISSION_DENIED)
+    await expect(setMode(regular, 'any_place')).rejects.toThrow(/Only administrators/)
+  })
+
+  it("only ever changes the caller's own profile", async () => {
+    await setMode(admin, 'any_place')
+    expect(await stored(regular)).toBe('fitness_only')
+  })
+
+  it('lets anyone return to the restrictive mode', async () => {
+    expect(await setMode(regular, 'fitness_only')).toEqual({ set_place_search_mode: 'fitness_only' })
+  })
+
+  it('rejects unknown modes and null', async () => {
+    await expect(setMode(admin, 'everything')).rejects.toThrow(/Invalid place search mode/)
+    await expect(setMode(admin, null)).rejects.toThrow(/Invalid place search mode/)
+    await expect(setMode(admin, '')).rejects.toThrow(/Invalid place search mode/)
+  })
+
+  it('rejects an invalid value written by an administrator in the SQL Editor (check constraint)', async () => {
+    await expect(db.query("update public.profiles set place_search_mode = 'bogus' where id = $1", [admin])).rejects.toThrow(
+      /profiles_place_search_mode_valid/,
+    )
+  })
+
+  it('refuses signed-out visitors', async () => {
+    await expect(setMode(null, 'fitness_only')).rejects.toThrow(PERMISSION_DENIED)
+    await expect(asUser(db, null, () => db.query('select public.effective_place_search_mode()'))).rejects.toThrow(PERMISSION_DENIED)
+  })
+
+  it('stops honouring any place the moment admin rights are removed', async () => {
+    await setMode(admin, 'any_place')
+    expect(await effective(admin)).toBe('any_place')
+
+    await db.query('update public.profiles set is_admin = false where id = $1', [admin]) // done in the SQL Editor
+    expect(await stored(admin)).toBe('any_place') // the old value is still stored...
+    expect(await effective(admin)).toBe('fitness_only') // ...but no longer applies
+    await expect(setMode(admin, 'any_place')).rejects.toThrow(/Only administrators/)
+  })
+
+  it('treats a user with no profile row as restricted', async () => {
+    const ghost = '22222222-2222-2222-2222-222222222222'
+    expect(await effective(ghost)).toBeNull()
+    await expect(setMode(ghost, 'any_place')).rejects.toThrow(/Only administrators/)
+  })
+
+  it("keeps a user's other profile rights working", async () => {
+    await asUser(db, regular, () => db.query("update public.profiles set first_name = 'Asha' where id = $1", [regular]))
+    expect((await db.query('select first_name from public.profiles where id = $1', [regular])).rows).toEqual([{ first_name: 'Asha' }])
+  })
+
+  it('cannot be called through the function by someone who is not signed in as that user', async () => {
+    // auth.uid() comes from the verified sign-in token, never from an argument the caller controls.
+    await expect(asUser(db, regular, () => db.query("select public.set_place_search_mode('any_place')"))).rejects.toThrow(/Only administrators/)
+  })
+})

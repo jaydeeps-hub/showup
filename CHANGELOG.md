@@ -16,6 +16,39 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Production login fix and gym search mode (v2, step 4)
+
+Not yet committed or released. Builds on steps 1-3 (already pushed).
+
+### What changed
+
+- **Bug fix, production sign-in:** on the live site Google sign-in returned the user to `localhost:5173`. Cause: Supabase ignores the app's requested return address unless it is on the dashboard's Redirect URLs allow-list, and then falls back to the **Site URL**, which had been set to `http://localhost:5173` (as the README advised). The code already used the current address, so this needed a dashboard change (documented in README step 5 and SETUP_SUPABASE section 8). The code was also hardened: the return address is chosen in one tested place (`utils/authRedirect.ts`) with an optional `VITE_SITE_URL` override that is ignored on localhost, an invalid address is refused instead of used, and errors on the returned URL are shown as a plain message and cleared from the address bar.
+- **Gym search mode:** regular users can search and save only gyms and fitness places (already true since 0.1.1, now driven by a setting). Administrators get **Gym search (administrator)** in Manage Profile to switch between *Fitness places only* and *Any place*. The setting is stored in Supabase and enforced by the database. It applies to first-time setup and Change gym.
+
+### Why
+
+Production login was unusable, and "any place" must be an administrator privilege that a normal user cannot reach by editing the frontend.
+
+### Important files
+
+- Login: `src/utils/authRedirect.ts` (new), `src/services/authService.ts`, `src/features/authentication/LoginScreen.tsx`, `src/config/constants.ts`, `.env.example`
+- Search mode: `supabase/migrations/20261018100000_place_search_mode.sql` (new), `src/services/gymValidation.ts`, `src/features/gym/GymSearch.tsx`, `GymSetupScreen.tsx`, `src/features/profile/PlaceSearchModeSetting.tsx` (new), `ManageProfileScreen.tsx`, `src/services/profileService.ts`, `src/hooks/useProfile.ts`, `src/app/App.tsx`, `src/types/index.ts`
+- Tests: `src/utils/authRedirect.test.ts`, `src/app/App.placeSearch.test.tsx`, additions to `gymValidation.test.ts`, `profileService.test.ts`, `supabase/tests/database.test.ts`
+
+### Data model changes
+
+New column `profiles.place_search_mode` (`'fitness_only'` default, or `'any_place'`), and functions `set_place_search_mode(text)` and `effective_place_search_mode()`. Existing rows become `fitness_only`. `gyms` and `showups` are unchanged.
+
+### Migration / configuration steps
+
+1. Run `supabase/migrations/20261018100000_place_search_mode.sql` in the Supabase SQL Editor (see `docs/SETUP_SUPABASE.md`).
+2. **Fix the login bug in the Supabase dashboard:** set **Authentication → URL Configuration → Site URL** to the live Vercel address and make sure **Redirect URLs** lists it, plus `http://localhost:5173` and `http://localhost:4173`. Then redeploy and retest on a phone.
+3. To use the admin setting, make an account an administrator in the SQL Editor (`SETUP_SUPABASE.md` section 4).
+
+### Tests performed
+
+See the final report. Not tested: the migration on the real Supabase project, and a real Google sign-in on the live site (the dashboard change above is required first).
+
 ## [Unreleased] - Profile onboarding and Manage Profile (v2, step 3)
 
 Not yet committed or released. Builds on steps 1-2 (already pushed).

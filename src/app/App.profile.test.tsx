@@ -73,6 +73,7 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     lastName: null,
     dateOfBirth: null,
     isAdmin: false,
+    placeSearchMode: 'fitness_only',
     createdAt: '2026-10-17T10:00:00Z',
     updatedAt: '2026-10-17T10:00:00Z',
     ...overrides,

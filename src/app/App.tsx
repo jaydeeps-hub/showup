@@ -114,6 +114,7 @@ function SignedInApp({ session }: { session: Session }) {
           profile={profile.profile}
           email={session.user.email ?? null}
           onSave={profile.save}
+          onChangeSearchMode={profile.setPlaceSearchMode}
           onClose={() => setIsManagingProfile(false)}
           onSignOut={() => {
             setIsManagingProfile(false)
@@ -131,6 +132,8 @@ function SignedInApp({ session }: { session: Session }) {
             setIsChangingGym(false)
           }}
           onCancel={showup.gym ? () => setIsChangingGym(false) : undefined}
+          // Only a loaded profile can widen the search; in every other case it stays restricted.
+          searchMode={profile.status === 'ready' ? profile.profile.placeSearchMode : 'fitness_only'}
         />
       )
     }

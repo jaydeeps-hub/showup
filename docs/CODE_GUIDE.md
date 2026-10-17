@@ -38,6 +38,21 @@ Follow one press of the button through the files:
 4. **To change it, start at:** the rules in `utils/profileValidation.ts` (what counts as "complete", name length, date checks); wording in the two screen files; which fields exist in `ProfileEdits` (`types/index.ts`) and `updateProfile`. A new field also needs a database migration and a column privilege (`GRANT UPDATE`), or the database will refuse the save.
 5. **Test after changing:** `npm test` (`profileValidation.test.ts`, `profileService.test.ts`, `App.profile.test.tsx`), then try a brand-new Google account, a refresh, and an offline save in the browser.
 
+### Gym search mode (fitness places vs any place)
+
+1. **Which files control it?** `src/services/gymValidation.ts` (`isPlaceAllowed`), `src/features/gym/GymSearch.tsx` (applies it), `src/features/profile/PlaceSearchModeSetting.tsx` (the admin-only switch), `src/services/profileService.ts` (`updatePlaceSearchMode`), and `supabase/migrations/20261018100000_place_search_mode.sql` (the real enforcement).
+2. **What do they do?** The search only accepts fitness places unless the signed-in user is an administrator who chose "Any place". The choice is stored on the profile in Supabase and changed only through a database function that checks `is_admin`.
+3. **What do they depend on?** `ALLOWED_GYM_PLACE_TYPES` in `config/constants.ts`, `useProfile` (`setPlaceSearchMode`), `Profile.placeSearchMode`.
+4. **To change it, start at:** which places count as fitness: `ALLOWED_GYM_PLACE_TYPES`. Who may widen the search: the migration (a new migration, never edit an applied one). Never rely on hiding the control in the interface as the only protection.
+5. **Test after changing:** `npm test` (`gymValidation.test.ts`, `App.placeSearch.test.tsx`, and the "place search mode" tests in `supabase/tests/database.test.ts`), then sign in as a normal user and as an administrator.
+
+### Sign-in return address
+
+1. **Which files control it?** `src/utils/authRedirect.ts` (decides the address and explains errors) and `src/services/authService.ts` (`signInWithGoogle`).
+2. **What do they do?** They give Supabase the address to return to after Google, and turn any error on the returned URL into a friendly message.
+3. **To change it, start at:** `chooseRedirectUrl`. Remember the Supabase **Redirect URLs** and **Site URL** dashboard settings must match (see README step 5).
+4. **Test after changing:** `npm test` (`authRedirect.test.ts`) and a real sign-in on localhost **and** on the live site.
+
 ### Temporary user (welcome screen) — removed
 
 The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-in lives in `features/authentication/LoginScreen.tsx` and `services/authService.ts`.

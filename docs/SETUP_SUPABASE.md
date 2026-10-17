@@ -20,7 +20,7 @@ Nothing in this project can change your hosted database for you. You do these st
 1. Open the [Supabase dashboard](https://supabase.com/dashboard) and choose your project.
 2. Open **SQL Editor** → **New query**.
 3. Open `supabase/migrations/20261017120000_create_core_tables.sql` in VS Code, copy **all** of it, paste it into the editor, and click **Run**. Expect "Success. No rows returned".
-4. Repeat for `20261017120100_provision_profiles.sql`, then `20261017120200_row_level_security.sql`. **Keep this order.**
+4. Repeat for `20261017120100_provision_profiles.sql`, then `20261017120200_row_level_security.sql`, then `20261018100000_place_search_mode.sql` (Step 4: the administrator-only gym search setting). **Keep this order.** If you already ran the first three earlier, run only the new `20261018100000_place_search_mode.sql`.
 5. If any step shows an error, stop, and do not continue to the next file. Copy the error message; most errors mean a file was already run once (for example "relation already exists"). Do not run a file twice.
 
 ### Option B: Supabase CLI (later, when you want repeatable deployments)
@@ -111,12 +111,42 @@ update public.profiles set is_admin = true where id = (select id from auth.users
 
 To remove it, set `is_admin = false` the same way. Admin features themselves come in a later step.
 
+### Verify the Step 4 migration (gym search setting)
+
+**The column exists, everyone starts on `fitness_only`:**
+
+```sql
+select place_search_mode, count(*) from public.profiles group by 1;
+```
+
+**Users cannot write the column; the two functions exist** — expect `false`, then two rows:
+
+```sql
+select has_column_privilege('authenticated', 'public.profiles', 'place_search_mode', 'UPDATE') as users_can_write_it;
+
+select proname, prosecdef as security_definer
+from pg_proc
+where pronamespace = 'public'::regnamespace
+  and proname in ('set_place_search_mode', 'effective_place_search_mode');
+```
+
+**Signed-out visitors cannot call them** — expect `false`, `false`:
+
+```sql
+select
+  has_function_privilege('anon', 'public.set_place_search_mode(text)', 'EXECUTE')      as anon_can_set,
+  has_function_privilege('anon', 'public.effective_place_search_mode()', 'EXECUTE')    as anon_can_read;
+```
+
+**End-to-end:** sign in as a normal user, open **Profile** and confirm there is no "Gym search" setting. Make yourself an administrator (section 4), reload, and the setting appears. Switch to **Any place**, refresh, and confirm it is still selected.
+
 ## 5. Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
 | Yellow banner "profile was not found" in the app | Migrations not run yet, or run in the wrong order. Run section 3's last check, then run migration 2 (its back-fill creates missing profiles). |
 | Yellow banner "profile could not be loaded" | Migration 3 not run (no read access), the project URL/key in `.env.local` points at a different project, or a network problem. The message in brackets says which. |
+| Admin setting fails with "function public.set_place_search_mode does not exist" | The Step 4 migration (`20261018100000_place_search_mode.sql`) has not been run yet |
 | `permission denied for table profiles` in the browser console | Same as above: migration 3 has not been applied, or has not been applied completely. |
 | SQL Editor: `relation "public.profiles" already exists` | That migration was already run. Skip it. |
 | SQL Editor: `permission denied for schema auth` or `must be owner` | You are not running it as the project owner in the dashboard SQL Editor. |
@@ -133,3 +163,13 @@ npm test
 ```
 
 `supabase/tests/database.test.ts` applies every migration file to a throw-away in-process Postgres (PGlite) and checks, among other things, that a new user gets a profile, that one user cannot read or edit another's data, and that nobody can promote themselves to admin. It imitates Supabase's `auth` schema and roles, so it proves the SQL and the security rules but **not** that your hosted project has the migrations. That is what the checks in section 3 are for.
+
+## 8. Fixing "production sign-in redirects to localhost:5173"
+
+This is a dashboard setting, not a code problem. Supabase ignores the app's requested return address unless it is on the allow-list, and then falls back to the **Site URL**. Fix, in the Supabase dashboard under **Authentication → URL Configuration**:
+
+1. Set **Site URL** to your live address, e.g. `https://YOUR-APP.vercel.app` (not `http://localhost:5173`).
+2. Under **Redirect URLs** make sure these are all present: `https://YOUR-APP.vercel.app`, `http://localhost:5173`, `http://localhost:4173` (and a Vercel preview pattern if you use previews).
+3. In Google Cloud, the OAuth client's **Authorized redirect URIs** must contain only `https://YOUR-PROJECT-ID.supabase.co/auth/v1/callback`.
+4. In Vercel, confirm `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are set for Production, then redeploy.
+5. Test on a phone in a private tab (old cookies and half-finished sign-ins can confuse the first retry).

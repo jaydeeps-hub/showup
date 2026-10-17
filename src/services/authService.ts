@@ -1,4 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js'
+import { SITE_URL } from '../config/constants'
+import { chooseRedirectUrl, describeRedirectError } from '../utils/authRedirect'
 import { supabase } from './supabaseClient'
 
 /** Thrown when sign-in is attempted but the Supabase settings are missing from `.env.local`. */
@@ -9,21 +11,36 @@ export class AuthNotConfiguredError extends Error {
   }
 }
 
+/** Thrown when no safe address to return to after sign-in can be worked out. */
+export class AuthRedirectUnavailableError extends Error {
+  constructor() {
+    super('No valid return address for sign-in.')
+    this.name = 'AuthRedirectUnavailableError'
+  }
+}
+
 /**
- * Where Google should send the user after signing in: the address the app is running on
- * (http://localhost:5173 locally, your Vercel address in production). This exact address
- * must be listed under Redirect URLs in the Supabase dashboard (see README).
+ * Where Supabase should send the user after signing in: the address the app is running on, so
+ * it is correct on localhost, on the main Vercel domain and on preview deployments alike. See
+ * utils/authRedirect.ts for the rules.
+ *
+ * IMPORTANT: Supabase only honours this if the exact address is listed under Authentication ->
+ * URL Configuration -> Redirect URLs. If it is not, Supabase silently ignores it and sends the
+ * user to its configured Site URL instead (which is how a live site can end up on localhost).
  */
 function getRedirectUrl(): string {
-  return window.location.origin
+  const url = chooseRedirectUrl({ currentOrigin: window.location.origin, configuredSiteUrl: SITE_URL })
+  if (url === null) throw new AuthRedirectUnavailableError()
+  return url
 }
 
 /** Sends the browser to Google. The page leaves the app, so this does not "return" a user. */
 export async function signInWithGoogle(): Promise<void> {
   if (!supabase) throw new AuthNotConfiguredError()
+  const redirectTo = getRedirectUrl()
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: getRedirectUrl() },
+    options: { redirectTo },
   })
   if (error) throw error
 }
@@ -80,12 +97,12 @@ export function getIdentity(user: User): { id: string; username: string } {
  * the error from the address bar. Returns null when there is nothing to report.
  */
 export function consumeRedirectError(): string | null {
-  const search = new URLSearchParams(window.location.search)
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const description = search.get('error_description') ?? hash.get('error_description')
-  const code = search.get('error') ?? hash.get('error')
-  if (!description && !code) return null
+  const details = describeRedirectError(window.location.search, window.location.hash)
+  if (!details) return null
 
+  // Keep the technical detail for whoever debugs it; show the user a plain message.
+  console.error('Sign-in returned an error:', details.raw)
+  // Remove the error (and any leftover tokens) from the address bar.
   window.history.replaceState(null, '', window.location.pathname)
-  return description ?? code
+  return details.message
 }

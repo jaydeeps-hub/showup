@@ -7,6 +7,7 @@ The Showup database lives in Supabase (PostgreSQL). Its structure is defined **o
 | `20261017120000_create_core_tables.sql` | Creates `profiles`, `gyms`, `showups`, their constraints and indexes |
 | `20261017120100_provision_profiles.sql` | Trigger that creates a profile for every new Auth user; back-fills existing users |
 | `20261017120200_row_level_security.sql` | Turns on Row Level Security, column privileges and all policies |
+| `20261018100000_place_search_mode.sql` | Adds `profiles.place_search_mode` and the two functions that control it (admin-only "any place") |
 
 ## How the tables relate
 
@@ -31,6 +32,7 @@ One row per Auth user.
 | `last_name` | text, null | Same rules |
 | `date_of_birth` | date, null | Not before 1900-01-01 |
 | `is_admin` | boolean, **not null**, default `false` | Not writable by app users (see below) |
+| `place_search_mode` | text, **not null**, default `'fitness_only'` | `'fitness_only'` or `'any_place'` (check constraint). Readable by the user, **not writable** by app users; changed only through `set_place_search_mode()` |
 | `created_at` | timestamptz, default `now()` | |
 | `updated_at` | timestamptz, default `now()` | Refreshed automatically by a trigger on every update |
 
@@ -115,6 +117,23 @@ Signed-out (`anon`) visitors have **no** access to any table.
 - Users cannot `INSERT` into `profiles` at all, so they cannot create an admin row either.
 - The signup trigger ignores user metadata completely. `is_admin` always takes its default, `false`, whatever Google (or a crafted sign-up) supplies.
 - The only way to make someone an admin is the SQL Editor or the service role: `update public.profiles set is_admin = true where id = '<user id>';`. See [SETUP_SUPABASE.md](SETUP_SUPABASE.md).
+
+## Gym search mode (administrator-only "any place")
+
+`profiles.place_search_mode` decides which places the gym search offers. It is `fitness_only` for everyone by default.
+
+| Function | Who can call it | What it does |
+|---|---|---|
+| `set_place_search_mode(new_mode text)` | signed-in users (not `anon`) | Sets the **caller's own** mode. Anyone may choose `fitness_only`; `any_place` is refused with *"Only administrators can search any place"* unless the caller's profile has `is_admin = true`. Rejects any other value. |
+| `effective_place_search_mode()` | signed-in users | Returns the mode that really applies: `any_place` only if the caller is **currently** an administrator and has chosen it, otherwise `fitness_only`. |
+
+Why it is safe:
+- App users have **no** `UPDATE` privilege on the column (the grant is still only `first_name, last_name, date_of_birth`), so they cannot write it directly, alone or together with other columns.
+- The function is `SECURITY DEFINER` (it runs with the owner's rights because users cannot write the column), so it does its own checks, takes the user from `auth.uid()` (the verified sign-in), never from an argument, and sets `search_path` to empty.
+- Removing someone's admin rights in the SQL Editor immediately restricts them again, because `effective_place_search_mode()` and the app both require `is_admin` as well as the stored value.
+- `is_admin` itself is unchanged: still not writable by app users.
+
+**Limitation:** this controls *who may widen the search*. It does not (yet) validate *which place* a gym is, because gyms are still saved in the browser (localStorage), not in the `gyms` table. The fitness filter on the place itself therefore runs in the app. When gyms move to the database, the same rule should be enforced there (for example by an Edge Function that checks the place type with Google before inserting).
 
 ## Profile creation trigger
 

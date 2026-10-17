@@ -92,9 +92,13 @@ export interface ProfileEdits {
 export type SaveResult = { ok: true } | { ok: false; message: string }
 
 /**
- * A row of the Supabase `public.profiles` table (see docs/DATABASE_SCHEMA.md).
- * Names and date of birth are empty until the profile-completion step is built.
+ * Which places the gym search may offer.
+ * - `fitness_only`: gyms and fitness-related places (everyone's default).
+ * - `any_place`: any place on Google Maps. Only administrators can use this; the database enforces it.
  */
+export type PlaceSearchMode = 'fitness_only' | 'any_place'
+
+/** A row of the Supabase `public.profiles` table (see docs/DATABASE_SCHEMA.md). */
 export interface Profile {
   /** Same ID as the signed-in Supabase Auth user. */
   id: string
@@ -103,6 +107,11 @@ export interface Profile {
   /** Calendar date as `YYYY-MM-DD`. */
   dateOfBirth: string | null
   isAdmin: boolean
+  /**
+   * The search mode that applies RIGHT NOW. For anyone who is not an administrator this is always
+   * `fitness_only`, whatever was stored earlier (the database works this out, not the app).
+   */
+  placeSearchMode: PlaceSearchMode
   createdAt: string
   updatedAt: string
 }

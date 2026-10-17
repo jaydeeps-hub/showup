@@ -1,4 +1,4 @@
-import type { Profile, ProfileEdits } from '../types'
+import type { PlaceSearchMode, Profile, ProfileEdits } from '../types'
 import { supabase } from './supabaseClient'
 
 /**
@@ -16,17 +16,27 @@ interface ProfileRow {
   last_name: string | null
   date_of_birth: string | null
   is_admin: boolean
+  place_search_mode: string
   created_at: string
   updated_at: string
 }
 
-const PROFILE_COLUMNS = 'id, first_name, last_name, date_of_birth, is_admin, created_at, updated_at'
+const PROFILE_COLUMNS = 'id, first_name, last_name, date_of_birth, is_admin, place_search_mode, created_at, updated_at'
 
 export type ProfileResult =
   | { status: 'found'; profile: Profile }
   /** Signed in, but no profile row exists. Normally the database trigger prevents this. */
   | { status: 'not-found' }
   | { status: 'error'; message: string }
+
+/**
+ * The mode that applies to this profile. Anything unexpected, or any mode for a non-administrator
+ * other than the default, becomes the restrictive `fitness_only`. The database enforces the same
+ * rule; doing it here too means a stale or odd value can never widen the search in the interface.
+ */
+function toEffectiveMode(row: Pick<ProfileRow, 'is_admin' | 'place_search_mode'>): PlaceSearchMode {
+  return row.is_admin && row.place_search_mode === 'any_place' ? 'any_place' : 'fitness_only'
+}
 
 function toProfile(row: ProfileRow): Profile {
   return {
@@ -35,6 +45,7 @@ function toProfile(row: ProfileRow): Profile {
     lastName: row.last_name,
     dateOfBirth: row.date_of_birth,
     isAdmin: row.is_admin,
+    placeSearchMode: toEffectiveMode(row),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -110,5 +121,36 @@ export async function updateProfile(userId: string, edits: ProfileEdits): Promis
     // A network failure can also surface as a thrown error.
     console.error('Unexpected error saving the profile', error)
     return { status: 'error', message: describeSaveError({ message: error instanceof Error ? error.message : '' }) }
+  }
+}
+
+export type SaveSearchModeResult = { status: 'saved'; mode: PlaceSearchMode } | { status: 'error'; message: string }
+
+/**
+ * Asks the database to change the signed-in user's place search mode. The database function
+ * `set_place_search_mode` is the real gatekeeper: it refuses `any_place` unless the caller's
+ * profile has is_admin = true, whatever this app does. The app never sends or changes is_admin.
+ */
+export async function updatePlaceSearchMode(mode: PlaceSearchMode): Promise<SaveSearchModeResult> {
+  if (!supabase) return { status: 'error', message: 'Supabase is not configured.' }
+
+  try {
+    const { data, error } = await supabase.rpc('set_place_search_mode', { new_mode: mode })
+
+    if (error) {
+      console.error('Could not change the place search mode', error)
+      if (error.code === '42501') {
+        return { status: 'error', message: 'Only administrators can search any place.' }
+      }
+      if (/failed to fetch|network|load failed|timed? ?out/i.test(error.message ?? '')) {
+        return { status: 'error', message: "We couldn't reach the server. Check your connection and try again." }
+      }
+      return { status: 'error', message: "We couldn't change this setting. Please try again." }
+    }
+    // Trust what the database confirms, not what we asked for.
+    return { status: 'saved', mode: data === 'any_place' ? 'any_place' : 'fitness_only' }
+  } catch (error) {
+    console.error('Unexpected error changing the place search mode', error)
+    return { status: 'error', message: "We couldn't reach the server. Check your connection and try again." }
   }
 }

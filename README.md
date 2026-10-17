@@ -10,6 +10,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 
 ## Features in v0.1.0
 
+- **Gym search is restricted to fitness places.** Regular users can only save a gym, fitness centre or similar sports facility. Administrators get a setting in Manage Profile to switch between **Fitness places only** and **Any place**; it is stored in Supabase and enforced by the database.
 - **Profile onboarding.** On first sign-in, people who don't yet have a first and last name are asked "Let's get to know you." (first name, last name, optional birthday). It appears once; after the profile is saved it is skipped, including after a refresh.
 - **Manage Profile.** A **Profile** button on the home screen opens a page to view and edit first name, last name and birthday, see the Google email in use, and sign out.
 - **Sign in with Google** through Supabase. The session is restored when you reload, and you can sign out from the home screen. Gyms and Showups are still stored in this browser (per Google account); moving them to a database is a later step.
@@ -107,18 +108,28 @@ The Google client secret goes only into the Supabase dashboard (next step), neve
 1. In the Supabase dashboard go to **Authentication → Sign In / Providers** (older UI: **Providers**) → **Google**.
 2. Switch it **on**, paste the Google **Client ID** and **Client secret**, and **Save**.
 
-### 5. Configure redirect URLs
+### 5. Configure redirect URLs (important: get this right or production login breaks)
 
-After Google sign-in, Supabase sends the user back to your app. It only does so for addresses you have allowed:
+After Google sign-in, Supabase sends the user back to your app. The app tells Supabase where to send them (its own address, so it is right for localhost, your Vercel domain and preview deployments). But Supabase **only obeys that if the address is on an allow-list**. If it is not on the list, Supabase **quietly ignores it and sends the user to the Site URL instead**. This is the cause of a live site redirecting to `localhost:5173`.
 
-1. In Supabase go to **Authentication → URL Configuration**.
-2. Set **Site URL** to `http://localhost:5173` while developing.
-3. Under **Redirect URLs**, add each address the app runs on:
+In Supabase go to **Authentication → URL Configuration**:
+
+1. **Site URL** = your **production** address, e.g. `https://YOUR-APP.vercel.app`. This is the fallback, so it must be the live site, **not** localhost.
+2. **Redirect URLs** = every address the app runs on. Add all of these (one per line):
+   - `https://YOUR-APP.vercel.app`  (production)
+   - `https://*-YOUR-TEAM.vercel.app/**`  (optional: Vercel preview deployments; see Vercel's docs for your exact pattern)
    - `http://localhost:5173`  (local development, `npm run dev`)
    - `http://localhost:4173`  (`npm run preview`)
-   - `https://YOUR-APP.vercel.app`  (production)
 
-**Production:** when you deploy to Vercel, (a) add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` as environment variables in the Vercel project settings, (b) add your Vercel address to the Redirect URLs above (and set **Site URL** to it once it is your main address), then (c) redeploy. The app automatically uses whichever address it is running on, so no code change is needed. Google's own redirect URI stays the single Supabase callback address from step 3.
+Local development keeps working with a production Site URL, because the app passes `http://localhost:5173` itself and that address is on the list.
+
+Use the exact address with no trailing slash and no path. `https://` and `http://` are different; `www.` and no `www.` are different.
+
+**Google Cloud** needs only **one** redirect address, and it is never your app's address: under your OAuth client's **Authorized redirect URIs** put the Supabase callback `https://YOUR-PROJECT-ID.supabase.co/auth/v1/callback`. Do **not** add `localhost` or your Vercel address there.
+
+**Vercel:** add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (and `VITE_GOOGLE_MAPS_API_KEY`) as environment variables for **Production** (and Preview if you use previews), then redeploy, because Vite bakes them in when it builds. No `VITE_SITE_URL` is needed; it is an optional override only.
+
+If sign-in fails, the app now shows "Sign-in could not be completed", clears the broken address from the browser, and logs the technical detail to the browser console.
 
 ### 6. Test sign-in, reload and sign-out
 
@@ -132,7 +143,8 @@ After Google sign-in, Supabase sends the user back to your app. It only does so 
 |---|---|
 | "Sign-in is not set up yet" | `.env.local` missing or variable names misspelled, or dev server not restarted |
 | Google says `redirect_uri_mismatch` | The Supabase callback address is missing from the Google client's Authorized redirect URIs |
-| Back on the login screen with an error about the redirect | Your app address is missing from Supabase **Redirect URLs** |
+| Live site redirects to `localhost:5173` after Google | **Site URL** in Supabase is still `http://localhost:5173`, or your live address is missing from **Redirect URLs**. Fix both (step 5) |
+| Back on the login screen with "Sign-in could not be completed" | Your app address is missing from Supabase **Redirect URLs** |
 | Google shows "Access blocked" | The consent screen is in Testing mode and your account is not in **Test users** |
 | Error mentioning a provider that "is not enabled" | Google is not switched on under Supabase **Providers** |
 
@@ -158,6 +170,19 @@ To try it: sign in with a Google account that is new to the app, or reset your p
 ```sql
 update public.profiles set first_name = null, last_name = null where id = (select id from auth.users where email = 'you@example.com');
 ```
+
+## Gym search: fitness places vs any place
+
+| Who | Can search |
+|---|---|
+| Everyone (default) | Gyms and fitness-related places only. Picking anything else shows "Not a gym… Please select another place." |
+| Administrators (`is_admin = true`) | Either **Fitness places only** (default) or **Any place**, chosen in **Profile** → *Gym search (administrator)* |
+
+The choice is saved on the user's profile in Supabase (`place_search_mode`), so it survives a refresh and a new sign-in. It applies both when you first choose a gym and when you use **Change gym**.
+
+**Enforced by the database, not just the interface.** A regular user has no permission to write the setting, and the only way to change it is a database function that refuses `any_place` unless the caller's profile has `is_admin = true`. Hiding the control in the app is only a convenience. If someone's admin rights are removed, their "any place" setting stops applying immediately.
+
+**How to make someone an administrator** (only possible in the Supabase SQL Editor, never from the app): see [docs/SETUP_SUPABASE.md](docs/SETUP_SUPABASE.md#4-making-someone-an-administrator). This step needs a new migration; see the same file for how to apply it.
 
 ## Configuring Google Maps
 

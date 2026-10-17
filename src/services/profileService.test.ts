@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // A fake of the Supabase query builder: from().update().eq().select().maybeSingle().
 // Every call is recorded so tests can check exactly what was sent to the database.
 const calls = vi.hoisted(() => ({
+  rpc: vi.fn(),
   from: vi.fn(),
   update: vi.fn(),
   eq: vi.fn(),
@@ -22,10 +23,10 @@ vi.mock('./supabaseClient', () => {
     select: calls.select,
     maybeSingle: calls.maybeSingle,
   })
-  return { supabase: { from: calls.from }, isSupabaseConfigured: true }
+  return { supabase: { from: calls.from, rpc: calls.rpc }, isSupabaseConfigured: true }
 })
 
-const { fetchProfile, updateProfile } = await import('./profileService')
+const { fetchProfile, updatePlaceSearchMode, updateProfile } = await import('./profileService')
 
 const row = {
   id: 'user-1',
@@ -33,6 +34,7 @@ const row = {
   last_name: 'Rao',
   date_of_birth: '1990-05-17',
   is_admin: false,
+  place_search_mode: 'fitness_only',
   created_at: '2026-10-17T10:00:00Z',
   updated_at: '2026-10-17T10:05:00Z',
 }
@@ -44,6 +46,7 @@ beforeEach(() => {
   calls.select.mockClear()
   calls.from.mockClear()
   calls.maybeSingle.mockReset()
+  calls.rpc.mockReset()
 })
 
 describe('updateProfile', () => {
@@ -62,6 +65,7 @@ describe('updateProfile', () => {
         lastName: 'Rao',
         dateOfBirth: '1990-05-17',
         isAdmin: false,
+        placeSearchMode: 'fitness_only',
         createdAt: '2026-10-17T10:00:00Z',
         updatedAt: '2026-10-17T10:05:00Z',
       },
@@ -137,5 +141,65 @@ describe('fetchProfile', () => {
   it('returns not-found when there is no row', async () => {
     calls.maybeSingle.mockResolvedValue({ data: null, error: null })
     expect(await fetchProfile('user-1')).toEqual({ status: 'not-found' })
+  })
+})
+
+describe('placeSearchMode on a loaded profile', () => {
+  const load = async (overrides: Record<string, unknown>) => {
+    calls.maybeSingle.mockResolvedValue({ data: { ...row, ...overrides }, error: null })
+    const result = await fetchProfile('user-1')
+    return result.status === 'found' ? result.profile.placeSearchMode : null
+  }
+
+  it('is any_place only for an administrator whose stored mode is any_place', async () => {
+    expect(await load({ is_admin: true, place_search_mode: 'any_place' })).toBe('any_place')
+  })
+
+  it('is fitness_only for an administrator on the default', async () => {
+    expect(await load({ is_admin: true, place_search_mode: 'fitness_only' })).toBe('fitness_only')
+  })
+
+  it('is fitness_only for a regular user, even if any_place is somehow stored', async () => {
+    expect(await load({ is_admin: false, place_search_mode: 'any_place' })).toBe('fitness_only')
+  })
+
+  it('is fitness_only for an unexpected stored value', async () => {
+    expect(await load({ is_admin: true, place_search_mode: 'something-else' })).toBe('fitness_only')
+  })
+})
+
+describe('updatePlaceSearchMode', () => {
+  it('asks the database function to make the change and returns what the database confirms', async () => {
+    calls.rpc.mockResolvedValue({ data: 'any_place', error: null })
+    expect(await updatePlaceSearchMode('any_place')).toEqual({ status: 'saved', mode: 'any_place' })
+    expect(calls.rpc).toHaveBeenCalledWith('set_place_search_mode', { new_mode: 'any_place' })
+  })
+
+  it('never writes the profiles table directly or touches is_admin', async () => {
+    calls.rpc.mockResolvedValue({ data: 'fitness_only', error: null })
+    await updatePlaceSearchMode('fitness_only')
+    expect(calls.from).not.toHaveBeenCalled()
+    expect(calls.update).not.toHaveBeenCalled()
+  })
+
+  it('reports that only administrators can do this when the database refuses', async () => {
+    calls.rpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'Only administrators can search any place.' } })
+    expect(await updatePlaceSearchMode('any_place')).toEqual({ status: 'error', message: 'Only administrators can search any place.' })
+  })
+
+  it('reports a network problem', async () => {
+    calls.rpc.mockResolvedValue({ data: null, error: { message: 'TypeError: Failed to fetch' } })
+    const result = await updatePlaceSearchMode('any_place')
+    expect(result).toEqual({ status: 'error', message: "We couldn't reach the server. Check your connection and try again." })
+  })
+
+  it('catches a thrown error', async () => {
+    calls.rpc.mockRejectedValue(new TypeError('Failed to fetch'))
+    expect((await updatePlaceSearchMode('any_place')).status).toBe('error')
+  })
+
+  it('never reports any_place unless the database said so', async () => {
+    calls.rpc.mockResolvedValue({ data: 'fitness_only', error: null })
+    expect(await updatePlaceSearchMode('any_place')).toEqual({ status: 'saved', mode: 'fitness_only' })
   })
 })
