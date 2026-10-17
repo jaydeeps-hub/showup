@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchProfile } from '../services/profileService'
-import type { Profile } from '../types'
+import { fetchProfile, updateProfile } from '../services/profileService'
+import type { Profile, ProfileEdits, SaveResult } from '../types'
 
 export type ProfileState =
   | { status: 'loading' }
@@ -13,7 +13,7 @@ export type ProfileState =
  * Loads the profile for the signed-in user. It is independent of useAuth: authentication
  * answers "who are you?", this answers "what do we know about you?".
  */
-export function useProfile(userId: string): ProfileState & { reload: () => void } {
+export function useProfile(userId: string): ProfileState & { reload: () => void; save: (edits: ProfileEdits) => Promise<SaveResult> } {
   const [state, setState] = useState<ProfileState>({ status: 'loading' })
   const [reloadCount, setReloadCount] = useState(0)
 
@@ -42,5 +42,22 @@ export function useProfile(userId: string): ProfileState & { reload: () => void 
     setReloadCount((count) => count + 1)
   }, [])
 
-  return { ...state, reload }
+  /**
+   * Saves name and birthday. On success the local profile is replaced with the row the database
+   * returned, so screens update at once. On failure the profile state is left alone (and is NOT
+   * switched to "loading"), so the form that is showing keeps everything the user typed.
+   */
+  const save = useCallback(
+    async (edits: ProfileEdits): Promise<SaveResult> => {
+      const result = await updateProfile(userId, edits)
+      if (result.status === 'saved') {
+        setState({ status: 'ready', profile: result.profile })
+        return { ok: true }
+      }
+      return { ok: false, message: result.message }
+    },
+    [userId],
+  )
+
+  return { ...state, reload, save }
 }

@@ -78,6 +78,20 @@ export type ShowupOutcome =
   | { type: 'location-error'; reason: GeolocationFailureReason }
 
 /**
+ * The only profile fields a user may change. There is deliberately no `isAdmin` here:
+ * the database also refuses to let app users write it (see docs/DATABASE_SCHEMA.md).
+ */
+export interface ProfileEdits {
+  firstName: string
+  lastName: string
+  /** `YYYY-MM-DD`, or null when the user leaves their birthday out. */
+  dateOfBirth: string | null
+}
+
+/** Result of asking the app to save a profile, shaped for showing in a form. */
+export type SaveResult = { ok: true } | { ok: false; message: string }
+
+/**
  * A row of the Supabase `public.profiles` table (see docs/DATABASE_SCHEMA.md).
  * Names and date of birth are empty until the profile-completion step is built.
  */

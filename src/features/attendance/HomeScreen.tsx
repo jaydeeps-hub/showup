@@ -1,5 +1,6 @@
 import EditLocationAltOutlined from '@mui/icons-material/EditLocationAltOutlined'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
+import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -21,11 +22,13 @@ interface HomeScreenProps {
   isVerifying: boolean
   onShowUp: () => Promise<ShowupOutcome | null>
   onChangeGym: () => void
+  /** Opens Manage Profile. Omitted while the profile is not available, which hides the button. */
+  onManageProfile?: () => void
   onSignOut: () => void
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const { username, gym, showupCount, isVerifying, onShowUp, onChangeGym, onSignOut } = props
+  const { username, gym, showupCount, isVerifying, onShowUp, onChangeGym, onManageProfile, onSignOut } = props
   const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
 
   async function handleShowUp() {
@@ -62,6 +65,17 @@ export function HomeScreen(props: HomeScreenProps) {
           >
             Change gym
           </Button>
+          {onManageProfile && (
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<ManageAccountsOutlined />}
+              onClick={onManageProfile}
+              disabled={isVerifying}
+            >
+              Profile
+            </Button>
+          )}
           <Button
             size="small"
             color="inherit"

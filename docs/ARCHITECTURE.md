@@ -64,6 +64,7 @@ flowchart TD
 | `src/features/` | One folder per feature, each holding its screen(s): `authentication/`, `gym/`, `attendance/`. |
 | `src/components/` | Small reusable UI pieces with no business logic: the button, counter, gym card, feedback message and page layout. |
 | `src/hooks/` | `useShowup.ts`: the app's state and actions, shared by all screens. |
+| `src/features/profile/` | Onboarding screen, Manage Profile screen and the shared `ProfileForm` (name and birthday). |
 | `src/services/` | Code that talks to the outside world (Supabase Auth and database, localStorage, Geolocation, Google Maps) and the attendance rules. |
 | `supabase/` | The database: `migrations/` (SQL that defines the tables, trigger and security) and `tests/` (checks that run those migrations on a throw-away Postgres). |
 | `src/utils/` | Pure helper functions: distance maths and ID generation. |
@@ -98,6 +99,8 @@ flowchart LR
 ```
 
 **Auth user.** When someone signs in with Google, Supabase creates (or finds) their row in `auth.users`. The app never writes to that table. `authService.ts` talks to Supabase Auth, `useAuth` exposes `loading | signed-out | signed-in`, and `App.tsx` shows the login screen or the app. The Auth user's `id` is the identity everywhere else.
+
+**Onboarding and Manage Profile.** `App.tsx` waits for `useProfile` and then chooses: a loading screen while it loads; the **onboarding** screen when the profile is missing a first or last name (`isProfileComplete` in `utils/profileValidation.ts`); otherwise the normal app. The birthday is optional, so it does not count towards "complete". Both onboarding and **Manage Profile** use one shared `ProfileForm`, which validates with `validateProfileForm`, calls `useProfile().save`, and keeps the user's typed values when a save fails so they can retry. `save` calls `profileService.updateProfile`, which does an `UPDATE` of the user's existing row and sends only `first_name`, `last_name` and `date_of_birth`, never `is_admin`. The row the database returns replaces the local profile, so the screens update at once without another fetch. Once saved, the profile counts as complete, so onboarding never appears again, including after a refresh.
 
 **Profile.** A database trigger creates a `public.profiles` row with the **same id** the moment the Auth user is created, so every signed-in user has a profile. Authentication and profile loading are kept apart on purpose: `profileService.ts` is the only code that queries `profiles`, and `useProfile` loads it *after* sign-in. If the profile is missing or fails to load, the app shows a notice but keeps working. (Step 3 will use the profile for onboarding.)
 

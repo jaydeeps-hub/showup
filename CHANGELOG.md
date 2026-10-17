@@ -16,6 +16,39 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Profile onboarding and Manage Profile (v2, step 3)
+
+Not yet committed or released. Builds on steps 1-2 (already pushed).
+
+### What changed
+
+- **Onboarding:** after Google sign-in, a profile with no first or last name sees "Let's get to know you." (first name, last name, optional birthday). It is shown once; after saving it is skipped, including after a refresh. A loading screen is shown while the profile loads, so the app never flashes before onboarding.
+- **Manage Profile:** a **Profile** button on the home screen opens a page to edit first name, last name and birthday, see the Google email (read-only), save or cancel, and sign out.
+- Saving updates the user's existing `profiles` row (never inserts). Failed saves keep everything typed and can be retried.
+- No admin control is shown, and `is_admin` is never sent to the database.
+
+### Why
+
+Every user needs a real name for the app, and a birthday for later birthday messages, and existing users need a place to change them.
+
+### Important files
+
+- New: `src/features/profile/` (`ProfileForm.tsx`, `OnboardingScreen.tsx`, `ManageProfileScreen.tsx`), `src/utils/profileValidation.ts`
+- Changed: `src/services/profileService.ts` (`updateProfile`), `src/hooks/useProfile.ts` (`save`), `src/app/App.tsx` (routing), `src/features/attendance/HomeScreen.tsx` (Profile button), `src/types/index.ts`, `src/config/constants.ts`, `vite.config.ts`
+- Tests: `src/utils/profileValidation.test.ts`, `src/services/profileService.test.ts`, `src/app/App.profile.test.tsx`
+
+### Data model changes
+
+None. No database migration. The existing column privileges already allow updating exactly `first_name`, `last_name` and `date_of_birth`.
+
+### Migration / configuration steps
+
+Run `npm install` (new dev dependencies for tests: `jsdom`, `@testing-library/*`). Nothing to change in Supabase, provided the Step 2 migrations have been applied.
+
+### Tests performed
+
+See the final report for the latest results. Not tested: the screens against the real Supabase project with a real Google account (needs the manual steps in the README).
+
 ## [Unreleased] - Supabase sign-in and database (v2, steps 1-2)
 
 Not yet committed or released.

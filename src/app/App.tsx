@@ -5,10 +5,13 @@ import { useMemo, useState } from 'react'
 import { HomeScreen } from '../features/attendance/HomeScreen'
 import { LoginScreen } from '../features/authentication/LoginScreen'
 import { GymSetupScreen } from '../features/gym/GymSetupScreen'
+import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
+import { OnboardingScreen } from '../features/profile/OnboardingScreen'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 import { useShowup, type SignedInUser } from '../hooks/useShowup'
 import { getIdentity, signOut } from '../services/authService'
+import { isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
 import { StorageProblemScreen } from './StorageProblemScreen'
 
@@ -25,16 +28,18 @@ export function App() {
 }
 
 /**
- * Chooses which Showup screen to show based on the saved state:
- * storage problem → gym setup (no gym) → home.
+ * Chooses which Showup screen to show, in this order:
+ * loading profile → onboarding (profile incomplete) → storage problem → manage profile →
+ * gym setup (no gym) → home.
  * There is no router: with a few screens, a few if-statements are clearer.
  */
 function SignedInApp({ session }: { session: Session }) {
   const user: SignedInUser = useMemo(() => getIdentity(session.user), [session.user])
   const showup = useShowup(user)
-  // Loaded separately from sign-in. Step 3 will use it for onboarding; for now it is only checked.
+  // Loaded separately from sign-in: it decides whether to show onboarding.
   const profile = useProfile(session.user.id)
   const [isChangingGym, setIsChangingGym] = useState(false)
+  const [isManagingProfile, setIsManagingProfile] = useState(false)
   const [signOutError, setSignOutError] = useState<string | null>(null)
 
   async function handleSignOut() {
@@ -84,12 +89,36 @@ function SignedInApp({ session }: { session: Session }) {
   )
 
   function renderScreen() {
+    // Wait for the profile so a new user never sees the gym screen flash before onboarding.
+    if (profile.status === 'loading') return <LoadingScreen />
+
+    // New users (no first or last name yet) complete their profile first. Once it is saved the
+    // profile is complete, so this is skipped on every later visit and after a refresh.
+    if (profile.status === 'ready' && !isProfileComplete(profile.profile)) {
+      return <OnboardingScreen profile={profile.profile} onSave={profile.save} />
+    }
+
     if (showup.storageStatus === 'corrupted' || showup.storageStatus === 'unavailable') {
       return (
         <StorageProblemScreen
           problem={showup.storageStatus}
           onReset={showup.resetDemoData}
           onContinueWithoutSaving={showup.continueWithoutSaving}
+        />
+      )
+    }
+
+    if (isManagingProfile && profile.status === 'ready') {
+      return (
+        <ManageProfileScreen
+          profile={profile.profile}
+          email={session.user.email ?? null}
+          onSave={profile.save}
+          onClose={() => setIsManagingProfile(false)}
+          onSignOut={() => {
+            setIsManagingProfile(false)
+            void handleSignOut()
+          }}
         />
       )
     }
@@ -114,6 +143,7 @@ function SignedInApp({ session }: { session: Session }) {
         isVerifying={showup.isVerifying}
         onShowUp={showup.showUp}
         onChangeGym={() => setIsChangingGym(true)}
+        onManageProfile={profile.status === 'ready' ? () => setIsManagingProfile(true) : undefined}
         onSignOut={() => void handleSignOut()}
       />
     )

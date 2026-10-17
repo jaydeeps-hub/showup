@@ -1,4 +1,4 @@
-import type { Profile } from '../types'
+import type { Profile, ProfileEdits } from '../types'
 import { supabase } from './supabaseClient'
 
 /**
@@ -58,4 +58,57 @@ export async function fetchProfile(userId: string): Promise<ProfileResult> {
     return { status: 'error', message: error.message }
   }
   return data ? { status: 'found', profile: toProfile(data) } : { status: 'not-found' }
+}
+
+export type SaveProfileResult = { status: 'saved'; profile: Profile } | { status: 'error'; message: string }
+
+/** Turns a database or network error into a message a user can act on. Details go to the console. */
+function describeSaveError(error: { message?: string; code?: string }): string {
+  if (error.code === '23514') {
+    return "Those details weren't accepted. Check your names and birthday and try again."
+  }
+  if (/failed to fetch|network|load failed|timed? ?out/i.test(error.message ?? '')) {
+    return "We couldn't reach the server. Check your connection and try again."
+  }
+  return "We couldn't save your changes. Please try again."
+}
+
+/**
+ * Saves the user's name and birthday to their EXISTING profile row (an UPDATE, never an
+ * insert, so duplicates are impossible). Only the three editable columns are ever sent.
+ * `is_admin` is not part of `ProfileEdits`, and the database refuses to let app users
+ * write it anyway (column privileges, see docs/DATABASE_SCHEMA.md).
+ */
+export async function updateProfile(userId: string, edits: ProfileEdits): Promise<SaveProfileResult> {
+  if (!supabase) return { status: 'error', message: 'Supabase is not configured.' }
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: edits.firstName,
+        last_name: edits.lastName,
+        date_of_birth: edits.dateOfBirth,
+      })
+      .eq('id', userId)
+      .select(PROFILE_COLUMNS)
+      .maybeSingle<ProfileRow>()
+
+    if (error) {
+      console.error('Could not save the profile', error)
+      return { status: 'error', message: describeSaveError(error) }
+    }
+    // Zero rows updated: no profile row for this user (or the row is not theirs).
+    if (!data) {
+      return {
+        status: 'error',
+        message: "We couldn't find your profile to update. Try signing out and back in.",
+      }
+    }
+    return { status: 'saved', profile: toProfile(data) }
+  } catch (error) {
+    // A network failure can also surface as a thrown error.
+    console.error('Unexpected error saving the profile', error)
+    return { status: 'error', message: describeSaveError({ message: error instanceof Error ? error.message : '' }) }
+  }
 }

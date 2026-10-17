@@ -46,6 +46,12 @@ export const ALLOWED_GYM_PLACE_TYPES: readonly string[] = [
   'ice_skating_rink',
 ]
 
+/** Longest first or last name accepted. Matches the database check on `profiles`. */
+export const PROFILE_NAME_MAX_LENGTH = 100
+
+/** Earliest birth date accepted. Matches the database check on `profiles.date_of_birth`. */
+export const EARLIEST_DATE_OF_BIRTH = '1900-01-01'
+
 /** Label given to the single gym supported in v0.1.0. */
 export const PRIMARY_GYM_LABEL = 'Gym 1'
 

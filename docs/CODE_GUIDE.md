@@ -30,13 +30,17 @@ Follow one press of the button through the files:
 
 ## Feature by feature
 
-### Temporary user (welcome screen)
+### Profile onboarding and Manage Profile
 
-1. **Which file controls it?** `src/features/authentication/TemporaryUserScreen.tsx`
-2. **What does it do?** Shows the username and password form, checks both are filled in, then calls `onContinue(username)`. The password goes nowhere.
-3. **Depends on:** `components/ScreenLayout.tsx`; `hooks/useShowup.ts` (`createUser`) via `App.tsx`.
-4. **To change it, start at:** the screen file for wording and layout; `createUser` in `useShowup.ts` for what gets saved.
-5. **Test after changing:** empty fields show errors; Continue moves to gym setup; reloading keeps you logged in; the saved data in DevTools (Application → Local Storage) contains no password.
+1. **Which files control it?** `src/features/profile/OnboardingScreen.tsx`, `ManageProfileScreen.tsx` and the shared `ProfileForm.tsx`. Routing is in `src/app/App.tsx`.
+2. **What do they do?** `App.tsx` shows onboarding when the loaded profile has no first or last name, and Manage Profile when the user presses **Profile** on the home screen. Both screens use `ProfileForm`, which validates, saves, shows errors, and keeps the typed values if saving fails.
+3. **What do they depend on?** `hooks/useProfile.ts` (`save`), `services/profileService.ts` (`updateProfile`, the only database code), `utils/profileValidation.ts` (the rules and `isProfileComplete`), and the `profiles` table (see `docs/DATABASE_SCHEMA.md`).
+4. **To change it, start at:** the rules in `utils/profileValidation.ts` (what counts as "complete", name length, date checks); wording in the two screen files; which fields exist in `ProfileEdits` (`types/index.ts`) and `updateProfile`. A new field also needs a database migration and a column privilege (`GRANT UPDATE`), or the database will refuse the save.
+5. **Test after changing:** `npm test` (`profileValidation.test.ts`, `profileService.test.ts`, `App.profile.test.tsx`), then try a brand-new Google account, a refresh, and an offline save in the browser.
+
+### Temporary user (welcome screen) — removed
+
+The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-in lives in `features/authentication/LoginScreen.tsx` and `services/authService.ts`.
 
 ### Gym search and setup
 
