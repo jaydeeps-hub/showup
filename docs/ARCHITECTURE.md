@@ -1,6 +1,12 @@
 # Architecture
 
-Showup v0.1.0 is a **client-side single-page app**. There is no server. Everything runs in the browser, talks directly to Google Maps for gym search, and saves to `localStorage`.
+Showup is a **client-side single-page app** (React + Vite) with no server of its own. The browser talks directly to three outside services:
+
+- **Supabase** for Google sign-in and the Postgres database (profiles, gyms, Showups).
+- **Google Maps** for gym search.
+- **The browser itself** for location (Geolocation) and, for now, for storing the gym and the Showup counter (`localStorage`).
+
+> **Where data lives today.** Sign-in and the `profiles` table are live in Supabase. The `gyms` and `showups` tables exist and are secured, but the app does **not** read or write them yet: the gym and Showup history are still saved in `localStorage`, keyed by the signed-in user's ID. Moving them is a later step. See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
 
 ## The big picture
 
@@ -58,7 +64,8 @@ flowchart TD
 | `src/features/` | One folder per feature, each holding its screen(s): `authentication/`, `gym/`, `attendance/`. |
 | `src/components/` | Small reusable UI pieces with no business logic: the button, counter, gym card, feedback message and page layout. |
 | `src/hooks/` | `useShowup.ts`: the app's state and actions, shared by all screens. |
-| `src/services/` | Code that talks to the outside world (localStorage, Geolocation, Google Maps) and the attendance rules. |
+| `src/services/` | Code that talks to the outside world (Supabase Auth and database, localStorage, Geolocation, Google Maps) and the attendance rules. |
+| `supabase/` | The database: `migrations/` (SQL that defines the tables, trigger and security) and `tests/` (checks that run those migrations on a throw-away Postgres). |
 | `src/utils/` | Pure helper functions: distance maths and ID generation. |
 | `src/config/` | Settings (`constants.ts`) and user-facing feedback text (`messages.ts`). |
 | `src/types/` | TypeScript shapes for users, gyms, events and outcomes. |
@@ -79,15 +86,26 @@ There is no global store, context or router. With three screens, props and an `i
 
 The only UI state that lives *inside* screens is local and temporary: form inputs, the search text, the selected place, and whether a dialog is open.
 
-## The temporary user
+## Users: Auth users, profiles, gyms and Showups
 
-`TemporaryUserScreen` collects a username and password, but only passes the **username** up. `useShowup.createUser` creates:
-
-```ts
-{ id: '<random UUID>', username: 'alex', createdAt: '2026-10-12T08:00:00.000Z' }
+```mermaid
+flowchart LR
+    G[Google sign-in] --> A[(auth.users<br/>managed by Supabase)]
+    A -- "trigger: on_auth_user_created" --> P[(public.profiles<br/>1 row per user)]
+    A --- Y[(public.gyms<br/>many over time, 1 active)]
+    A --- S[(public.showups<br/>append-only history)]
+    Y -- "gym_id + user_id" --> S
 ```
 
-The password is checked for being non-empty, then dropped when the screen unmounts. It is never stored, sent or compared. This is a **demo identity**, not authentication: it exists so data already has a `userId` to hang off, which a real account system will need later.
+**Auth user.** When someone signs in with Google, Supabase creates (or finds) their row in `auth.users`. The app never writes to that table. `authService.ts` talks to Supabase Auth, `useAuth` exposes `loading | signed-out | signed-in`, and `App.tsx` shows the login screen or the app. The Auth user's `id` is the identity everywhere else.
+
+**Profile.** A database trigger creates a `public.profiles` row with the **same id** the moment the Auth user is created, so every signed-in user has a profile. Authentication and profile loading are kept apart on purpose: `profileService.ts` is the only code that queries `profiles`, and `useProfile` loads it *after* sign-in. If the profile is missing or fails to load, the app shows a notice but keeps working. (Step 3 will use the profile for onboarding.)
+
+**Gyms and Showups.** Each belongs to an Auth user (`user_id`). A Showup points at a gym through `(gym_id, user_id)`, so it can only reference a gym its own user owns. Changing gym marks the old gym inactive and adds a new one, so old Showups still point at the gym they were measured against. Deleting an Auth user removes their profile, gyms and Showups; nobody can delete a gym that has Showups.
+
+**Security.** Row Level Security plus column privileges, defined in the migrations, ensure users can read only their own rows, edit only their own name and date of birth, and can never change `is_admin`. The frontend uses only the public **publishable** key; the secret / `service_role` key is never used in the app.
+
+**Browser data keyed by user.** Until gyms and Showups move to the database, `useShowup(user)` stores them in `localStorage` under the Auth user's `id`, so two Google accounts on one browser keep separate gyms and counts.
 
 ## Selecting and saving a gym
 
@@ -145,6 +163,8 @@ The shape mirrors three future database tables (`users`, `gyms`, `showup_events`
 |---|---|---|
 | Google Maps JavaScript API + Places API (New) | `services/mapsService.ts` only | Loaded with `@googlemaps/js-api-loader` (`setOptions` + `importLibrary('places')`). Uses session tokens to group autocomplete calls into one billing session. Key comes from `VITE_GOOGLE_MAPS_API_KEY`. |
 | Browser Geolocation | `services/geolocationService.ts` only | Requires HTTPS or localhost. |
-| Browser localStorage | `services/storageService.ts` only | Per browser, per site. |
+| Browser localStorage | `services/storageService.ts` only | Per browser, per site. Holds the gym and Showup history until they move to Supabase. |
+| Supabase Auth (Google) | `services/authService.ts` (via `supabaseClient.ts`) | Publishable key only. Redirect URLs must be allowed in the Supabase dashboard. |
+| Supabase database | `services/profileService.ts` (via `supabaseClient.ts`) | Reads `public.profiles`. Protected by Row Level Security. |
 
 Keeping each external API in one file means it can be replaced, or faked in tests, without touching the UI.

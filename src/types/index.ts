@@ -76,3 +76,19 @@ export type ShowupOutcome =
   | { type: 'outside-geofence'; distanceMetres: number }
   | { type: 'poor-accuracy'; accuracyMetres: number }
   | { type: 'location-error'; reason: GeolocationFailureReason }
+
+/**
+ * A row of the Supabase `public.profiles` table (see docs/DATABASE_SCHEMA.md).
+ * Names and date of birth are empty until the profile-completion step is built.
+ */
+export interface Profile {
+  /** Same ID as the signed-in Supabase Auth user. */
+  id: string
+  firstName: string | null
+  lastName: string | null
+  /** Calendar date as `YYYY-MM-DD`. */
+  dateOfBirth: string | null
+  isAdmin: boolean
+  createdAt: string
+  updatedAt: string
+}

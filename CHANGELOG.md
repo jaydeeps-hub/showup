@@ -16,6 +16,42 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Supabase sign-in and database (v2, steps 1-2)
+
+Not yet committed or released.
+
+### What changed
+
+- **Step 1:** Google sign-in through Supabase replaces the temporary demo login. The session is restored on reload, and **Sign out** replaces "Log out & reset". Gyms and Showups stay in `localStorage` but are now keyed by the signed-in Google account.
+- **Step 2:** Added a version-controlled Supabase database: `profiles`, `gyms` and `showups` tables, a trigger that creates a profile for every new Auth user, and Row Level Security with column-level privileges (users cannot change `is_admin`). The app loads the signed-in user's profile through a small service and shows a notice if it is missing or cannot be loaded. No profile forms yet.
+
+### Why
+
+To give Showup real accounts and a place to store data safely, before moving gyms and attendance off the browser.
+
+### Important files
+
+- Step 1: `src/services/supabaseClient.ts`, `authService.ts`, `src/hooks/useAuth.ts`, `src/features/authentication/LoginScreen.tsx`, `src/app/App.tsx`, `src/hooks/useShowup.ts`, `.env.example`
+- Step 2: `supabase/migrations/*.sql` (3 files), `supabase/tests/database.test.ts`, `src/services/profileService.ts`, `src/hooks/useProfile.ts`, `src/types/index.ts`, `docs/DATABASE_SCHEMA.md`, `docs/SETUP_SUPABASE.md`
+- Removed: `src/features/authentication/TemporaryUserScreen.tsx`
+
+### Data model changes
+
+New Supabase tables `profiles`, `gyms`, `showups` (see `docs/DATABASE_SCHEMA.md`). The `localStorage` format (`showup:data:v1`) is unchanged, but its `user` field is no longer used; gyms and events are matched by Auth user ID. Data saved under the old demo profile will not appear for a Google account.
+
+### Migration / configuration steps
+
+1. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+2. Configure Google OAuth in Google Cloud and Supabase, and allow the redirect URLs (README, "Configuring sign-in").
+3. Run the three SQL files in `supabase/migrations/` in order (`docs/SETUP_SUPABASE.md`), then run the verification queries there.
+4. Add the two `VITE_SUPABASE_*` variables in Vercel and redeploy.
+
+### Tests performed
+
+- `npm run typecheck`, `npm run lint`: clean (after the final code change)
+- `npm test`: see the final report; the new `supabase/tests/database.test.ts` (48 tests) passed against an in-process Postgres, and three deliberate security breakages were each caught by the tests
+- **Not tested:** the migrations on the real hosted Supabase project, Google sign-in, and the profile trigger with a real Google account. These need the manual steps above.
+
 ## [0.2.0] - 2026-10-17
 
 ### What changed

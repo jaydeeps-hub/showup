@@ -9,6 +9,8 @@ export default defineConfig({
     // Business logic tests run in Node. Browser APIs (localStorage, geolocation)
     // are replaced with small fakes inside each test file.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // supabase/tests runs the SQL migrations against an in-process Postgres (see that file).
+    include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts'],
+    testTimeout: 30_000,
   },
 })

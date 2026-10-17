@@ -3,11 +3,6 @@ import LogoutRounded from '@mui/icons-material/LogoutRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogContentText from '@mui/material/DialogContentText'
-import DialogTitle from '@mui/material/DialogTitle'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
@@ -26,13 +21,12 @@ interface HomeScreenProps {
   isVerifying: boolean
   onShowUp: () => Promise<ShowupOutcome | null>
   onChangeGym: () => void
-  onResetDemoData: () => void
+  onSignOut: () => void
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const { username, gym, showupCount, isVerifying, onShowUp, onChangeGym, onResetDemoData } = props
+  const { username, gym, showupCount, isVerifying, onShowUp, onChangeGym, onSignOut } = props
   const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
-  const [isConfirmingReset, setIsConfirmingReset] = useState(false)
 
   async function handleShowUp() {
     const outcome = await onShowUp()
@@ -72,10 +66,10 @@ export function HomeScreen(props: HomeScreenProps) {
             size="small"
             color="inherit"
             startIcon={<LogoutRounded />}
-            onClick={() => setIsConfirmingReset(true)}
+            onClick={onSignOut}
             disabled={isVerifying}
           >
-            Log out &amp; reset
+            Sign out
           </Button>
         </Stack>
         <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 320 }}>
@@ -84,24 +78,6 @@ export function HomeScreen(props: HomeScreenProps) {
       </Stack>
 
       <FeedbackMessage feedback={feedback} onClose={() => setFeedback(null)} />
-
-      <Dialog open={isConfirmingReset} onClose={() => setIsConfirmingReset(false)} fullWidth maxWidth="xs">
-        <DialogTitle component="h2">Log out and reset?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This deletes your demo profile, saved gym and all {showupCount} Showups from this browser. It cannot be
-            undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsConfirmingReset(false)} color="inherit" autoFocus>
-            Cancel
-          </Button>
-          <Button onClick={onResetDemoData} color="error" variant="contained">
-            Reset
-          </Button>
-        </DialogActions>
-      </Dialog>
     </ScreenLayout>
   )
 }

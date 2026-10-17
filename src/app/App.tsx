@@ -1,25 +1,82 @@
 import Alert from '@mui/material/Alert'
-import { useState } from 'react'
-import { TemporaryUserScreen } from '../features/authentication/TemporaryUserScreen'
+import Button from '@mui/material/Button'
+import type { Session } from '@supabase/supabase-js'
+import { useMemo, useState } from 'react'
 import { HomeScreen } from '../features/attendance/HomeScreen'
+import { LoginScreen } from '../features/authentication/LoginScreen'
 import { GymSetupScreen } from '../features/gym/GymSetupScreen'
-import { useShowup } from '../hooks/useShowup'
+import { useAuth } from '../hooks/useAuth'
+import { useProfile } from '../hooks/useProfile'
+import { useShowup, type SignedInUser } from '../hooks/useShowup'
+import { getIdentity, signOut } from '../services/authService'
+import { LoadingScreen } from './LoadingScreen'
 import { StorageProblemScreen } from './StorageProblemScreen'
 
 /**
- * Chooses which screen to show based on the saved state:
- * storage problem → welcome (no user) → gym setup (no gym) → home.
- * There is no router: with three screens, a few if-statements are clearer.
+ * Top level: decides between loading, the sign-in screen and the Showup app,
+ * based on whether someone is signed in with Supabase.
  */
 export function App() {
-  const showup = useShowup()
+  const auth = useAuth()
+
+  if (auth.status === 'loading') return <LoadingScreen />
+  if (auth.status === 'signed-out') return <LoginScreen />
+  return <SignedInApp session={auth.session} />
+}
+
+/**
+ * Chooses which Showup screen to show based on the saved state:
+ * storage problem → gym setup (no gym) → home.
+ * There is no router: with a few screens, a few if-statements are clearer.
+ */
+function SignedInApp({ session }: { session: Session }) {
+  const user: SignedInUser = useMemo(() => getIdentity(session.user), [session.user])
+  const showup = useShowup(user)
+  // Loaded separately from sign-in. Step 3 will use it for onboarding; for now it is only checked.
+  const profile = useProfile(session.user.id)
   const [isChangingGym, setIsChangingGym] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
+
+  async function handleSignOut() {
+    setSignOutError(null)
+    try {
+      await signOut() // the auth listener then switches the app to the login screen
+    } catch (error) {
+      console.error('Sign-out failed', error)
+      setSignOutError('We could not sign you out. Please try again.')
+    }
+  }
 
   return (
     <>
       {showup.isNotPersisting && (
         <Alert severity="warning" square>
           Your data is not being saved in this browser and will be lost when you reload.
+        </Alert>
+      )}
+      {profile.status === 'missing' && (
+        <Alert severity="warning" square>
+          Your account is signed in, but its profile was not found. The database migrations that create profiles have
+          probably not been applied yet. See docs/SETUP_SUPABASE.md.
+        </Alert>
+      )}
+      {profile.status === 'error' && (
+        <Alert
+          severity="warning"
+          square
+          action={
+            <Button color="inherit" size="small" onClick={profile.reload}>
+              Retry
+            </Button>
+          }
+        >
+          Your profile could not be loaded ({profile.message}). Showup still works; you can retry or check
+          docs/SETUP_SUPABASE.md.
+        </Alert>
+      )}
+      {signOutError && (
+        <Alert severity="error" square onClose={() => setSignOutError(null)}>
+          {signOutError}
         </Alert>
       )}
       {renderScreen()}
@@ -37,10 +94,6 @@ export function App() {
       )
     }
 
-    if (!showup.user) {
-      return <TemporaryUserScreen onContinue={showup.createUser} />
-    }
-
     if (!showup.gym || isChangingGym) {
       return (
         <GymSetupScreen
@@ -55,16 +108,13 @@ export function App() {
 
     return (
       <HomeScreen
-        username={showup.user.username}
+        username={user.username}
         gym={showup.gym}
         showupCount={showup.showupCount}
         isVerifying={showup.isVerifying}
         onShowUp={showup.showUp}
         onChangeGym={() => setIsChangingGym(true)}
-        onResetDemoData={() => {
-          setIsChangingGym(false)
-          showup.resetDemoData()
-        }}
+        onSignOut={() => void handleSignOut()}
       />
     )
   }

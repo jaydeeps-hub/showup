@@ -64,3 +64,11 @@ export const PLACE_SEARCH_MIN_CHARACTERS = 3
  * referrer and API restrictions in Google Cloud, not by hiding it.
  */
 export const GOOGLE_MAPS_API_KEY: string = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? ''
+
+/**
+ * Supabase connection settings, read from `.env.local`. Both values are public by design:
+ * the publishable key only allows what your database security rules (RLS) allow.
+ * Never add a secret/service_role key here.
+ */
+export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
+export const SUPABASE_PUBLISHABLE_KEY: string = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''

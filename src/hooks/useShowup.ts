@@ -3,7 +3,7 @@ import { PRIMARY_GYM_LABEL } from '../config/constants'
 import { attemptShowup, countShowups } from '../services/attendanceService'
 import { getCurrentPosition } from '../services/geolocationService'
 import { clearData, createEmptyData, loadData, saveData } from '../services/storageService'
-import type { Gym, SelectedPlace, ShowupData, ShowupOutcome, TemporaryUser } from '../types'
+import type { Gym, SelectedPlace, ShowupData, ShowupOutcome } from '../types'
 import { createId } from '../utils/id'
 
 /**
@@ -14,11 +14,19 @@ import { createId } from '../utils/id'
  */
 export type StorageStatus = 'ok' | 'unavailable' | 'corrupted' | 'memory-only'
 
+/** Who is using the app: the signed-in account (from Supabase / Google). */
+export interface SignedInUser {
+  id: string
+  username: string
+}
+
 /**
  * The single source of truth for app state. Screens receive values and
  * callbacks from here; only this hook changes the saved data.
+ *
+ * Gyms and Showups are stored per `user.id`, so each signed-in account sees only its own.
  */
-export function useShowup() {
+export function useShowup(user: SignedInUser) {
   const [initial] = useState(loadData)
   const [storageStatus, setStorageStatus] = useState<StorageStatus>(initial.status)
   const [data, setData] = useState<ShowupData>(initial.status === 'ok' ? initial.data : createEmptyData())
@@ -29,6 +37,7 @@ export function useShowup() {
   // starting another check before React has disabled the button.
   const verificationInProgress = useRef(false)
   const latestData = useRef(data)
+  const userId = user.id
 
   const commit = useCallback(
     (next: ShowupData) => {
@@ -41,42 +50,31 @@ export function useShowup() {
     [storageStatus],
   )
 
-  const user: TemporaryUser | null = data.user
-  const gym: Gym | null = (user && data.gyms.find((candidate) => candidate.userId === user.id)) ?? null
-  const showupCount = user ? countShowups(data, user.id) : 0
-
-  /** The password is intentionally not a parameter: it is never stored. */
-  const createUser = useCallback(
-    (username: string) => {
-      const newUser: TemporaryUser = { id: createId(), username: username.trim(), createdAt: new Date().toISOString() }
-      commit({ ...latestData.current, user: newUser })
-    },
-    [commit],
-  )
+  const gym: Gym | null = data.gyms.find((candidate) => candidate.userId === userId) ?? null
+  const showupCount = countShowups(data, userId)
 
   /** Saves the place as the user's one and only gym ("Gym 1"), replacing any previous one. */
   const saveGym = useCallback(
     (place: SelectedPlace) => {
       const current = latestData.current
-      if (!current.user) return
       const newGym: Gym = {
         id: createId(),
-        userId: current.user.id,
+        userId,
         label: PRIMARY_GYM_LABEL,
         ...place,
         createdAt: new Date().toISOString(),
       }
-      const otherUsersGyms = current.gyms.filter((existing) => existing.userId !== newGym.userId)
+      const otherUsersGyms = current.gyms.filter((existing) => existing.userId !== userId)
       commit({ ...current, gyms: [...otherUsersGyms, newGym] })
     },
-    [commit],
+    [commit, userId],
   )
 
   /** Runs one location check. Resolves to null if a check is already running. */
   const showUp = useCallback(async (): Promise<ShowupOutcome | null> => {
     const current = latestData.current
-    if (verificationInProgress.current || !current.user) return null
-    const currentGym = current.gyms.find((candidate) => candidate.userId === current.user?.id)
+    if (verificationInProgress.current) return null
+    const currentGym = current.gyms.find((candidate) => candidate.userId === userId)
     if (!currentGym) return null
 
     verificationInProgress.current = true
@@ -84,7 +82,7 @@ export function useShowup() {
     try {
       const result = await attemptShowup({
         data: current,
-        userId: current.user.id,
+        userId,
         gym: currentGym,
         getPosition: getCurrentPosition,
       })
@@ -94,9 +92,9 @@ export function useShowup() {
       verificationInProgress.current = false
       setIsVerifying(false)
     }
-  }, [commit])
+  }, [commit, userId])
 
-  /** Logs out by deleting all demo data (user, gym and history). */
+  /** Deletes ALL Showup data saved in this browser (every account's gym and history). */
   const resetDemoData = useCallback(() => {
     clearData()
     const empty = createEmptyData()
@@ -112,11 +110,9 @@ export function useShowup() {
     storageStatus,
     /** True when data will not survive a reload. */
     isNotPersisting: storageStatus === 'memory-only' || saveFailed,
-    user,
     gym,
     showupCount,
     isVerifying,
-    createUser,
     saveGym,
     showUp,
     resetDemoData,
