@@ -92,9 +92,9 @@ Follow one press of the button through the files:
 ### Look and feel
 
 1. **Which file controls it?** `src/app/theme.ts`
-2. **What does it do?** Defines the dark palette, the accent colour, rounded corners and fonts, and turns off ripples and transitions.
+2. **What does it do?** Builds the Material UI theme (palette, type scale, shape, short transitions, component styles) from the design tokens in `src/design-system/tokens.ts`.
 3. **Depends on:** nothing.
-4. **To change it, start at:** `ACCENT` for the brand colour; `shape.borderRadius` for corner rounding.
+4. **To change it, start at:** `src/design-system/tokens.ts` for colours, radii, spacing and motion timings; `theme.ts` only for how components use them.
 5. **Test after changing:** text contrast is still readable, especially the dark text on the accent-coloured button.
 
 ---

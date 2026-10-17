@@ -14,8 +14,8 @@ interface StorageProblemScreenProps {
 export function StorageProblemScreen({ problem, onReset, onContinueWithoutSaving }: StorageProblemScreenProps) {
   return (
     <ScreenLayout>
-      <Stack spacing={3}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+      <Stack spacing={6}>
+        <Typography variant="h1" component="h1">
           {problem === 'corrupted' ? 'Saved data could not be read' : 'Storage is unavailable'}
         </Typography>
 
@@ -35,12 +35,14 @@ export function StorageProblemScreen({ problem, onReset, onContinueWithoutSaving
               This browser is blocking local storage (this can happen in private browsing or with strict privacy
               settings). You can still use Showup, but everything will be lost when you close or reload the page.
             </Alert>
-            <Button variant="contained" size="large" onClick={onContinueWithoutSaving}>
-              Continue without saving
-            </Button>
-            <Button variant="text" onClick={() => window.location.reload()}>
-              Try again
-            </Button>
+            <Stack spacing={2}>
+              <Button variant="contained" size="large" onClick={onContinueWithoutSaving}>
+                Continue without saving
+              </Button>
+              <Button variant="text" color="inherit" onClick={() => window.location.reload()}>
+                Try again
+              </Button>
+            </Stack>
           </>
         )}
       </Stack>

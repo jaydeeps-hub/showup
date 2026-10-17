@@ -19,13 +19,15 @@ export function GymSetupScreen({ onSave, onCancel }: GymSetupScreenProps) {
 
   return (
     <ScreenLayout>
-      <Stack spacing={3}>
-        <div>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
+      <Stack spacing={6}>
+        <Stack spacing={2}>
+          <Typography variant="h1" component="h1">
             Where do you work out?
           </Typography>
-          <Typography color="text.secondary">Search for your gym and save its location to start showing up.</Typography>
-        </div>
+          <Typography variant="body1" color="text.secondary">
+            Search for your gym and save its location to start showing up.
+          </Typography>
+        </Stack>
 
         <GymSearch onPlaceSelected={setSelectedPlace} />
 
@@ -37,20 +39,22 @@ export function GymSetupScreen({ onSave, onCancel }: GymSetupScreenProps) {
           />
         )}
 
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          disabled={!selectedPlace}
-          onClick={() => selectedPlace && onSave(selectedPlace)}
-        >
-          Save as {PRIMARY_GYM_LABEL}
-        </Button>
-        {onCancel && (
-          <Button variant="text" fullWidth onClick={onCancel}>
-            Cancel
+        <Stack spacing={2}>
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={!selectedPlace}
+            onClick={() => selectedPlace && onSave(selectedPlace)}
+          >
+            Save as {PRIMARY_GYM_LABEL}
           </Button>
-        )}
+          {onCancel && (
+            <Button variant="text" color="inherit" fullWidth onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </Stack>
       </Stack>
     </ScreenLayout>
   )

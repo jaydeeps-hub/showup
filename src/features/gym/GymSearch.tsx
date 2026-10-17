@@ -189,7 +189,7 @@ export function GymSearch({ onPlaceSelected }: GymSearchProps) {
         )}
       />
       {errorMessage && (
-        <Alert severity="error" sx={{ mt: 1 }}>
+        <Alert severity="error" sx={{ mt: 2 }}>
           {errorMessage}
         </Alert>
       )}

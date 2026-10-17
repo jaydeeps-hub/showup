@@ -2,7 +2,7 @@
  * App-wide settings. Change behaviour here rather than inside components.
  */
 
-export const APP_VERSION = '0.1.1'
+export const APP_VERSION = '0.2.0'
 
 /**
  * How close (in metres) the user must be to the saved gym's coordinates for a

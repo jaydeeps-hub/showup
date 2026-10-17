@@ -1,4 +1,5 @@
-/* Most styling comes from the MUI theme (src/app/theme.ts). Only page-level basics live here. */
+/* Colours, typography and component styling come from the MUI theme (src/app/theme.ts),
+   which is built from src/design-system/tokens.ts. Only page-level basics live here. */
 
 :root {
   color-scheme: dark;
@@ -8,6 +9,12 @@ html,
 body,
 #root {
   min-height: 100%;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Remove the grey flash on tap in mobile browsers. */

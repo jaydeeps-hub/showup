@@ -16,6 +16,38 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [0.2.0] - 2026-10-17
+
+### What changed
+
+Redesigned the whole interface to follow the Showup Visual Design Language v1.1.0: charcoal surfaces, a blue primary accent, Inter typography, the 4 px spacing scale, consistent 8-16 px radii, MUI icons, visible keyboard focus, 44-48 px touch targets, status messages that pair colour with icons and text, and short (100-280 ms) transitions that are switched off when the user prefers reduced motion.
+
+### Why
+
+The first version was a functional placeholder (green accent, no motion). This brings the look and feel in line with the intended calm, premium identity.
+
+### Important files modified
+
+- `src/design-system/tokens.ts` (new): the design tokens, the single source of truth
+- `src/app/theme.ts`: rebuilt from the tokens
+- `src/components/*`, `src/features/*`, `src/app/StorageProblemScreen.tsx`: restyled; behaviour is unchanged
+- `index.html`, `public/favicon.svg`, `src/index.css`: Inter font, new theme colour and icon
+- `package.json`: added `@mui/icons-material`
+
+### Data model changes
+
+None.
+
+### Migration / configuration steps
+
+Run `npm install` (new dependency `@mui/icons-material`). The Inter font loads from Google Fonts; if it is blocked, the app falls back to Roboto/Arial.
+
+### Tests performed
+
+- `npm run typecheck`, `npm run lint`: clean
+- Automated unit tests: deliberately **not run** for this release (UI-only change, requested by the owner)
+- Manual browser and contrast checks: not yet performed
+
 ## [0.1.1] - 2026-10-14
 
 Details: [docs/versions/v0.1.1.md](docs/versions/v0.1.1.md).

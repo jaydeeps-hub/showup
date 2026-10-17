@@ -31,36 +31,40 @@ export function TemporaryUserScreen({ onContinue }: TemporaryUserScreenProps) {
 
   return (
     <ScreenLayout>
-      <Stack component="form" onSubmit={handleSubmit} noValidate spacing={3}>
-        <div>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
+      <Stack component="form" onSubmit={handleSubmit} noValidate spacing={6}>
+        <Stack spacing={2}>
+          <Typography variant="h1" component="h1">
             Welcome
           </Typography>
-          <Typography color="text.secondary">Create a temporary profile to start tracking your gym visits.</Typography>
-        </div>
+          <Typography variant="body1" color="text.secondary">
+            Create a temporary profile to start tracking your gym visits.
+          </Typography>
+        </Stack>
 
-        <TextField
-          label="Username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          error={submitted && usernameMissing}
-          helperText={submitted && usernameMissing ? 'Enter a username.' : ' '}
-          autoComplete="username"
-          autoFocus
-          fullWidth
-        />
-        <TextField
-          label="Temporary password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          error={submitted && passwordMissing}
-          helperText={submitted && passwordMissing ? 'Enter a temporary password.' : ' '}
-          autoComplete="new-password"
-          fullWidth
-        />
+        <Stack spacing={2}>
+          <TextField
+            label="Username"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            error={submitted && usernameMissing}
+            helperText={submitted && usernameMissing ? 'Enter a username.' : ' '}
+            autoComplete="username"
+            autoFocus
+            fullWidth
+          />
+          <TextField
+            label="Temporary password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            error={submitted && passwordMissing}
+            helperText={submitted && passwordMissing ? 'Enter a temporary password.' : ' '}
+            autoComplete="new-password"
+            fullWidth
+          />
+        </Stack>
 
-        <Alert severity="info" variant="outlined">
+        <Alert severity="info">
           Demo only: this is not a real account. Your password is not saved or checked, and your data stays in this
           browser.
         </Alert>

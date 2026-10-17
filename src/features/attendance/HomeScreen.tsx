@@ -1,3 +1,7 @@
+import EditLocationAltOutlined from '@mui/icons-material/EditLocationAltOutlined'
+import LogoutRounded from '@mui/icons-material/LogoutRounded'
+import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
+import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -38,34 +42,51 @@ export function HomeScreen(props: HomeScreenProps) {
   return (
     <ScreenLayout
       headerAction={
-        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: '50%' }}>
-          {username}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, color: 'text.secondary' }}>
+          <PersonOutlineRounded sx={{ fontSize: 20 }} aria-hidden />
+          <Typography variant="body2" noWrap sx={{ maxWidth: 160 }} title={username}>
+            {username}
+          </Typography>
+        </Box>
       }
     >
       <GymSummary label={`Your gym · ${gym.label}`} name={gym.name} address={gym.formattedAddress} />
 
-      <Stack spacing={4} sx={{ alignItems: 'center', justifyContent: 'center', flex: 1, py: 5 }}>
+      <Stack spacing={8} sx={{ alignItems: 'center', justifyContent: 'center', flex: 1, py: 10 }}>
         <ShowUpButton isVerifying={isVerifying} onClick={() => void handleShowUp()} />
         <ShowUpCounter count={showupCount} />
       </Stack>
 
-      <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
-        <Button size="small" color="inherit" onClick={onChangeGym} disabled={isVerifying}>
-          Change gym
-        </Button>
-        <Button size="small" color="inherit" onClick={() => setIsConfirmingReset(true)} disabled={isVerifying}>
-          Log out &amp; reset
-        </Button>
+      <Stack spacing={3} sx={{ alignItems: 'center' }}>
+        <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            color="inherit"
+            startIcon={<EditLocationAltOutlined />}
+            onClick={onChangeGym}
+            disabled={isVerifying}
+          >
+            Change gym
+          </Button>
+          <Button
+            size="small"
+            color="inherit"
+            startIcon={<LogoutRounded />}
+            onClick={() => setIsConfirmingReset(true)}
+            disabled={isVerifying}
+          >
+            Log out &amp; reset
+          </Button>
+        </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 320 }}>
+          Showup checks the location your device reports. It does not track workouts.
+        </Typography>
       </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
-        Showup checks the location your device reports. It does not track workouts.
-      </Typography>
 
       <FeedbackMessage feedback={feedback} onClose={() => setFeedback(null)} />
 
       <Dialog open={isConfirmingReset} onClose={() => setIsConfirmingReset(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Log out and reset?</DialogTitle>
+        <DialogTitle component="h2">Log out and reset?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             This deletes your demo profile, saved gym and all {showupCount} Showups from this browser. It cannot be
@@ -73,7 +94,7 @@ export function HomeScreen(props: HomeScreenProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsConfirmingReset(false)} color="inherit">
+          <Button onClick={() => setIsConfirmingReset(false)} color="inherit" autoFocus>
             Cancel
           </Button>
           <Button onClick={onResetDemoData} color="error" variant="contained">

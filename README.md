@@ -1,6 +1,6 @@
 # Showup
 
-**Version 0.1.1** · a location-verified gym attendance tracker.
+**Version 0.2.0** · a location-verified gym attendance tracker.
 
 Save your gym once. When you arrive, press **SHOW UP**. Showup checks the location your device reports against your saved gym. If you're within 100 metres, it records one Showup. If not, nothing is recorded.
 
@@ -18,7 +18,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 - **Clear error messages** when location permission is denied, location is unavailable, the request times out, or the browser doesn't support geolocation.
 - **Persistent counter and history** in `localStorage`, so they survive reloads and browser restarts.
 - **Safe recovery** when saved data is damaged or storage is blocked.
-- **Dark, mobile-first Material UI design** with no animations.
+- **Dark, mobile-first Material UI design** following the Showup visual design language (charcoal surfaces, one blue accent, Inter font, short purposeful motion that respects "reduce motion").
 
 ## Technologies
 
@@ -189,7 +189,7 @@ Starting a brand-new folder instead? Run `git init` first, then follow the same 
 
 ## Intentionally excluded from v0.1.0
 
-Real accounts · backend/database · multiple gyms · streaks, goals, rest days · reports and charts · friends and social features · QR check-in · notifications · offline/PWA support · light theme · animations.
+Real accounts · backend/database · multiple gyms · streaks, goals, rest days · reports and charts · friends and social features · QR check-in · notifications · offline/PWA support · light theme · decorative animation.
 
 See [docs/PRODUCT_OVERVIEW.md](docs/PRODUCT_OVERVIEW.md) for future ideas.
 
