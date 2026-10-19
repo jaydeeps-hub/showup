@@ -49,6 +49,12 @@ export const ALLOWED_GYM_PLACE_TYPES: readonly string[] = [
 /** Longest first or last name accepted. Matches the database check on `profiles`. */
 export const PROFILE_NAME_MAX_LENGTH = 100
 
+/**
+ * Youngest age accepted. A birthday must be at least this many years ago: the date picker stops at
+ * exactly this many years before today, and the form rejects anything later.
+ */
+export const MINIMUM_AGE_YEARS = 15
+
 /** Earliest birth date accepted. Matches the database check on `profiles.date_of_birth`. */
 export const EARLIEST_DATE_OF_BIRTH = '1900-01-01'
 

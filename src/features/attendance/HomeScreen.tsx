@@ -1,8 +1,5 @@
-import EditLocationAltOutlined from '@mui/icons-material/EditLocationAltOutlined'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
-import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
-import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
@@ -16,19 +13,19 @@ import { getFeedbackForOutcome, type FeedbackContent } from '../../config/messag
 import type { Gym, ShowupOutcome } from '../../types'
 
 interface HomeScreenProps {
-  username: string
+  /** The name shown at the top: the user's saved first and last name. */
+  displayName: string
   gym: Gym
   showupCount: number
   isVerifying: boolean
   onShowUp: () => Promise<ShowupOutcome | null>
-  onChangeGym: () => void
-  /** Opens Manage Profile. Omitted while the profile is not available, which hides the button. */
+  /** Opens the Profile page. Omitted while the profile is not available, which makes the name plain text. */
   onManageProfile?: () => void
   onSignOut: () => void
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const { username, gym, showupCount, isVerifying, onShowUp, onChangeGym, onManageProfile, onSignOut } = props
+  const { displayName, gym, showupCount, isVerifying, onShowUp, onManageProfile, onSignOut } = props
   const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
 
   async function handleShowUp() {
@@ -39,12 +36,26 @@ export function HomeScreen(props: HomeScreenProps) {
   return (
     <ScreenLayout
       headerAction={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, color: 'text.secondary' }}>
-          <PersonOutlineRounded sx={{ fontSize: 20 }} aria-hidden />
-          <Typography variant="body2" noWrap sx={{ maxWidth: 160 }} title={username}>
-            {username}
+        // The name opens the Profile page (where the gym can also be changed).
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<PersonOutlineRounded />}
+          onClick={onManageProfile}
+          disabled={!onManageProfile || isVerifying}
+          aria-label={onManageProfile ? `Open profile for ${displayName}` : displayName}
+          title={displayName}
+          sx={{
+            maxWidth: 220,
+            minWidth: 0,
+            justifyContent: 'flex-end',
+            '&.Mui-disabled': { color: 'text.secondary' },
+          }}
+        >
+          <Typography component="span" variant="body2" noWrap>
+            {displayName}
           </Typography>
-        </Box>
+        </Button>
       }
     >
       <GymSummary label={`Your gym · ${gym.label}`} name={gym.name} address={gym.formattedAddress} />
@@ -56,26 +67,6 @@ export function HomeScreen(props: HomeScreenProps) {
 
       <Stack spacing={3} sx={{ alignItems: 'center' }}>
         <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button
-            size="small"
-            color="inherit"
-            startIcon={<EditLocationAltOutlined />}
-            onClick={onChangeGym}
-            disabled={isVerifying}
-          >
-            Change gym
-          </Button>
-          {onManageProfile && (
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<ManageAccountsOutlined />}
-              onClick={onManageProfile}
-              disabled={isVerifying}
-            >
-              Profile
-            </Button>
-          )}
           <Button
             size="small"
             color="inherit"

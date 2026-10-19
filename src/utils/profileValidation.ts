@@ -1,4 +1,4 @@
-import { EARLIEST_DATE_OF_BIRTH, PROFILE_NAME_MAX_LENGTH } from '../config/constants'
+import { EARLIEST_DATE_OF_BIRTH, MINIMUM_AGE_YEARS, PROFILE_NAME_MAX_LENGTH } from '../config/constants'
 import type { Profile, ProfileEdits } from '../types'
 
 /** What the form holds while the user types: plain strings straight from the inputs. */
@@ -18,6 +18,19 @@ export function toDateInputValue(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${date.getFullYear()}-${month}-${day}`
+}
+
+/**
+ * The latest birth date allowed: the same day and month, MINIMUM_AGE_YEARS years ago, as
+ * `YYYY-MM-DD`. For 29 February when that year has no leap day, the limit is 28 February, which
+ * is earlier, so it is never looser than "exactly 15 years".
+ */
+export function latestBirthDate(today: Date): string {
+  const year = today.getFullYear() - MINIMUM_AGE_YEARS
+  const month = today.getMonth()
+  const sameDay = new Date(year, month, today.getDate())
+  // 29 February in a non-leap year rolls over into March; day 0 of the next month is the last day of this one.
+  return toDateInputValue(sameDay.getMonth() === month ? sameDay : new Date(year, month + 1, 0))
 }
 
 /** True for a real calendar date written as `YYYY-MM-DD` (so "2026-02-30" is rejected). */
@@ -40,7 +53,7 @@ function validateDateOfBirth(value: string, today: Date): string | null {
   if (value === '') return null // optional
   if (!isRealCalendarDate(value)) return 'Enter a valid date.'
   // Both sides are zero-padded YYYY-MM-DD, so comparing them as text compares them as dates.
-  if (value > toDateInputValue(today)) return "Birthday can't be in the future."
+  if (value > latestBirthDate(today)) return `Birthday must be at least ${MINIMUM_AGE_YEARS} years ago.`
   if (value < EARLIEST_DATE_OF_BIRTH) return 'Enter a valid date.'
   return null
 }
@@ -48,7 +61,7 @@ function validateDateOfBirth(value: string, today: Date): string | null {
 /**
  * Checks the form and, if it is fine, returns the cleaned values to save.
  * Names are required. The birthday is optional, but if given it must be a real date
- * that is not in the future. `today` is a parameter so tests can fix the date.
+ * at least 15 years ago. `today` is a parameter so tests can fix the date.
  */
 export function validateProfileForm(values: ProfileFormValues, today: Date = new Date()): ProfileValidation {
   const errors: ProfileFormErrors = {}
@@ -84,4 +97,23 @@ export function profileToFormValues(profile: Pick<Profile, 'firstName' | 'lastNa
     lastName: profile.lastName ?? '',
     dateOfBirth: profile.dateOfBirth ?? '',
   }
+}
+
+/**
+ * The name to show for the user: their saved first and last name. Falls back to `fallback`
+ * (for example the Google account name) only while the profile is not available.
+ */
+export function getDisplayName(profile: Pick<Profile, 'firstName' | 'lastName'> | null, fallback: string): string {
+  const name = [profile?.firstName, profile?.lastName]
+    .map((part) => (part ?? '').trim())
+    .filter((part) => part !== '')
+    .join(' ')
+  return name === '' ? fallback : name
+}
+
+/** Formats `YYYY-MM-DD` for reading, for example "17 May 1990". Returns null if missing or unreadable. */
+export function formatBirthDate(value: string | null): string | null {
+  if (!value || !isRealCalendarDate(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }

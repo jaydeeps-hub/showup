@@ -16,6 +16,32 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Profile page fixes (v2, step 5)
+
+Not yet committed or released. Builds on step 4 (already pushed).
+
+### What changed
+
+1. **Home page name:** it now shows the first and last name saved in the profile instead of the Google account name (the Google name is used only while the profile cannot be loaded). The name is a button that opens the Profile page, and the separate **Profile** link at the bottom is gone.
+2. **Profile page:** details are shown as plain text with an **Edit** button; the name and birthday fields are editable only after pressing it (Save changes returns to the read-only view, Cancel discards). **Change gym** moved here from the home screen, and a **Back** button returns home.
+3. **Birthday:** the date picker now stops at exactly 15 years before today, and the form rejects any later date (including typed ones), with the message "Birthday must be at least 15 years ago."
+
+### Why
+
+The home page showed an unfamiliar name, the form invited accidental edits, and future or very recent birthdays were accepted.
+
+### Important files
+
+`src/features/attendance/HomeScreen.tsx`, `src/features/profile/ManageProfileScreen.tsx`, `src/features/profile/ProfileForm.tsx`, `src/utils/profileValidation.ts`, `src/config/constants.ts` (`MINIMUM_AGE_YEARS`), `src/app/App.tsx`. Tests: `profileValidation.test.ts`, `App.profile.test.tsx`, `App.placeSearch.test.tsx`.
+
+### Data model changes
+
+None. No migration. Note: the database still only rejects birthdays before 1900; the 15-year rule is enforced in the app.
+
+### Tests performed
+
+See the final report.
+
 ## [Unreleased] - Production login fix and gym search mode (v2, step 4)
 
 Not yet committed or released. Builds on steps 1-3 (already pushed).

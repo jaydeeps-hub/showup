@@ -7,7 +7,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
 import type { ProfileEdits, SaveResult } from '../../types'
 import {
-  toDateInputValue,
+  latestBirthDate,
   validateProfileForm,
   type ProfileFormErrors,
   type ProfileFormValues,
@@ -43,8 +43,8 @@ export function ProfileForm(props: ProfileFormProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [justSaved, setJustSaved] = useState(false)
-  // Today's date, fixed when the form opens. Lets the date picker block future dates.
-  const [latestBirthday] = useState(() => toDateInputValue(new Date()))
+  // The latest selectable birth date (exactly 15 years before today), fixed when the form opens.
+  const [latestBirthday] = useState(() => latestBirthDate(new Date()))
 
   function setField(field: keyof ProfileFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))

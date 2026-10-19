@@ -12,7 +12,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 
 - **Gym search is restricted to fitness places.** Regular users can only save a gym, fitness centre or similar sports facility. Administrators get a setting in Manage Profile to switch between **Fitness places only** and **Any place**; it is stored in Supabase and enforced by the database.
 - **Profile onboarding.** On first sign-in, people who don't yet have a first and last name are asked "Let's get to know you." (first name, last name, optional birthday). It appears once; after the profile is saved it is skipped, including after a refresh.
-- **Manage Profile.** A **Profile** button on the home screen opens a page to view and edit first name, last name and birthday, see the Google email in use, and sign out.
+- **Manage Profile.** Tap your name at the top of the home screen to open it. It shows your first name, last name and birthday as plain text; press **Edit** to change them. It also shows your Google email, your gym with a **Change gym** button, and **Sign out**.
 - **Sign in with Google** through Supabase. The session is restored when you reload, and you can sign out from the home screen. Gyms and Showups are still stored in this browser (per Google account); moving them to a database is a later step.
 - **Gym search with Google Maps.** Uses Places API (New) autocomplete to find a real gym, then saves its name, address and coordinates as **Gym 1**.
 - **Gym-only check.** A selected place is only accepted if Google Maps lists it as a gym, fitness centre or similar sports facility. Homes, shops and other random locations are rejected with a "Not a gym" message.
@@ -161,7 +161,9 @@ After Google sign-in, the app loads your row from `public.profiles` (created aut
 
 Google usually supplies your first and last name, so most people will see those pre-filled, or skip onboarding altogether. Everyone can add a birthday later in **Manage Profile**.
 
-**Manage Profile** (home screen → **Profile**): edit first name, last name and date of birth, then **Save changes** or **Cancel**. Your Google email is shown but can't be changed here, and **Sign out** is at the bottom. The form rules are the same everywhere: names are required (up to 100 characters), and a birthday is optional but must be a real date that isn't in the future (and not before 1900).
+**Your name on the home screen** is the first and last name saved in your profile (not the name on your Google account), and tapping it opens the Profile page. There is no separate Profile or Change gym link on the home screen any more.
+
+**Manage Profile** (home screen → tap your name): your details are shown as text. Press **Edit** to make the first name, last name and date of birth editable, then **Save changes** (you return to the read-only view) or **Cancel** (changes are discarded). **Change gym** is on this page, and **Back** returns to the home screen. Your Google email is shown but can't be changed here, and **Sign out** is at the bottom. The form rules are the same everywhere: names are required (up to 100 characters), and a birthday is optional but must be a real date **at least 15 years ago** (the date picker stops at exactly 15 years before today, and typing a later date is rejected too) and not before 1900.
 
 If a save fails (for example your connection drops), the page shows an error and **keeps everything you typed**; press **Try again** to retry. There is no admin setting anywhere in the interface, and the app never sends `is_admin`; the database also refuses to let app users change it.
 
@@ -176,9 +178,9 @@ update public.profiles set first_name = null, last_name = null where id = (selec
 | Who | Can search |
 |---|---|
 | Everyone (default) | Gyms and fitness-related places only. Picking anything else shows "Not a gym… Please select another place." |
-| Administrators (`is_admin = true`) | Either **Fitness places only** (default) or **Any place**, chosen in **Profile** → *Gym search (administrator)* |
+| Administrators (`is_admin = true`) | Either **Fitness places only** (default) or **Any place**, chosen in the Profile page → *Gym search (administrator)* |
 
-The choice is saved on the user's profile in Supabase (`place_search_mode`), so it survives a refresh and a new sign-in. It applies both when you first choose a gym and when you use **Change gym**.
+The choice is saved on the user's profile in Supabase (`place_search_mode`), so it survives a refresh and a new sign-in. It applies both when you first choose a gym and when you use **Change gym** (on the Profile page).
 
 **Enforced by the database, not just the interface.** A regular user has no permission to write the setting, and the only way to change it is a database function that refuses `any_place` unless the caller's profile has `is_admin = true`. Hiding the control in the app is only a convenience. If someone's admin rights are removed, their "any place" setting stops applying immediately.
 

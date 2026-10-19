@@ -33,9 +33,9 @@ Follow one press of the button through the files:
 ### Profile onboarding and Manage Profile
 
 1. **Which files control it?** `src/features/profile/OnboardingScreen.tsx`, `ManageProfileScreen.tsx` and the shared `ProfileForm.tsx`. Routing is in `src/app/App.tsx`.
-2. **What do they do?** `App.tsx` shows onboarding when the loaded profile has no first or last name, and Manage Profile when the user presses **Profile** on the home screen. Both screens use `ProfileForm`, which validates, saves, shows errors, and keeps the typed values if saving fails.
+2. **What do they do?** `App.tsx` shows onboarding when the loaded profile has no first or last name, and the Profile page when the user taps their name on the home screen. The home screen name is the saved first and last name (`getDisplayName` in `utils/profileValidation.ts`), not the Google account name. The Profile page shows details as text; **Edit** swaps in `ProfileForm`; **Change gym** and **Sign out** live on the page. Both screens use `ProfileForm`, which validates, saves, shows errors, and keeps the typed values if saving fails.
 3. **What do they depend on?** `hooks/useProfile.ts` (`save`), `services/profileService.ts` (`updateProfile`, the only database code), `utils/profileValidation.ts` (the rules and `isProfileComplete`), and the `profiles` table (see `docs/DATABASE_SCHEMA.md`).
-4. **To change it, start at:** the rules in `utils/profileValidation.ts` (what counts as "complete", name length, date checks); wording in the two screen files; which fields exist in `ProfileEdits` (`types/index.ts`) and `updateProfile`. A new field also needs a database migration and a column privilege (`GRANT UPDATE`), or the database will refuse the save.
+4. **To change it, start at:** the rules in `utils/profileValidation.ts` (what counts as "complete", name length, and the birthday rule: `MINIMUM_AGE_YEARS` in `config/constants.ts` sets the 15-year limit used by both the date picker and the validation); wording in the two screen files; which fields exist in `ProfileEdits` (`types/index.ts`) and `updateProfile`. A new field also needs a database migration and a column privilege (`GRANT UPDATE`), or the database will refuse the save.
 5. **Test after changing:** `npm test` (`profileValidation.test.ts`, `profileService.test.ts`, `App.profile.test.tsx`), then try a brand-new Google account, a refresh, and an offline save in the browser.
 
 ### Gym search mode (fitness places vs any place)
@@ -71,7 +71,7 @@ The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-
 ### Home screen
 
 1. **Which file controls it?** `src/features/attendance/HomeScreen.tsx`
-2. **What does it do?** Lays out the gym card, the SHOW UP button, the counter and the Change gym / Log out links. Shows feedback after each press and the reset confirmation dialog.
+2. **What does it do?** Lays out the gym card, the SHOW UP button, the counter and the Sign out link. The saved name at the top opens the Profile page. Shows feedback after each press.
 3. **Depends on:** `components/ShowUpButton.tsx`, `ShowUpCounter.tsx`, `GymSummary.tsx`, `FeedbackMessage.tsx`, `config/messages.ts`.
 4. **To change it, start at:** the screen for layout; the individual component for the button's size or the counter's label.
 5. **Test after changing:** check at phone width (DevTools device toolbar, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>) and desktop width; the button is disabled with "Checking location…" while verifying.

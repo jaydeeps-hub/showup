@@ -28,7 +28,7 @@ Someone who wants to build a consistent gym habit and values a simple, honest re
 - Location check with a 100 m geofence and an accuracy safeguard
 - Total Showups counter backed by a timestamped event history
 - Persistence in the browser (`localStorage`)
-- Change gym, and log out/reset for testing
+- Change gym (from the Profile page), and sign out
 - Dark, mobile-first interface
 
 ### Not included now (future ideas)

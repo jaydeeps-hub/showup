@@ -22,12 +22,12 @@ vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     status: 'signed-in',
     session: {
-      user: { id: 'user-1', email: 'asha@example.com', user_metadata: { full_name: 'Asha Rao' } },
+      user: { id: 'user-1', email: 'asha@example.com', user_metadata: { full_name: 'Google Account Name' } },
     } as unknown as Session,
   }),
 }))
 vi.mock('../services/authService', () => ({
-  getIdentity: () => ({ id: 'user-1', username: 'Asha Rao' }),
+  getIdentity: () => ({ id: 'user-1', username: 'Google Account Name' }),
   signOut: auth.signOut,
 }))
 
@@ -168,8 +168,8 @@ describe('incomplete-profile routing', () => {
 
     expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
     expect(screen.getByText(/profile could not be loaded/i)).toBeTruthy()
-    // Without a profile there is nothing to manage, so the Profile button is hidden.
-    expect(screen.queryByRole('button', { name: /^profile$/i })).toBeNull()
+    // Without a profile there is nothing to open, so the name is shown but cannot be pressed.
+    expect((screen.getByRole('button', { name: 'Google Account Name' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('keeps the app usable and explains when no profile row exists', async () => {
@@ -253,7 +253,7 @@ describe('completing onboarding', () => {
     expect(await screen.findByText(/we use it only to wish you a happy birthday/i)).toBeTruthy()
   })
 
-  it('rejects a birthday in the future and does not save', async () => {
+  it('rejects a birthday that is less than 15 years ago and does not save', async () => {
     useFakeDatabase(profile())
     const user = userEvent.setup()
     renderApp()
@@ -263,97 +263,196 @@ describe('completing onboarding', () => {
     await user.type(screen.getByLabelText(/date of birth/i), '2999-01-01')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
-    expect(await screen.findByText("Birthday can't be in the future.")).toBeTruthy()
+    expect(await screen.findByText('Birthday must be at least 15 years ago.')).toBeTruthy()
     expect(db.updateProfile).not.toHaveBeenCalled()
+  })
+})
+
+async function openManageProfile(user: ReturnType<typeof userEvent.setup>) {
+  // The saved name on the home screen is the entry point to the Profile page.
+  await user.click(await screen.findByRole('button', { name: /open profile for/i }))
+  return screen.findByRole('heading', { name: 'Your profile' })
+}
+
+/** Opens the Profile page and switches it to edit mode. */
+async function openAndStartEditing(user: ReturnType<typeof userEvent.setup>) {
+  await openManageProfile(user)
+  await user.click(screen.getByRole('button', { name: 'Edit' }))
+}
+
+// --- Home page name and Profile entry point --------------------------------------------
+
+describe('home page name', () => {
+  it('shows the saved first and last name, not the Google account name', async () => {
+    useFakeDatabase(completeProfile)
+    renderApp()
+
+    expect(await screen.findByRole('button', { name: 'Open profile for Asha Rao' })).toBeTruthy()
+    expect(screen.queryByText('Google Account Name')).toBeNull()
+  })
+
+  it('shows the updated name straight after it is edited', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
+
+    const first = screen.getByLabelText(/first name/i)
+    await user.clear(first)
+    await user.type(first, 'Ashley')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByRole('button', { name: 'Edit' })
+    await user.click(screen.getByRole('button', { name: /back/i }))
+
+    expect(await screen.findByRole('button', { name: 'Open profile for Ashley Rao' })).toBeTruthy()
+  })
+
+  it('opens the Profile page when the name is pressed', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+
+    expect(await openManageProfile(user)).toBeTruthy()
+  })
+
+  it('no longer has a separate Profile or Change gym link on the home page', async () => {
+    useFakeDatabase(completeProfile)
+    renderApp()
+    await screen.findByRole('button', { name: /show up/i })
+
+    expect(screen.queryByRole('button', { name: /^profile$/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /change gym/i })).toBeNull()
   })
 })
 
 // --- Manage Profile --------------------------------------------------------------------
 
-async function openManageProfile(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole('button', { name: /^profile$/i }))
-  return screen.findByRole('heading', { name: 'Your profile' })
-}
-
 describe('Manage Profile', () => {
-  it('opens from the home screen and shows the current details and Google email', async () => {
+  it('shows the current details as plain text, with no editable fields, until Edit is pressed', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
     await openManageProfile(user)
+
+    expect(screen.getByText('Asha')).toBeTruthy()
+    expect(screen.getByText('Rao')).toBeTruthy()
+    expect(screen.getByText('17 May 1990')).toBeTruthy()
+    expect(screen.queryByLabelText(/first name/i)).toBeNull()
+    expect(screen.queryByLabelText(/last name/i)).toBeNull()
+    expect(screen.queryByLabelText(/date of birth/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+  })
+
+  it('shows the Google email, which cannot be edited', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openManageProfile(user)
+
+    const email = screen.getByLabelText(/google account email/i) as HTMLInputElement
+    expect(email.value).toBe('asha@example.com')
+    expect(email.disabled).toBe(true)
+  })
+
+  it('shows "Not set" when there is no birthday', async () => {
+    useFakeDatabase(profile({ firstName: 'Asha', lastName: 'Rao' }))
+    const user = userEvent.setup()
+    renderApp()
+    await openManageProfile(user)
+    expect(screen.getByText('Not set')).toBeTruthy()
+  })
+
+  it('makes the fields editable only after Edit is pressed', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
 
     expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe('Asha')
     expect((screen.getByLabelText(/last name/i) as HTMLInputElement).value).toBe('Rao')
     expect((screen.getByLabelText(/date of birth/i) as HTMLInputElement).value).toBe('1990-05-17')
-    const email = screen.getByLabelText(/google account email/i) as HTMLInputElement
-    expect(email.value).toBe('asha@example.com')
-    expect(email.disabled).toBe(true) // cannot be edited
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
   })
 
-  it('saves edits and updates the profile on screen', async () => {
+  it('saves edits, returns to the read-only view and shows the new values', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     const first = screen.getByLabelText(/first name/i)
     await user.clear(first)
     await user.type(first, 'Ashley')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    expect(await screen.findByText('Your changes have been saved.')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(screen.getByText('Ashley')).toBeTruthy()
+    expect(screen.queryByLabelText(/first name/i)).toBeNull()
     expect(db.updateProfile).toHaveBeenCalledWith(USER_ID, { firstName: 'Ashley', lastName: 'Rao', dateOfBirth: '1990-05-17' })
     expect(stored.firstName).toBe('Ashley')
-    expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe('Ashley')
   })
 
   it('shows the saved changes after a refresh', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     const first = renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
     const lastName = screen.getByLabelText(/last name/i)
     await user.clear(lastName)
     await user.type(lastName, 'Iyer')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    await screen.findByText('Your changes have been saved.')
+    await screen.findByRole('button', { name: 'Edit' })
 
     first.unmount()
     renderApp()
     await openManageProfile(user)
-    expect((screen.getByLabelText(/last name/i) as HTMLInputElement).value).toBe('Iyer')
+    expect(screen.getByText('Iyer')).toBeTruthy()
   })
 
   it('can clear the birthday', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     await user.clear(screen.getByLabelText(/date of birth/i))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    await screen.findByText('Your changes have been saved.')
+    await screen.findByRole('button', { name: 'Edit' })
     expect(db.updateProfile).toHaveBeenCalledWith(USER_ID, { firstName: 'Asha', lastName: 'Rao', dateOfBirth: null })
+    expect(screen.getByText('Not set')).toBeTruthy()
   })
 
-  it('cancel discards edits and returns to the home screen without saving', async () => {
+  it('cancel while editing discards the changes and returns to the read-only view', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
+
+    await user.type(screen.getByLabelText(/first name/i), ' Changed')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(screen.queryByLabelText(/first name/i)).toBeNull()
+    expect(db.updateProfile).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe('Asha') // edit was discarded
+  })
+
+  it('Back returns to the home screen', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
     await openManageProfile(user)
 
-    await user.type(screen.getByLabelText(/first name/i), ' Changed')
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-
+    await user.click(screen.getByRole('button', { name: /back/i }))
     expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
-    expect(db.updateProfile).not.toHaveBeenCalled()
-
-    await openManageProfile(user)
-    expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe('Asha') // edit was discarded
   })
 
-  it('signs out from the Manage Profile page', async () => {
+  it('signs out from the Profile page', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
@@ -367,7 +466,7 @@ describe('Manage Profile', () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     await user.clear(screen.getByLabelText(/first name/i))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -375,21 +474,112 @@ describe('Manage Profile', () => {
     expect(await screen.findByText('Enter your first name.')).toBeTruthy()
     expect(db.updateProfile).not.toHaveBeenCalled()
   })
+})
 
-  it('rejects a future birthday when editing and keeps what was typed', async () => {
+// --- Birthday: at least 15 years ago ---------------------------------------------------
+
+describe('birthday must be at least 15 years ago', () => {
+  /** The latest allowed birthday, worked out the same independent way the date picker limit should be. */
+  function fifteenYearsAgo(): string {
+    const now = new Date()
+    const d = new Date(now.getFullYear() - 15, now.getMonth(), now.getDate())
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  it('sets the date picker limit to exactly 15 years before today', async () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
+
+    expect((screen.getByLabelText(/date of birth/i) as HTMLInputElement).max).toBe(fifteenYearsAgo())
+  })
+
+  it('also limits the picker on the onboarding form', async () => {
+    useFakeDatabase(profile())
+    renderApp()
+    expect(((await screen.findByLabelText(/date of birth/i)) as HTMLInputElement).max).toBe(fifteenYearsAgo())
+  })
+
+  it('rejects a typed future birthday and keeps what was typed', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
 
     const dob = screen.getByLabelText(/date of birth/i)
     await user.clear(dob)
     await user.type(dob, '2999-12-31')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    expect(await screen.findByText("Birthday can't be in the future.")).toBeTruthy()
+    expect(await screen.findByText('Birthday must be at least 15 years ago.')).toBeTruthy()
     expect((screen.getByLabelText(/date of birth/i) as HTMLInputElement).value).toBe('2999-12-31')
     expect(db.updateProfile).not.toHaveBeenCalled()
+  })
+
+  it('rejects someone who turns 15 tomorrow', async () => {
+    const tomorrowish = new Date()
+    tomorrowish.setFullYear(tomorrowish.getFullYear() - 15)
+    tomorrowish.setDate(tomorrowish.getDate() + 1)
+    const value = `${tomorrowish.getFullYear()}-${String(tomorrowish.getMonth() + 1).padStart(2, '0')}-${String(tomorrowish.getDate()).padStart(2, '0')}`
+
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
+    const dob = screen.getByLabelText(/date of birth/i)
+    await user.clear(dob)
+    await user.type(dob, value)
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByText('Birthday must be at least 15 years ago.')).toBeTruthy()
+    expect(db.updateProfile).not.toHaveBeenCalled()
+  })
+
+  it('accepts someone who turned 15 today', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
+    const dob = screen.getByLabelText(/date of birth/i)
+    await user.clear(dob)
+    await user.type(dob, fifteenYearsAgo())
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(stored.dateOfBirth).toBe(fifteenYearsAgo())
+  })
+})
+
+// --- Change gym lives on the Profile page ----------------------------------------------
+
+describe('Change gym on the Profile page', () => {
+  it('shows the saved gym and a Change gym button', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openManageProfile(user)
+
+    expect(screen.getByText('Iron Gym')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /change gym/i })).toBeTruthy()
+  })
+
+  it('opens the gym search when pressed', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openManageProfile(user)
+
+    await user.click(screen.getByRole('button', { name: /change gym/i }))
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
+  })
+
+  it('cannot be started while the name fields are being edited', async () => {
+    useFakeDatabase(completeProfile)
+    const user = userEvent.setup()
+    renderApp()
+    await openAndStartEditing(user)
+    expect((screen.getByRole('button', { name: /change gym/i }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
 
@@ -400,7 +590,7 @@ describe('database errors and retrying a save', () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     // First attempt fails (for example the network drops); the second works.
     db.updateProfile.mockResolvedValueOnce({ status: 'error', message: "We couldn't reach the server. Check your connection and try again." })
@@ -414,11 +604,11 @@ describe('database errors and retrying a save', () => {
     expect(within(alert).getByText(/couldn't reach the server/i)).toBeTruthy()
     expect((screen.getByLabelText(/first name/i) as HTMLInputElement).value).toBe('Ashley') // nothing lost
     expect(stored.firstName).toBe('Asha') // nothing was saved
-    expect(screen.queryByText('Your changes have been saved.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull() // still editing, nothing was saved
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('Your changes have been saved.')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy() // saved: back to the read-only view
     expect(db.updateProfile).toHaveBeenCalledTimes(2)
     expect(db.updateProfile).toHaveBeenLastCalledWith(USER_ID, { firstName: 'Ashley', lastName: 'Rao', dateOfBirth: '1990-05-17' })
     expect(stored.firstName).toBe('Ashley')
@@ -449,7 +639,7 @@ describe('database errors and retrying a save', () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     let finish!: (value: unknown) => void
     db.updateProfile.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
@@ -461,7 +651,7 @@ describe('database errors and retrying a save', () => {
     await user.type(screen.getByLabelText(/date of birth/i), '{Enter}', { skipClick: true })
 
     finish({ status: 'saved', profile: completeProfile })
-    await screen.findByText('Your changes have been saved.')
+    await screen.findByRole('button', { name: 'Edit' })
     expect(db.updateProfile).toHaveBeenCalledTimes(1)
   })
 })
@@ -481,7 +671,7 @@ describe('is_admin cannot be changed through the UI', () => {
     useFakeDatabase(completeProfile)
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user) // even while editing, there is no admin control
     expect(screen.queryByText(/admin/i)).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
@@ -491,11 +681,11 @@ describe('is_admin cannot be changed through the UI', () => {
     useFakeDatabase({ ...completeProfile, isAdmin: true })
     const user = userEvent.setup()
     renderApp()
-    await openManageProfile(user)
+    await openAndStartEditing(user)
 
     await user.type(screen.getByLabelText(/first name/i), 'a')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    await screen.findByText('Your changes have been saved.')
+    await screen.findByRole('button', { name: 'Edit' })
 
     const sent = db.updateProfile.mock.calls[0][1] as Record<string, unknown>
     expect(Object.keys(sent).sort()).toEqual(['dateOfBirth', 'firstName', 'lastName'])

@@ -138,7 +138,7 @@ select
   has_function_privilege('anon', 'public.effective_place_search_mode()', 'EXECUTE')    as anon_can_read;
 ```
 
-**End-to-end:** sign in as a normal user, open **Profile** and confirm there is no "Gym search" setting. Make yourself an administrator (section 4), reload, and the setting appears. Switch to **Any place**, refresh, and confirm it is still selected.
+**End-to-end:** sign in as a normal user, tap your name to open the Profile page and confirm there is no "Gym search" setting. Make yourself an administrator (section 4), reload, and the setting appears. Switch to **Any place**, refresh, and confirm it is still selected.
 
 ## 5. Troubleshooting
 

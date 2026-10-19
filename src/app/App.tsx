@@ -11,7 +11,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 import { useShowup, type SignedInUser } from '../hooks/useShowup'
 import { getIdentity, signOut } from '../services/authService'
-import { isProfileComplete } from '../utils/profileValidation'
+import { getDisplayName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
 import { StorageProblemScreen } from './StorageProblemScreen'
 
@@ -113,8 +113,13 @@ function SignedInApp({ session }: { session: Session }) {
         <ManageProfileScreen
           profile={profile.profile}
           email={session.user.email ?? null}
+          gym={showup.gym}
           onSave={profile.save}
           onChangeSearchMode={profile.setPlaceSearchMode}
+          onChangeGym={() => {
+            setIsManagingProfile(false)
+            setIsChangingGym(true)
+          }}
           onClose={() => setIsManagingProfile(false)}
           onSignOut={() => {
             setIsManagingProfile(false)
@@ -140,12 +145,12 @@ function SignedInApp({ session }: { session: Session }) {
 
     return (
       <HomeScreen
-        username={user.username}
+        // The saved first and last name; the Google account name is only a fallback while the profile is unavailable.
+        displayName={getDisplayName(profile.status === 'ready' ? profile.profile : null, user.username)}
         gym={showup.gym}
         showupCount={showup.showupCount}
         isVerifying={showup.isVerifying}
         onShowUp={showup.showUp}
-        onChangeGym={() => setIsChangingGym(true)}
         onManageProfile={profile.status === 'ready' ? () => setIsManagingProfile(true) : undefined}
         onSignOut={() => void handleSignOut()}
       />

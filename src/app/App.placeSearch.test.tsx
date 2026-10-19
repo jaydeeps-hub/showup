@@ -139,8 +139,15 @@ async function searchAndPick(user: ReturnType<typeof userEvent.setup>, name: str
 const saveButton = () => screen.getByRole('button', { name: /save as gym 1/i }) as HTMLButtonElement
 
 async function openManageProfile(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole('button', { name: /^profile$/i }))
+  // The saved name on the home screen opens the Profile page.
+  await user.click(await screen.findByRole('button', { name: /open profile for/i }))
   return screen.findByRole('heading', { name: 'Your profile' })
+}
+
+/** Change gym now lives on the Profile page, not on the home screen. */
+async function openChangeGym(user: ReturnType<typeof userEvent.setup>) {
+  await openManageProfile(user)
+  await user.click(screen.getByRole('button', { name: /change gym/i }))
 }
 
 beforeEach(() => {
@@ -294,7 +301,7 @@ describe('administrator (is_admin = true)', () => {
     const user = userEvent.setup()
     renderApp()
 
-    await user.click(await screen.findByRole('button', { name: /change gym/i }))
+    await openChangeGym(user)
     await searchAndPick(user, '12 Quiet Street')
 
     expect(await screen.findByText(/selected as gym 1/i)).toBeTruthy()
@@ -308,9 +315,7 @@ describe('administrator (is_admin = true)', () => {
     await openManageProfile(user)
     await user.click(screen.getByRole('radio', { name: 'Fitness places only' }))
     await vi.waitFor(() => expect(stored.placeSearchMode).toBe('fitness_only'))
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-
-    await user.click(await screen.findByRole('button', { name: /change gym/i }))
+    await user.click(screen.getByRole('button', { name: /change gym/i }))
     await searchAndPick(user, '12 Quiet Street')
 
     expect(await screen.findByText(/not a gym/i)).toBeTruthy()

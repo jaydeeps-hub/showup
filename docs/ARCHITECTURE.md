@@ -41,7 +41,9 @@ flowchart TD
     Problem --> Welcome
     Welcome -->|Continue| Setup[Gym setup<br/>Google Maps search]
     Setup -->|Save as Gym 1| Home[Home screen<br/>SHOW UP + counter]
-    Home -->|Change gym| Setup
+    Home -->|tap your name| Profile[Profile page<br/>Edit details, Change gym, Sign out]
+    Profile -->|Change gym| Setup
+    Profile -->|Back| Home
     Home -->|Log out & reset| Welcome
     Home -->|SHOW UP| Locate[Get current position]
     Locate -->|error| ErrorMsg[Explain the problem<br/>count unchanged]
