@@ -680,3 +680,117 @@ describe('place search mode (admin-only "any place")', () => {
     await expect(asUser(db, regular, () => db.query("select public.set_place_search_mode('any_place')"))).rejects.toThrow(/Only administrators/)
   })
 })
+
+/**
+ * These run the SAME operations the app now performs against Supabase (src/services/gymService.ts
+ * and showupService.ts), as the signed-in user, against the real migrations. They prove the tables
+ * and permissions accept exactly what the app sends.
+ */
+describe('what the app does against the database', () => {
+  let db: PGlite
+  let alice: string
+  let bob: string
+  beforeEach(async () => {
+    db = await createDatabase()
+    alice = await registerAuthUser(db)
+    bob = await registerAuthUser(db)
+  })
+  afterEach(async () => {
+    await db.close()
+  })
+
+  /** saveActiveGym(): retire any active gym, then insert the new one (the app sends no user_id). */
+  async function saveActiveGymAsApp(userId: string, name: string): Promise<string> {
+    return asUser(db, userId, async () => {
+      await db.query('update public.gyms set is_active = false where is_active = true returning id')
+      const { rows } = await db.query<{ id: string }>(
+        `insert into public.gyms (name, google_place_id, address, latitude, longitude)
+         values ($1, 'place-1', '1 Main Road', 12.97, 77.59) returning id`,
+        [name],
+      )
+      return rows[0].id
+    })
+  }
+
+  /** recordShowup(): insert gym, distance and accuracy only (the app sends no user_id or time). */
+  async function recordShowupAsApp(userId: string, gymId: string, distance = 24, accuracy = 8) {
+    return asUser(db, userId, () =>
+      db.query('insert into public.showups (gym_id, distance_meters, location_accuracy_meters) values ($1, $2, $3)', [gymId, distance, accuracy]),
+    )
+  }
+
+  const activeGymAsApp = (userId: string) =>
+    asUser(db, userId, async () => (await db.query('select id, name from public.gyms where is_active = true order by created_at desc limit 1')).rows)
+  const countAsApp = (userId: string) =>
+    asUser(db, userId, async () => (await db.query<{ count: number }>('select count(*)::int as count from public.showups')).rows[0].count)
+
+  it('saves a first gym, which then loads as the active gym', async () => {
+    await saveActiveGymAsApp(alice, 'Iron Gym')
+    expect(await activeGymAsApp(alice)).toEqual([{ id: expect.any(String), name: 'Iron Gym' }])
+  })
+
+  it('changes gym: the new one becomes active and the old one is kept as history', async () => {
+    const oldGym = await saveActiveGymAsApp(alice, 'Old Gym')
+    const newGym = await saveActiveGymAsApp(alice, 'New Gym')
+
+    expect(await activeGymAsApp(alice)).toEqual([{ id: newGym, name: 'New Gym' }])
+    const all = (await db.query('select name, is_active from public.gyms where user_id = $1 order by name', [alice])).rows
+    expect(all).toEqual([
+      { name: 'New Gym', is_active: true },
+      { name: 'Old Gym', is_active: false },
+    ])
+    expect(oldGym).not.toBe(newGym)
+  })
+
+  it("does not touch another user's gym when one user changes theirs", async () => {
+    await saveActiveGymAsApp(bob, 'Bob Gym')
+    await saveActiveGymAsApp(alice, 'Alice 1')
+    await saveActiveGymAsApp(alice, 'Alice 2')
+    expect(await activeGymAsApp(bob)).toEqual([{ id: expect.any(String), name: 'Bob Gym' }])
+  })
+
+  it('records a Showup at the active gym and counts it', async () => {
+    const gym = await saveActiveGymAsApp(alice, 'Iron Gym')
+    await recordShowupAsApp(alice, gym)
+    await recordShowupAsApp(alice, gym)
+
+    expect(await countAsApp(alice)).toBe(2)
+    const row = (await db.query('select user_id, gym_id, distance_meters, location_accuracy_meters, verification_method from public.showups limit 1')).rows[0]
+    expect(row).toEqual({ user_id: alice, gym_id: gym, distance_meters: 24, location_accuracy_meters: 8, verification_method: 'gps' })
+  })
+
+  it("counts only the signed-in user's own Showups", async () => {
+    const aliceGym = await saveActiveGymAsApp(alice, 'A')
+    const bobGym = await saveActiveGymAsApp(bob, 'B')
+    await recordShowupAsApp(alice, aliceGym)
+    await recordShowupAsApp(bob, bobGym)
+    await recordShowupAsApp(bob, bobGym)
+
+    expect(await countAsApp(alice)).toBe(1)
+    expect(await countAsApp(bob)).toBe(2)
+  })
+
+  it('keeps the count after the user changes gym, and refuses a Showup at the retired gym', async () => {
+    const oldGym = await saveActiveGymAsApp(alice, 'Old')
+    await recordShowupAsApp(alice, oldGym)
+    const newGym = await saveActiveGymAsApp(alice, 'New')
+
+    expect(await countAsApp(alice)).toBe(1) // history survives the change
+    await expect(recordShowupAsApp(alice, oldGym)).rejects.toThrow(/row-level security/i)
+    await recordShowupAsApp(alice, newGym)
+    expect(await countAsApp(alice)).toBe(2)
+  })
+
+  it("refuses a Showup at someone else's gym", async () => {
+    const bobGym = await saveActiveGymAsApp(bob, 'Bob Gym')
+    await expect(recordShowupAsApp(alice, bobGym)).rejects.toThrow(/row-level security/i)
+    expect(await countAsApp(alice)).toBe(0)
+  })
+
+  it('rounds-down inputs the app sends are accepted: zero distance and zero accuracy', async () => {
+    const gym = await saveActiveGymAsApp(alice, 'Iron Gym')
+    await recordShowupAsApp(alice, gym, 0, 0)
+    expect(await countAsApp(alice)).toBe(1)
+  })
+})
+

@@ -1,19 +1,7 @@
 /**
- * Core data types for Showup.
- *
- * These shapes are deliberately close to what database tables would look like
- * (users, gyms, showup_events) so they can move to a backend later.
+ * Core data types for Showup. Gyms and Showups are stored in Supabase (see docs/DATABASE_SCHEMA.md);
+ * these are the shapes the app works with after reading them.
  */
-
-/**
- * A demo identity that exists only in this browser. It is NOT authenticated.
- * The password typed on the welcome screen is never stored anywhere.
- */
-export interface TemporaryUser {
-  id: string
-  username: string
-  createdAt: string // ISO 8601 timestamp
-}
 
 export interface Gym {
   /** Showup's own ID. Attendance events reference this, not the Google ID. */
@@ -28,25 +16,6 @@ export interface Gym {
   latitude: number
   longitude: number
   createdAt: string
-}
-
-/** One successful, location-verified visit. Failed checks are never stored. */
-export interface ShowupEvent {
-  id: string
-  userId: string
-  gymId: string
-  verifiedAt: string
-  /** Distance between the user and the gym at verification time, if known. */
-  distanceMetres: number | null
-}
-
-/** Everything Showup persists, stored as a single localStorage entry. */
-export interface ShowupData {
-  schemaVersion: 1
-  user: TemporaryUser | null
-  /** Only one gym is used in v0.1.0, but the array allows more later. */
-  gyms: Gym[]
-  events: ShowupEvent[]
 }
 
 export interface Coordinates {

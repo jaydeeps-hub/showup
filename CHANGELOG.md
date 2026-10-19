@@ -16,6 +16,41 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Gyms and Showups saved to Supabase (v2, step 6)
+
+Not yet committed or released. Builds on step 5 (already pushed).
+
+### What changed
+
+- **Bug fix:** saving a gym or pressing SHOW UP never wrote to the Supabase `gyms` and `showups` tables, because the app still saved them to the browser's localStorage (the tables were created in step 2 but never connected). Both are now written to Supabase.
+- **Saving a gym** retires the previous gym (`is_active = false`) and inserts the new one; if the insert fails the old gym is restored. The screen changes only after the database confirms, and shows an error (keeping the choice) otherwise.
+- **SHOW UP** inserts one `showups` row (gym, distance, accuracy; user and time are set by the database). The counter is the number of the user's rows. If the row cannot be saved the user is told "Your Showup wasn't saved" and nothing is counted.
+- If the gym cannot be loaded the app shows "We couldn't load your gym" with a retry, rather than offering to choose a new one.
+- The browser-storage layer (`storageService`, its recovery screen, the local data types) is removed.
+
+### Why
+
+Data in one browser could not follow the user, could not be reported on, and was not what the database was built for.
+
+### Important files
+
+- New: `src/services/gymService.ts`, `src/services/showupService.ts`, `src/app/DataLoadErrorScreen.tsx`
+- Changed: `src/hooks/useShowup.ts` (rewritten), `src/services/attendanceService.ts` (now `checkLocation`; no local history), `src/features/gym/GymSetupScreen.tsx`, `src/app/App.tsx`, `src/config/messages.ts`, `src/types/index.ts`, `src/config/constants.ts`
+- Removed: `src/services/storageService.ts` (+ test), `src/app/StorageProblemScreen.tsx`
+- Tests: `gymService.test.ts`, `showupService.test.ts`, `App.database.test.tsx`, additions to `supabase/tests/database.test.ts`
+
+### Data model changes
+
+None. No migration: the existing tables and permissions already allow exactly these operations (verified by new database tests). The `localStorage` key `showup:data:v1` is no longer read or written.
+
+### Migration / configuration steps
+
+None for the database, provided the step 2 and step 4 migrations are applied. **Users must choose their gym once more**: gyms and Showups saved in the browser under the old system are not imported (the database sets each Showup's time itself, so old visits could not keep their dates).
+
+### Tests performed
+
+See the final report.
+
 ## [Unreleased] - Profile page fixes (v2, step 5)
 
 Not yet committed or released. Builds on step 4 (already pushed).

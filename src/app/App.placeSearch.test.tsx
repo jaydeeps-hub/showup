@@ -39,8 +39,9 @@ vi.mock('../services/profileService', () => ({
 const gymState = vi.hoisted(() => ({ hasGym: false, saveGym: vi.fn() }))
 vi.mock('../hooks/useShowup', () => ({
   useShowup: () => ({
-    storageStatus: 'ok',
-    isNotPersisting: false,
+    dataStatus: 'ready',
+    loadError: null,
+    reload: vi.fn(),
     gym: gymState.hasGym
       ? {
           id: 'gym-1',
@@ -58,8 +59,6 @@ vi.mock('../hooks/useShowup', () => ({
     isVerifying: false,
     saveGym: gymState.saveGym,
     showUp: vi.fn(),
-    resetDemoData: vi.fn(),
-    continueWithoutSaving: vi.fn(),
   }),
 }))
 
@@ -153,6 +152,7 @@ async function openChangeGym(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   vi.clearAllMocks()
   gymState.hasGym = false
+  gymState.saveGym.mockResolvedValue({ ok: true })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => {

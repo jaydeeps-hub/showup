@@ -27,7 +27,7 @@ Someone who wants to build a consistent gym habit and values a simple, honest re
 - Google Maps gym search and a single saved gym ("Gym 1")
 - Location check with a 100 m geofence and an accuracy safeguard
 - Total Showups counter backed by a timestamped event history
-- Persistence in the browser (`localStorage`)
+- Gym, Showups and profile stored in Supabase, tied to the Google account
 - Change gym (from the Profile page), and sign out
 - Dark, mobile-first interface
 

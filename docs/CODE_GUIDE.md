@@ -9,7 +9,7 @@ A practical map of the code for future you. Read [ARCHITECTURE.md](ARCHITECTURE.
 - **Want to change what a screen looks like?** → `src/features/<feature>/…Screen.tsx`
 - **Want to change colours or rounded corners?** → `src/app/theme.ts`
 - **Want to change the rules for what counts?** → `src/services/attendanceService.ts`
-- **Want to change how data is saved?** → `src/services/storageService.ts`
+- **Want to change how gyms or Showups are saved?** → `src/services/gymService.ts` and `src/services/showupService.ts`
 - **Want to change app state or add a new action?** → `src/hooks/useShowup.ts`
 
 ## How a click becomes a Showup
@@ -23,7 +23,7 @@ Follow one press of the button through the files:
 5. `services/attendanceService.ts`: `attemptShowup` gets the position, calls `evaluatePosition`, and on success, `recordShowup`.
 6. `services/geolocationService.ts`: `getCurrentPosition` asks the browser for coordinates.
 7. `utils/distance.ts`: `distanceInMetres` does the maths.
-8. Back in the hook: on success, `commit` saves the new data via `storageService.saveData`.
+8. Back in the hook: for a success it calls `showupService.recordShowup`, which inserts a row into the Supabase `showups` table. Only when that succeeds does the counter go up.
 9. Back in `HomeScreen`: `getFeedbackForOutcome` (`config/messages.ts`) picks the message, and `FeedbackMessage` shows it.
 
 ---
@@ -65,7 +65,7 @@ The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-
 4. **To change it, start at:**
    - Search behaviour (e.g. restrict to gyms, or to one country): `searchPlaces` in `mapsService.ts`. Add options such as `includedPrimaryTypes: ['gym']` or `includedRegionCodes: ['in']` to the request.
    - Which kinds of places count as a gym: add or remove Google place types in `ALLOWED_GYM_PLACE_TYPES` (`config/constants.ts`). The full list is at https://developers.google.com/maps/documentation/places/web-service/place-types. The "Not a gym" wording is in `handleSelect` in `GymSearch.tsx`.
-   - Which fields are saved: `getPlaceDetails` in `mapsService.ts`, the `SelectedPlace` and `Gym` types in `types/index.ts`, and `isGym` in `storageService.ts`.
+   - Which fields are saved: `getPlaceDetails` in `mapsService.ts`, the `SelectedPlace` and `Gym` types in `types/index.ts`, and `toGym`/`saveActiveGym` in `gymService.ts` (plus a database migration for any new column).
 5. **Test after changing:** `npm test` (the maps tests use a fake Google library), then search in the browser for a real gym, a nonsense string (expect "No places found"), a non-gym such as a street address or restaurant (expect "Not a gym") and with the key removed (expect the setup warning).
 
 ### Home screen
@@ -92,13 +92,13 @@ The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-
 4. **To change it, start at:** `GEOLOCATION_OPTIONS` for the timeout or high accuracy.
 5. **Test after changing:** `geolocationService.test.ts`; in the browser, block location for the site (padlock icon → Location → Block) and press SHOW UP.
 
-### Saving data
+### Saving the gym and Showups
 
-1. **Which file controls it?** `src/services/storageService.ts`
-2. **What does it do?** Loads, validates, saves and clears the single `showup:data:v1` entry.
-3. **Depends on:** `STORAGE_KEY` in `config/constants.ts`; the types in `types/index.ts`.
-4. **To change it, start at:** this file. If you change the data shape, see "Changing the data model" below.
-5. **Test after changing:** `storageService.test.ts`; in the browser, reload and confirm the count stays. In DevTools → Application → Local Storage, edit the value into nonsense and reload (expect the "Saved data could not be read" screen).
+1. **Which files control it?** `src/services/gymService.ts` (the gym) and `src/services/showupService.ts` (Showups). Both talk to Supabase; nothing else queries the `gyms` or `showups` tables.
+2. **What do they do?** `saveActiveGym` retires the old gym and inserts the new one (restoring the old one if the insert fails). `fetchActiveGym` loads the active gym. `recordShowup` inserts one Showup row. `fetchShowupCount` counts the user's rows.
+3. **What do they depend on?** `supabaseClient.ts`, the `Gym` type, and the tables and permissions in `supabase/migrations/` (see `docs/DATABASE_SCHEMA.md`). `useShowup.ts` calls them.
+4. **To change it, start at:** the service. A new field needs a new migration (a column, and a `GRANT INSERT` on it) before the service can send it, or the database will refuse the write.
+5. **Test after changing:** `npm test` (`gymService.test.ts`, `showupService.test.ts`, `App.database.test.tsx`, and "what the app does against the database" in `supabase/tests/database.test.ts`), then in the browser save a gym, press SHOW UP, and check the rows in Supabase **Table Editor**.
 
 ### App state and screen switching
 
@@ -139,7 +139,7 @@ Add a check in `attemptShowup` (`attendanceService.ts`) *before* `recordShowup`:
 ### Add a weekly workout goal
 
 1. **Data:** add `weeklyGoal: number | null` to `TemporaryUser` (or a new `settings` object) in `types/index.ts`.
-2. **Storage:** update `isTemporaryUser` in `storageService.ts`, and handle data saved *before* the field existed (see the next section).
+2. **Storage:** add a column in a new migration and handle rows that existed *before* the field (see the next section).
 3. **Logic:** add a pure function such as `countShowupsThisWeek(data, userId, now)` to `attendanceService.ts`, with tests. Decide what "week" means (Monday start? local time zone?).
 4. **State:** expose `showupsThisWeek` and `setWeeklyGoal` from `useShowup.ts`.
 5. **UI:** show "3 / 4 this week" in `ShowUpCounter` or a new small component, and add a way to set the goal.
@@ -153,14 +153,13 @@ Users already have data saved in the old shape. Options:
 
 Record any data-model change in `CHANGELOG.md`.
 
-### Replace localStorage with a backend
+### Move the Show Up decision to the server
 
-The app was shaped for this:
+Today the browser measures the distance and the database trusts it, so someone who fakes their location can add Showups. To fix that:
 
-1. Build an API (any stack) with `users`, `gyms` and `showup_events` tables matching the types in `types/index.ts`, and real authentication.
-2. **Move the decision to the server.** The client should send its position, and the *server* should run `evaluatePosition` and create the event. Otherwise anyone could call the API with "success". `attendanceService.ts` has no browser dependencies, so it can be copied to a Node backend as-is.
-3. Replace `storageService.ts` with functions that call the API. They become `async`, so `useShowup` will need loading states for the initial load.
-4. Add a one-time import of existing `localStorage` data, if early users' history matters.
+1. Create a Supabase Edge Function that receives the coordinates, loads the user's active gym, runs the same `evaluatePosition` rules (`attendanceService.ts` has no browser dependencies, so it can be reused), and inserts the row itself.
+2. Remove the `showups` INSERT privilege from `authenticated` (new migration), so the function is the only way in.
+3. Change `showupService.recordShowup` to call the function instead of inserting.
 
 ### Support multiple gyms
 

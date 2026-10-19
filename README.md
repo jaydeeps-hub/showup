@@ -13,13 +13,13 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 - **Gym search is restricted to fitness places.** Regular users can only save a gym, fitness centre or similar sports facility. Administrators get a setting in Manage Profile to switch between **Fitness places only** and **Any place**; it is stored in Supabase and enforced by the database.
 - **Profile onboarding.** On first sign-in, people who don't yet have a first and last name are asked "Let's get to know you." (first name, last name, optional birthday). It appears once; after the profile is saved it is skipped, including after a refresh.
 - **Manage Profile.** Tap your name at the top of the home screen to open it. It shows your first name, last name and birthday as plain text; press **Edit** to change them. It also shows your Google email, your gym with a **Change gym** button, and **Sign out**.
-- **Sign in with Google** through Supabase. The session is restored when you reload, and you can sign out from the home screen. Gyms and Showups are still stored in this browser (per Google account); moving them to a database is a later step.
+- **Sign in with Google** through Supabase. The session is restored when you reload, and you can sign out from your Profile page. Your gym and every Showup are stored in Supabase (the `gyms` and `showups` tables), so they follow you to any device.
 - **Gym search with Google Maps.** Uses Places API (New) autocomplete to find a real gym, then saves its name, address and coordinates as **Gym 1**.
 - **Gym-only check.** A selected place is only accepted if Google Maps lists it as a gym, fitness centre or similar sports facility. Homes, shops and other random locations are rejected with a "Not a gym" message.
 - **SHOW UP button.** Gets your current location (high accuracy), measures the distance to your gym with the Haversine formula, and accepts the visit if you're inside the geofence.
 - **Accuracy safeguard.** A location reading that's too imprecise is rejected with a "try again" message instead of being guessed.
 - **Clear error messages** when location permission is denied, location is unavailable, the request times out, or the browser doesn't support geolocation.
-- **Persistent counter and history** in `localStorage`, so they survive reloads and browser restarts.
+- **Counter and history in Supabase.** Each successful Showup is saved as a row in the `showups` table, and the counter is the number of your rows. If a Showup cannot be saved you are told, and it is not counted.
 - **Safe recovery** when saved data is damaged or storage is blocked.
 - **Dark, mobile-first Material UI design** following the Showup visual design language (charcoal surfaces, one blue accent, Inter font, short purposeful motion that respects "reduce motion").
 
@@ -33,7 +33,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 | [Google Maps JavaScript API](https://developers.google.com/maps/documentation/javascript), Places API (New) | Gym search |
 | `@googlemaps/js-api-loader` | Official loader for the Maps script |
 | Browser Geolocation API | The user's current position |
-| Browser `localStorage` | Saving data on this device |
+| Supabase Postgres | Profiles, gyms and Showups |
 | [Vitest](https://vitest.dev) | Unit tests |
 | [oxlint](https://oxc.rs) | Linting |
 
@@ -300,7 +300,9 @@ Starting a brand-new folder instead? Run `git init` first, then follow the same 
 
 - **Gym check relies on Google's categories.** A real gym that Google has categorised wrongly (or not at all) will be rejected. The accepted categories are listed in `ALLOWED_GYM_PLACE_TYPES` in `src/config/constants.ts`. Someone could still pick a real gym they never visit, but they would have to physically go there to earn Showups.
 
-- **Data is still in the browser.** Sign-in is real (Google), but gyms and Showups are stored in this browser's localStorage, per Google account. They do not follow you to another device yet, and anyone who edits localStorage can change them.
+- **Location data can be faked.** The database records WHO showed up and at WHICH of their own gyms, but the distance is measured by the browser, so a determined user can send false values. Real verification needs a server-side check (see `docs/DATABASE_SCHEMA.md`).
+- **Needs a connection.** Gyms and Showups are saved to Supabase, so saving needs internet. If it fails you see a message and nothing is counted; there is no offline queue yet.
+- **Older browser-only data is not imported.** Before this change, gyms and Showups were saved in the browser's localStorage. They are not copied over (the database sets each Showup's time itself, so old visits could not keep their dates); choose your gym again once. The old data is simply ignored.
 - **Data lives in one browser.** Clearing site data, switching browsers or switching devices loses it. There is no sync or backup.
 - **Location can be spoofed.** Showup checks the location the device *reports*. Developer tools, emulators and GPS-spoofing apps can fake it. It confirms reported proximity, not that anyone exercised.
 - **Gym coordinates are a single point.** Google stores one point per place. In a very large building or campus you might be inside but more than 100 m from that point.

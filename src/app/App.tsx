@@ -13,7 +13,7 @@ import { useShowup, type SignedInUser } from '../hooks/useShowup'
 import { getIdentity, signOut } from '../services/authService'
 import { getDisplayName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
-import { StorageProblemScreen } from './StorageProblemScreen'
+import { DataLoadErrorScreen } from './DataLoadErrorScreen'
 
 /**
  * Top level: decides between loading, the sign-in screen and the Showup app,
@@ -29,7 +29,7 @@ export function App() {
 
 /**
  * Chooses which Showup screen to show, in this order:
- * loading profile → onboarding (profile incomplete) → storage problem → manage profile →
+ * loading profile → onboarding (profile incomplete) → loading gym → manage profile →
  * gym setup (no gym) → home.
  * There is no router: with a few screens, a few if-statements are clearer.
  */
@@ -54,11 +54,6 @@ function SignedInApp({ session }: { session: Session }) {
 
   return (
     <>
-      {showup.isNotPersisting && (
-        <Alert severity="warning" square>
-          Your data is not being saved in this browser and will be lost when you reload.
-        </Alert>
-      )}
       {profile.status === 'missing' && (
         <Alert severity="warning" square>
           Your account is signed in, but its profile was not found. The database migrations that create profiles have
@@ -98,12 +93,14 @@ function SignedInApp({ session }: { session: Session }) {
       return <OnboardingScreen profile={profile.profile} onSave={profile.save} />
     }
 
-    if (showup.storageStatus === 'corrupted' || showup.storageStatus === 'unavailable') {
+    // Wait for the gym and Showup count, so we never show "choose your gym" to someone who has one.
+    if (showup.dataStatus === 'loading') return <LoadingScreen />
+    if (showup.dataStatus === 'error') {
       return (
-        <StorageProblemScreen
-          problem={showup.storageStatus}
-          onReset={showup.resetDemoData}
-          onContinueWithoutSaving={showup.continueWithoutSaving}
+        <DataLoadErrorScreen
+          message={showup.loadError ?? "We couldn't load your data."}
+          onRetry={showup.reload}
+          onSignOut={() => void handleSignOut()}
         />
       )
     }
@@ -132,9 +129,10 @@ function SignedInApp({ session }: { session: Session }) {
     if (!showup.gym || isChangingGym) {
       return (
         <GymSetupScreen
-          onSave={(place) => {
-            showup.saveGym(place)
-            setIsChangingGym(false)
+          onSave={async (place) => {
+            const result = await showup.saveGym(place)
+            if (result.ok) setIsChangingGym(false)
+            return result
           }}
           onCancel={showup.gym ? () => setIsChangingGym(false) : undefined}
           // Only a loaded profile can widen the search; in every other case it stays restricted.

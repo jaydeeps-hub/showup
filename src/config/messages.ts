@@ -1,4 +1,5 @@
-import type { GeolocationFailureReason, ShowupOutcome } from '../types'
+import type { GeolocationFailureReason } from '../types'
+import type { ShowUpResult } from '../hooks/useShowup'
 import { GEOFENCE_RADIUS_METRES, PRIMARY_GYM_LABEL } from './constants'
 
 /** All text shown after pressing SHOW UP lives here so it is easy to edit. */
@@ -16,7 +17,7 @@ const LOCATION_ERROR_MESSAGES: Record<GeolocationFailureReason, string> = {
   timeout: 'Finding your location took too long. Move somewhere with a clearer view of the sky or a better signal, then try again.',
 }
 
-export function getFeedbackForOutcome(outcome: ShowupOutcome): FeedbackContent {
+export function getFeedbackForOutcome(outcome: ShowUpResult): FeedbackContent {
   switch (outcome.type) {
     case 'success':
       return { severity: 'success', title: 'Showup recorded', message: 'You showed up!' }
@@ -31,6 +32,12 @@ export function getFeedbackForOutcome(outcome: ShowupOutcome): FeedbackContent {
         severity: 'warning',
         title: 'Location not precise enough',
         message: `Your location is only accurate to about ${Math.round(outcome.accuracyMetres)} metres, which is not precise enough to confirm you are within ${GEOFENCE_RADIUS_METRES} metres of your gym. Wait a moment, or turn on precise location / Wi-Fi, and try again.`,
+      }
+    case 'save-failed':
+      return {
+        severity: 'error',
+        title: "Your Showup wasn't saved",
+        message: `You are at your gym, but we couldn't save this visit, so it has not been counted. ${outcome.message}`,
       }
     case 'location-error':
       return { severity: 'error', title: 'Location unavailable', message: LOCATION_ERROR_MESSAGES[outcome.reason] }

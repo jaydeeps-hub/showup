@@ -61,9 +61,6 @@ export const EARLIEST_DATE_OF_BIRTH = '1900-01-01'
 /** Label given to the single gym supported in v0.1.0. */
 export const PRIMARY_GYM_LABEL = 'Gym 1'
 
-/** localStorage key. The version suffix lets future releases migrate data. */
-export const STORAGE_KEY = 'showup:data:v1'
-
 /** Wait this long after the user stops typing before calling Google. */
 export const PLACE_SEARCH_DEBOUNCE_MS = 300
 

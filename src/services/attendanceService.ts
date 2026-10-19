@@ -1,12 +1,12 @@
 import { GEOFENCE_RADIUS_METRES, MAX_LOCATION_ACCURACY_METRES } from '../config/constants'
-import type { Gym, ReportedPosition, ShowupData, ShowupOutcome } from '../types'
+import type { Gym, ReportedPosition, ShowupOutcome } from '../types'
 import { distanceInMetres } from '../utils/distance'
-import { createId } from '../utils/id'
 import { GeolocationError } from './geolocationService'
 
 /**
- * The rules for deciding whether a Showup counts, and for recording it.
- * Everything here is plain functions with no React, so it is easy to test.
+ * The rules for deciding whether a Showup counts. Everything here is plain functions with no React
+ * and no database, so it is easy to test. Saving a successful Showup is done separately, by
+ * showupService.ts.
  */
 
 export interface LocationRules {
@@ -41,66 +41,30 @@ export function evaluatePosition(
   return { type: 'outside-geofence', distanceMetres }
 }
 
-/** Returns a copy of `data` with one new successful Showup event added. */
-export function recordShowup(
-  data: ShowupData,
-  details: { userId: string; gymId: string; distanceMetres: number | null; verifiedAt: Date },
-): ShowupData {
-  const event = {
-    id: createId(),
-    userId: details.userId,
-    gymId: details.gymId,
-    verifiedAt: details.verifiedAt.toISOString(),
-    distanceMetres: details.distanceMetres,
-  }
-  return { ...data, events: [...data.events, event] }
-}
-
-/**
- * The Showup counter. It is always calculated from the event history rather
- * than stored separately, so the two can never disagree.
- */
-export function countShowups(data: ShowupData, userId: string): number {
-  return data.events.filter((event) => event.userId === userId).length
-}
-
-export interface ShowupAttempt {
+export interface ShowupCheck {
   outcome: ShowupOutcome
-  /** The data after the attempt. Identical to the input unless it succeeded. */
-  data: ShowupData
+  /** The browser's reported accuracy, when a position was obtained. Stored with a successful Showup. */
+  accuracyMetres: number | null
 }
 
 /**
- * The whole SHOW UP flow: get the position, check it, and record it if valid.
+ * Gets the position and decides the outcome. It does NOT save anything: the caller records a
+ * Showup only when `outcome.type === 'success'`.
  * `getPosition` is passed in so tests can supply a fake location.
  */
-export async function attemptShowup(params: {
-  data: ShowupData
-  userId: string
+export async function checkLocation(params: {
   gym: Gym
   getPosition: () => Promise<ReportedPosition>
-  now?: () => Date
-}): Promise<ShowupAttempt> {
-  const { data, userId, gym, getPosition, now = () => new Date() } = params
+}): Promise<ShowupCheck> {
+  const { gym, getPosition } = params
 
   let position: ReportedPosition
   try {
     position = await getPosition()
   } catch (error) {
     const reason = error instanceof GeolocationError ? error.reason : 'unavailable'
-    return { outcome: { type: 'location-error', reason }, data }
+    return { outcome: { type: 'location-error', reason }, accuracyMetres: null }
   }
 
-  const outcome = evaluatePosition(position, gym)
-  if (outcome.type !== 'success') {
-    return { outcome, data }
-  }
-
-  const updated = recordShowup(data, {
-    userId,
-    gymId: gym.id,
-    distanceMetres: outcome.distanceMetres,
-    verifiedAt: now(),
-  })
-  return { outcome, data: updated }
+  return { outcome: evaluatePosition(position, gym), accuracyMetres: position.accuracyMetres }
 }

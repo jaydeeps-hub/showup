@@ -40,8 +40,9 @@ vi.mock('../services/profileService', () => ({
 // The home screen needs a saved gym, otherwise the app shows gym setup instead.
 vi.mock('../hooks/useShowup', () => ({
   useShowup: () => ({
-    storageStatus: 'ok',
-    isNotPersisting: false,
+    dataStatus: 'ready',
+    loadError: null,
+    reload: vi.fn(),
     gym: {
       id: 'gym-1',
       userId: 'user-1',
@@ -55,10 +56,8 @@ vi.mock('../hooks/useShowup', () => ({
     },
     showupCount: 3,
     isVerifying: false,
-    saveGym: vi.fn(),
+    saveGym: vi.fn().mockResolvedValue({ ok: true }),
     showUp: vi.fn(),
-    resetDemoData: vi.fn(),
-    continueWithoutSaving: vi.fn(),
   }),
 }))
 

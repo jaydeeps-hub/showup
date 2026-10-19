@@ -10,7 +10,8 @@ import { ScreenLayout } from '../../components/ScreenLayout'
 import { ShowUpButton } from '../../components/ShowUpButton'
 import { ShowUpCounter } from '../../components/ShowUpCounter'
 import { getFeedbackForOutcome, type FeedbackContent } from '../../config/messages'
-import type { Gym, ShowupOutcome } from '../../types'
+import type { ShowUpResult } from '../../hooks/useShowup'
+import type { Gym } from '../../types'
 
 interface HomeScreenProps {
   /** The name shown at the top: the user's saved first and last name. */
@@ -18,7 +19,7 @@ interface HomeScreenProps {
   gym: Gym
   showupCount: number
   isVerifying: boolean
-  onShowUp: () => Promise<ShowupOutcome | null>
+  onShowUp: () => Promise<ShowUpResult | null>
   /** Opens the Profile page. Omitted while the profile is not available, which makes the name plain text. */
   onManageProfile?: () => void
   onSignOut: () => void

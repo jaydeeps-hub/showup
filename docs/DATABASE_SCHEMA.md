@@ -133,7 +133,7 @@ Why it is safe:
 - Removing someone's admin rights in the SQL Editor immediately restricts them again, because `effective_place_search_mode()` and the app both require `is_admin` as well as the stored value.
 - `is_admin` itself is unchanged: still not writable by app users.
 
-**Limitation:** this controls *who may widen the search*. It does not (yet) validate *which place* a gym is, because gyms are still saved in the browser (localStorage), not in the `gyms` table. The fitness filter on the place itself therefore runs in the app. When gyms move to the database, the same rule should be enforced there (for example by an Edge Function that checks the place type with Google before inserting).
+**Limitation:** this controls *who may widen the search*. It does not (yet) validate *which place* a gym is: the app checks the place type with Google when a gym is chosen, but the `gyms` table itself accepts any name and coordinates from a signed-in user. To enforce the fitness rule on the server, save gyms through an Edge Function that checks the place type with Google before inserting.
 
 ## Profile creation trigger
 
@@ -148,7 +148,7 @@ Why it is safe:
 
 The database confirms **who** recorded a Showup and **at which of their own gyms**. It cannot confirm **where the person really was**. The distance and accuracy values arrive from the user's browser, so a determined user can send false values or fake their GPS location. Users also choose when to insert (`occurred_at` is server-set, so a Showup cannot be backdated, but nothing yet stops several per day).
 
-Real verification needs a server-side check, for example a Supabase Edge Function that receives the coordinates, calculates the distance itself, and is the only thing allowed to insert Showups. That is a later step. Today the Show Up flow still saves to the browser (localStorage), not to this table; the `showups` table is prepared for the migration.
+Real verification needs a server-side check, for example a Supabase Edge Function that receives the coordinates, calculates the distance itself, and is the only thing allowed to insert Showups. That is a later step. The app now saves every successful Showup to this table (see `src/services/showupService.ts`), but the distance it sends is measured in the browser.
 
 ## Changing the schema later
 

@@ -4,9 +4,9 @@ Showup is a **client-side single-page app** (React + Vite) with no server of its
 
 - **Supabase** for Google sign-in and the Postgres database (profiles, gyms, Showups).
 - **Google Maps** for gym search.
-- **The browser itself** for location (Geolocation) and, for now, for storing the gym and the Showup counter (`localStorage`).
+- **The browser itself** for the device location (Geolocation API).
 
-> **Where data lives today.** Sign-in and the `profiles` table are live in Supabase. The `gyms` and `showups` tables exist and are secured, but the app does **not** read or write them yet: the gym and Showup history are still saved in `localStorage`, keyed by the signed-in user's ID. Moving them is a later step. See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
+> **Where data lives.** Everything is in Supabase: sign-in, the `profiles` table, the user's `gyms`, and every `showups` row. The browser stores nothing about gyms or Showups (only the sign-in session). See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
 
 ## The big picture
 
@@ -33,8 +33,8 @@ The rules that decide whether a Showup counts (`attendanceService.ts`) contain n
 
 ```mermaid
 flowchart TD
-    Start([App opens]) --> Load[Load data from localStorage]
-    Load -->|damaged / blocked| Problem[Storage problem screen<br/>Reset or continue without saving]
+    Start([App opens]) --> Load[Load profile, gym and Showup count from Supabase]
+    Load -->|cannot load| Problem[We couldn't load your gym<br/>Try again or sign out]
     Load -->|no user| Welcome[Welcome screen<br/>username + temporary password]
     Load -->|user, no gym| Setup
     Load -->|user + gym| Home
@@ -67,7 +67,7 @@ flowchart TD
 | `src/components/` | Small reusable UI pieces with no business logic: the button, counter, gym card, feedback message and page layout. |
 | `src/hooks/` | `useShowup.ts`: the app's state and actions, shared by all screens. |
 | `src/features/profile/` | Onboarding screen, Manage Profile screen and the shared `ProfileForm` (name and birthday). |
-| `src/services/` | Code that talks to the outside world (Supabase Auth and database, localStorage, Geolocation, Google Maps) and the attendance rules. |
+| `src/services/` | Code that talks to the outside world (Supabase Auth and database, Geolocation, Google Maps) and the attendance rules. |
 | `supabase/` | The database: `migrations/` (SQL that defines the tables, trigger and security) and `tests/` (checks that run those migrations on a throw-away Postgres). |
 | `src/utils/` | Pure helper functions: distance maths and ID generation. |
 | `src/config/` | Settings (`constants.ts`) and user-facing feedback text (`messages.ts`). |
@@ -114,7 +114,7 @@ flowchart LR
 
 **Security.** Row Level Security plus column privileges, defined in the migrations, ensure users can read only their own rows, edit only their own name and date of birth, and can never change `is_admin`. The frontend uses only the public **publishable** key; the secret / `service_role` key is never used in the app.
 
-**Browser data keyed by user.** Until gyms and Showups move to the database, `useShowup(user)` stores them in `localStorage` under the Auth user's `id`, so two Google accounts on one browser keep separate gyms and counts.
+**Gyms and Showups.** `useShowup` loads the user's active gym (`gymService.fetchActiveGym`) and Showup count (`showupService.fetchShowupCount`) when the app opens. Row Level Security returns only the signed-in user's own rows, and the user id is filled in by the database, never sent by the browser.
 
 ## Selecting and saving a gym
 
@@ -146,25 +146,24 @@ When SHOW UP is pressed:
 
 `utils/distance.ts` uses the **Haversine formula**, which gives the great-circle distance between two latitude/longitude points on a sphere with the Earth's mean radius (6,371 km). At gym-sized distances it is accurate to well under a metre, far more precise than the GPS reading itself.
 
-## Persistence: counter and history
+## Persistence: gym, counter and history
 
-All data is one JSON object in `localStorage` under the key `showup:data:v1`:
+All of it is in Supabase (see [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)). Two small services are the only code that touches those tables:
 
-```ts
-interface ShowupData {
-  schemaVersion: 1
-  user: TemporaryUser | null
-  gyms: Gym[]            // one gym in v0.1.0
-  events: ShowupEvent[]  // successful Showups only
-}
-```
+| Service | What it does |
+|---|---|
+| `services/gymService.ts` | `fetchActiveGym()` reads the user's one active gym. `saveActiveGym(place)` retires the current gym (`is_active = false`), then inserts the new one. If the insert fails, the old gym is switched back on, so the user is never left without a gym. Old gyms are kept, because past Showups point at them. |
+| `services/showupService.ts` | `recordShowup()` inserts one row (gym, distance, accuracy; the user, time and method are set by the database). `fetchShowupCount()` asks the database for the number of the user's rows. |
 
-- **The counter is not stored separately.** `countShowups` counts the user's events, so the counter and the history *cannot* disagree. The stored total *is* the history.
-- `storageService.loadData` checks the JSON's shape before trusting it. It returns `ok`, `corrupted` (bad JSON, wrong shape or unknown `schemaVersion`) or `unavailable` (storage blocked). The app shows `StorageProblemScreen` for the last two instead of crashing.
-- `saveData` returns `false` if writing fails (e.g. storage full). The app then shows a warning banner.
-- `storageService.ts` is the **only** file that touches `localStorage`.
+How a Show Up is saved (`hooks/useShowup.ts`):
+1. `checkLocation` (in `attendanceService.ts`, no database) gets the position and decides the outcome.
+2. Only for a `success`, `recordShowup` inserts the row. **The row is written first.**
+3. Only when the insert succeeds does the screen's counter go up by one. If it fails, the user sees "Your Showup wasn't saved" and the counter does not change, so the screen can never be ahead of the database.
+4. A ref blocks a second press while a check is running, so quick taps cannot create two rows.
 
-The shape mirrors three future database tables (`users`, `gyms`, `showup_events`). Every gym and event carries a `userId`.
+**The counter is not stored anywhere.** It is the number of the user's `showups` rows, read from the database, so the counter and the history cannot disagree. After a refresh or on another device the same number appears.
+
+Saving a gym works the same way: the screen switches to the new gym only after the database confirms it, and shows an error (keeping what the user chose) if it does not. If the gym cannot be loaded at all, the app shows "We couldn't load your gym" with a retry instead of the "choose your gym" screen, so nobody can accidentally overwrite a gym that is simply temporarily unreachable.
 
 ## External APIs
 
@@ -172,8 +171,7 @@ The shape mirrors three future database tables (`users`, `gyms`, `showup_events`
 |---|---|---|
 | Google Maps JavaScript API + Places API (New) | `services/mapsService.ts` only | Loaded with `@googlemaps/js-api-loader` (`setOptions` + `importLibrary('places')`). Uses session tokens to group autocomplete calls into one billing session. Key comes from `VITE_GOOGLE_MAPS_API_KEY`. |
 | Browser Geolocation | `services/geolocationService.ts` only | Requires HTTPS or localhost. |
-| Browser localStorage | `services/storageService.ts` only | Per browser, per site. Holds the gym and Showup history until they move to Supabase. |
 | Supabase Auth (Google) | `services/authService.ts` (via `supabaseClient.ts`) | Publishable key only. Redirect URLs must be allowed in the Supabase dashboard. |
-| Supabase database | `services/profileService.ts` (via `supabaseClient.ts`) | Reads `public.profiles`. Protected by Row Level Security. |
+| Supabase database | `services/profileService.ts`, `gymService.ts`, `showupService.ts` (via `supabaseClient.ts`) | Reads and writes `profiles`, `gyms` and `showups`. Protected by Row Level Security. |
 
 Keeping each external API in one file means it can be replaced, or faked in tests, without touching the UI.

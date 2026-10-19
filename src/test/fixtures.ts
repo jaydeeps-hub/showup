@@ -1,4 +1,4 @@
-import type { Gym, ReportedPosition, ShowupData } from '../types'
+import type { Gym, ReportedPosition } from '../types'
 
 /** Shared sample data for tests. Coordinates are arbitrary, not a real gym. */
 
@@ -25,14 +25,5 @@ export function positionNorthOfGym(metres: number, accuracyMetres = 10): Reporte
     latitude: testGym.latitude + metres * METRE_IN_LATITUDE_DEGREES,
     longitude: testGym.longitude,
     accuracyMetres,
-  }
-}
-
-export function createTestData(): ShowupData {
-  return {
-    schemaVersion: 1,
-    user: { id: TEST_USER_ID, username: 'tester', createdAt: '2026-01-01T00:00:00.000Z' },
-    gyms: [testGym],
-    events: [],
   }
 }
