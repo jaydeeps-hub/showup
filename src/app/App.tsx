@@ -3,7 +3,7 @@ import Button from '@mui/material/Button'
 import type { Session } from '@supabase/supabase-js'
 import { useMemo, useState } from 'react'
 import { HomeScreen } from '../features/attendance/HomeScreen'
-import { LoginScreen } from '../features/authentication/LoginScreen'
+import { LandingScreen } from '../features/landing/LandingScreen'
 import { GymSetupScreen } from '../features/gym/GymSetupScreen'
 import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
 import { OnboardingScreen } from '../features/profile/OnboardingScreen'
@@ -23,7 +23,7 @@ export function App() {
   const auth = useAuth()
 
   if (auth.status === 'loading') return <LoadingScreen />
-  if (auth.status === 'signed-out') return <LoginScreen />
+  if (auth.status === 'signed-out') return <LandingScreen />
   return <SignedInApp session={auth.session} />
 }
 

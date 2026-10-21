@@ -16,6 +16,31 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Landing page (v2, step 8)
+
+Not yet committed or released.
+
+### What changed
+
+Signed-out visitors now see a landing page matching the supplied reference: wordmark with a blue brand mark, a rounded mascot banner, the headline "Show up for yourself." with the blue "o", supporting copy, a full-width **Sign up with Google** button, **I already have an account**, and a legal line. Both buttons start the existing Google sign-in (no new auth code). The banner image is read from the Supabase `cms` table (`id = 1`, `content_type = 'lpage_banner'`) and the **Terms** link opens a popup that renders the Markdown in `cms` (`id = 2`, `content_type = 'tnc'`) safely. The old plain sign-in screen was removed.
+
+### Important files
+
+New: `src/features/landing/*`, `src/services/cmsService.ts`, `src/hooks/useCmsValue.ts`, `supabase/migrations/20261022100000_cms_public_read.sql`. Changed: `src/app/App.tsx`, `src/config/constants.ts`, `index.html` (DM Sans 700), `.env.example`, `src/vite-env.d.ts`. Removed: `src/features/authentication/LoginScreen.tsx`. New dependency: `react-markdown`.
+
+### Data model changes
+
+No tables changed. A new read-only policy lets signed-out visitors read the two `cms` entries above, and nothing else.
+
+### Migration / configuration steps
+
+1. Run `supabase/migrations/20261022100000_cms_public_read.sql` in the Supabase SQL Editor (`docs/SETUP_SUPABASE.md`). Until then the banner and Terms show "unavailable".
+2. Optional: set `VITE_PRIVACY_POLICY_URL` once a privacy policy page exists. Until then "Privacy Policy" is plain text.
+
+### Tests performed
+
+See the final report.
+
 ## [Unreleased] - Design refresh (v2, step 7)
 
 Not yet committed or released. Visual changes only: no flows, logic, copy, data or API changes.

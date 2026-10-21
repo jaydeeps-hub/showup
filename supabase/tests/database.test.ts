@@ -40,6 +40,16 @@ const SUPABASE_STAND_IN = `
     )::uuid
   $$;
 
+  -- The landing page's content table. In the real project it is created in the dashboard with
+  -- Row Level Security on and no public policy; the stand-in reproduces exactly that.
+  create table public.cms (
+    id bigint primary key,
+    created_at timestamptz not null default now(),
+    content_type text not null,
+    value text
+  );
+  alter table public.cms enable row level security;
+
   grant usage on schema auth to anon, authenticated, service_role, supabase_auth_admin;
   grant usage on schema public to anon, authenticated, service_role, supabase_auth_admin;
   grant all on table auth.users to supabase_auth_admin;
@@ -791,6 +801,74 @@ describe('what the app does against the database', () => {
     const gym = await saveActiveGymAsApp(alice, 'Iron Gym')
     await recordShowupAsApp(alice, gym, 0, 0)
     expect(await countAsApp(alice)).toBe(1)
+  })
+})
+
+describe('cms: landing page content for signed-out visitors', () => {
+  let db: PGlite
+  beforeEach(async () => {
+    db = await createDatabase()
+    await db.query(
+      `insert into public.cms (id, content_type, value) values
+         (1, 'lpage_banner', 'https://cdn.example.com/mascot.png'),
+         (2, 'tnc', '# Terms'),
+         (3, 'internal_note', 'private draft'),
+         (4, 'lpage_banner', 'https://cdn.example.com/second-banner.png')`,
+    )
+  })
+  afterEach(async () => {
+    await db.close()
+  })
+
+  const readAs = (userId: string | null, where = '') =>
+    asUser(db, userId, async () => (await db.query<{ id: number }>(`select id from public.cms ${where} order by id`)).rows.map((r) => r.id))
+
+  it('lets a signed-out visitor read the banner and the terms', async () => {
+    expect(await readAs(null, "where id = 1 and content_type = 'lpage_banner'")).toEqual([1])
+    expect(await readAs(null, "where id = 2 and content_type = 'tnc'")).toEqual([2])
+  })
+
+  it('shows signed-out visitors only the landing page content types, never anything else', async () => {
+    expect(await readAs(null)).toEqual([1, 2, 4])
+    expect(await readAs(null, 'where id = 3')).toEqual([])
+  })
+
+  it('lets signed-in users read the same content', async () => {
+    const user = await registerAuthUser(db)
+    expect(await readAs(user)).toEqual([1, 2, 4])
+  })
+
+  it('does not let anyone write to cms from the browser', async () => {
+    const user = await registerAuthUser(db)
+    for (const who of [null, user]) {
+      await expect(asUser(db, who, () => db.query("insert into public.cms (id, content_type, value) values (9, 'tnc', 'x')"))).rejects.toThrow(PERMISSION_DENIED)
+      await expect(asUser(db, who, () => db.query("update public.cms set value = 'hacked' where id = 1"))).rejects.toThrow(PERMISSION_DENIED)
+      await expect(asUser(db, who, () => db.query('delete from public.cms where id = 1'))).rejects.toThrow(PERMISSION_DENIED)
+    }
+    expect((await db.query('select value from public.cms where id = 1')).rows).toEqual([{ value: 'https://cdn.example.com/mascot.png' }])
+  })
+
+  it('does not change the table or its columns', async () => {
+    const { rows } = await db.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'cms' order by ordinal_position",
+    )
+    expect(rows.map((r) => r.column_name)).toEqual(['id', 'created_at', 'content_type', 'value'])
+  })
+
+  it('is safe to run twice', async () => {
+    const migration = migrationFiles.find((file) => file.includes('cms_public_read'))!
+    await applyMigration(db, migration)
+    expect(await readAs(null)).toEqual([1, 2, 4])
+    const { rows } = await db.query("select count(*)::int as n from pg_policies where tablename = 'cms'")
+    expect(rows).toEqual([{ n: 1 }])
+  })
+
+  it('does nothing (instead of failing) when the cms table does not exist yet', async () => {
+    const fresh = new PGlite()
+    const standIn = SUPABASE_STAND_IN.replace(/create table public\.cms[\s\S]*?alter table public\.cms enable row level security;/, '')
+    await fresh.exec(standIn)
+    await applyMigration(fresh, migrationFiles.find((file) => file.includes('cms_public_read'))!)
+    await fresh.close()
   })
 })
 

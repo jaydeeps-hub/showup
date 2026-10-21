@@ -83,6 +83,13 @@ export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL?.trim() ??
 export const SUPABASE_PUBLISHABLE_KEY: string = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
 
 /**
+ * Optional. The address of the Privacy Policy page. There is no policy page in this project yet, so
+ * this is empty and the landing page shows "Privacy Policy" as plain text instead of a link. Set
+ * `VITE_PRIVACY_POLICY_URL` (an https address) to turn it into a link.
+ */
+export const PRIVACY_POLICY_URL: string = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? ''
+
+/**
  * Optional. The public address of the deployed app (for example https://showup.example.com), used
  * as the sign-in return address in production. Normally leave this unset: the app returns to the
  * address it is running on, which is correct for localhost, the main Vercel domain and previews.

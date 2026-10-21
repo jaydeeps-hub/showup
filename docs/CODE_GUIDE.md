@@ -38,6 +38,14 @@ Follow one press of the button through the files:
 4. **To change it, start at:** the rules in `utils/profileValidation.ts` (what counts as "complete", name length, and the birthday rule: `MINIMUM_AGE_YEARS` in `config/constants.ts` sets the 15-year limit used by both the date picker and the validation); wording in the two screen files; which fields exist in `ProfileEdits` (`types/index.ts`) and `updateProfile`. A new field also needs a database migration and a column privilege (`GRANT UPDATE`), or the database will refuse the save.
 5. **Test after changing:** `npm test` (`profileValidation.test.ts`, `profileService.test.ts`, `App.profile.test.tsx`), then try a brand-new Google account, a refresh, and an offline save in the browser.
 
+### Landing page (signed-out screen)
+
+1. **Which files control it?** `src/features/landing/LandingScreen.tsx` (the page), `LandingBanner.tsx` (the CMS image), `TermsDialog.tsx` (the Terms popup), `BrandMark.tsx` (the blue "o" and dot), and `landingTheme.ts` (its colours, deeper navy than the rest of the app).
+2. **What do they do?** The page starts the existing Google sign-in from both buttons and guards against double requests. The banner and the Terms are read from the Supabase `cms` table by `services/cmsService.ts` (one function, `fetchCmsValue`, always matching BOTH `id` and `content_type`), via `hooks/useCmsValue.ts`.
+3. **What do they depend on?** `authService.signInWithGoogle`, the `cms` table and its read policy (`supabase/migrations/20261022100000_cms_public_read.sql`), and `react-markdown` for the Terms.
+4. **To change it, start at:** wording and layout in `LandingScreen.tsx`; colours in `landingTheme.ts`; which CMS rows are used in `CMS_ENTRIES` in `cmsService.ts`; the Privacy Policy address via `VITE_PRIVACY_POLICY_URL`. A new public CMS entry needs its `content_type` added to the read policy in a new migration.
+5. **Test after changing:** `npm test` (`cmsService.test.ts`, `LandingScreen.test.tsx`), then open the page signed out at phone width, press Terms, and check the banner loads.
+
 ### Gym search mode (fitness places vs any place)
 
 1. **Which files control it?** `src/services/gymValidation.ts` (`isPlaceAllowed`), `src/features/gym/GymSearch.tsx` (applies it), `src/features/profile/PlaceSearchModeSetting.tsx` (the admin-only switch), `src/services/profileService.ts` (`updatePlaceSearchMode`), and `supabase/migrations/20261018100000_place_search_mode.sql` (the real enforcement).
@@ -55,7 +63,7 @@ Follow one press of the button through the files:
 
 ### Temporary user (welcome screen) — removed
 
-The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-in lives in `features/authentication/LoginScreen.tsx` and `services/authService.ts`.
+The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-in is started from the landing page (`features/landing/LandingScreen.tsx`) through `services/authService.ts`.
 
 ### Gym search and setup
 

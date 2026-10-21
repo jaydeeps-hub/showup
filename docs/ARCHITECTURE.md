@@ -35,7 +35,7 @@ The rules that decide whether a Showup counts (`attendanceService.ts`) contain n
 flowchart TD
     Start([App opens]) --> Load[Load profile, gym and Showup count from Supabase]
     Load -->|cannot load| Problem[We couldn't load your gym<br/>Try again or sign out]
-    Load -->|no user| Welcome[Welcome screen<br/>username + temporary password]
+    Load -->|signed out| Welcome[Landing page<br/>Sign up with Google, Terms popup]
     Load -->|user, no gym| Setup
     Load -->|user + gym| Home
     Problem --> Welcome

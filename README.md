@@ -69,7 +69,7 @@ Stop the server with <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal.
 
 ## Configuring sign-in (Supabase + Google)
 
-Showup uses [Supabase](https://supabase.com) for sign-in, with Google as the login provider. Without these settings the login screen shows a "Sign-in is not set up yet" message and the **Continue with Google** button is disabled.
+Showup uses [Supabase](https://supabase.com) for sign-in, with Google as the login provider. Without these settings the landing page shows a "Sign-in is not set up yet" message and the **Continue with Google** button is disabled.
 
 ### 1. Create `.env.local`
 
@@ -134,17 +134,17 @@ If sign-in fails, the app now shows "Sign-in could not be completed", clears the
 ### 6. Test sign-in, reload and sign-out
 
 1. Run `npm run dev` and open <http://localhost:5173>.
-2. You should see **Continue with Google**. Click it, choose your Google account, and approve.
+2. You should see the landing page ("Show up for yourself."). Click **Sign up with Google** (or **I already have an account**; both start the same Google sign-in), choose your Google account, and approve.
 3. You should return to the app, signed in (gym setup the first time, then the home screen with your Google name at the top).
 4. Reload the page (<kbd>F5</kbd>): you should stay signed in.
-5. Click **Sign out**: you should return to the login screen. Reload to confirm you stay signed out.
+5. Click **Sign out**: you should return to the landing page. Reload to confirm you stay signed out.
 
 | Symptom | Likely cause |
 |---|---|
 | "Sign-in is not set up yet" | `.env.local` missing or variable names misspelled, or dev server not restarted |
 | Google says `redirect_uri_mismatch` | The Supabase callback address is missing from the Google client's Authorized redirect URIs |
 | Live site redirects to `localhost:5173` after Google | **Site URL** in Supabase is still `http://localhost:5173`, or your live address is missing from **Redirect URLs**. Fix both (step 5) |
-| Back on the login screen with "Sign-in could not be completed" | Your app address is missing from Supabase **Redirect URLs** |
+| Back on the landing page with "Sign-in could not be completed" | Your app address is missing from Supabase **Redirect URLs** |
 | Google shows "Access blocked" | The consent screen is in Testing mode and your account is not in **Test users** |
 | Error mentioning a provider that "is not enabled" | Google is not switched on under Supabase **Providers** |
 
@@ -185,6 +185,25 @@ The choice is saved on the user's profile in Supabase (`place_search_mode`), so 
 **Enforced by the database, not just the interface.** A regular user has no permission to write the setting, and the only way to change it is a database function that refuses `any_place` unless the caller's profile has `is_admin = true`. Hiding the control in the app is only a convenience. If someone's admin rights are removed, their "any place" setting stops applying immediately.
 
 **How to make someone an administrator** (only possible in the Supabase SQL Editor, never from the app): see [docs/SETUP_SUPABASE.md](docs/SETUP_SUPABASE.md#4-making-someone-an-administrator). This step needs a new migration; see the same file for how to apply it.
+
+## The landing page
+
+Signed-out visitors see a landing page: the Showup wordmark, a mascot banner, the headline "Show up for yourself.", a **Sign up with Google** button, **I already have an account**, and a line linking the Terms and Privacy Policy. Both buttons start the app's one existing Google sign-in (Google does not tell sign-up from sign-in apart), so there is no second login path.
+
+**Content comes from Supabase, not from the code.** Two rows of the `public.cms` table are read:
+
+| Used for | `id` | `content_type` | `value` |
+|---|---|---|---|
+| Mascot banner | 1 | `lpage_banner` | the image address (https) |
+| Terms and Conditions | 2 | `tnc` | the text, written in Markdown |
+
+Clicking **Terms** opens the Terms in a popup on the same page (fetched the first time it is opened, then kept). The Markdown is shown as formatted text and raw HTML in it is ignored, so editing the row cannot inject code into the page. If a row is missing or cannot be read, the page shows a plain "unavailable" state; there is no built-in fallback picture or text.
+
+**One-time database step:** signed-out visitors can only read `cms` once a read policy exists. Run `supabase/migrations/20261022100000_cms_public_read.sql` in the Supabase SQL Editor. It allows read-only access to just those two content types. Until you do, the banner shows as unavailable and the Terms say they are not available.
+
+**Privacy Policy link:** the project has no privacy policy page yet, so "Privacy Policy" is shown as plain text. When you have one, set `VITE_PRIVACY_POLICY_URL=https://...` in `.env.local` (and in Vercel) and it becomes a link.
+
+**The banner address is a signed link** (it contains a token and expires after 365 days, around 21 October 2027). To avoid an expiring image, either update the `cms` row before then, or make the storage bucket public and store its permanent public address.
 
 ## Configuring Google Maps
 

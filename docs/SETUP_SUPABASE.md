@@ -20,7 +20,7 @@ Nothing in this project can change your hosted database for you. You do these st
 1. Open the [Supabase dashboard](https://supabase.com/dashboard) and choose your project.
 2. Open **SQL Editor** → **New query**.
 3. Open `supabase/migrations/20261017120000_create_core_tables.sql` in VS Code, copy **all** of it, paste it into the editor, and click **Run**. Expect "Success. No rows returned".
-4. Repeat for `20261017120100_provision_profiles.sql`, then `20261017120200_row_level_security.sql`, then `20261018100000_place_search_mode.sql` (Step 4: the administrator-only gym search setting). **Keep this order.** If you already ran the first three earlier, run only the new `20261018100000_place_search_mode.sql`.
+4. Repeat for `20261017120100_provision_profiles.sql`, then `20261017120200_row_level_security.sql`, then `20261018100000_place_search_mode.sql` (Step 4: the administrator-only gym search setting). **Keep this order.** If you already ran the first three earlier, run only the new `20261018100000_place_search_mode.sql`. For the landing page, also run `20261022100000_cms_public_read.sql` (read-only access to the two `cms` entries it shows).
 5. If any step shows an error, stop, and do not continue to the next file. Copy the error message; most errors mean a file was already run once (for example "relation already exists"). Do not run a file twice.
 
 ### Option B: Supabase CLI (later, when you want repeatable deployments)
@@ -139,6 +139,27 @@ select
 ```
 
 **End-to-end:** sign in as a normal user, tap your name to open the Profile page and confirm there is no "Gym search" setting. Make yourself an administrator (section 4), reload, and the setting appears. Switch to **Any place**, refresh, and confirm it is still selected.
+
+### Verify the landing page content (cms)
+
+**A signed-out visitor can read exactly the two landing page rows** (expect 2 rows):
+
+```sql
+set role anon;
+select id, content_type, left(value, 60) as value_start from public.cms order by id;
+reset role;
+```
+
+**Nobody can write to cms from the browser** (expect `false`, `false`, `false`):
+
+```sql
+select
+  has_table_privilege('anon', 'public.cms', 'INSERT') as anon_insert,
+  has_table_privilege('anon', 'public.cms', 'UPDATE') as anon_update,
+  has_table_privilege('anon', 'public.cms', 'DELETE') as anon_delete;
+```
+
+If the first query returns no rows although `select * from public.cms` (without `set role anon`) shows them, the policy has not been applied.
 
 ## 5. Troubleshooting
 

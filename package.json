@@ -20,7 +20,8 @@
     "@mui/material": "^9.5.0",
     "@supabase/supabase-js": "^2.118.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
