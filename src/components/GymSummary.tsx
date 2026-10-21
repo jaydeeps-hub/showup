@@ -22,9 +22,9 @@ export function GymSummary({ label, name, address }: GymSummaryProps) {
             flexShrink: 0,
             width: 40,
             height: 40,
-            borderRadius: `${tokens.radius.sm}px`,
-            bgcolor: tokens.color.brandSubtle,
-            color: 'primary.light',
+            borderRadius: `${tokens.radius.small}px`,
+            bgcolor: tokens.color.accentTint,
+            color: tokens.color.accentText,
             display: 'grid',
             placeItems: 'center',
           }}
@@ -32,13 +32,13 @@ export function GymSummary({ label, name, address }: GymSummaryProps) {
           <PlaceOutlined sx={{ fontSize: 24 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" component="p">
+          <Typography variant="caption" color="textSecondary" component="p">
             {label}
           </Typography>
           <Typography variant="subtitle1" component="p" noWrap title={name}>
             {name}
           </Typography>
-          <Typography variant="body2" color="text.secondary" component="p" noWrap title={address}>
+          <Typography variant="body2" color="textSecondary" component="p" noWrap title={address}>
             {address}
           </Typography>
         </Box>

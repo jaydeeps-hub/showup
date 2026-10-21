@@ -23,7 +23,7 @@ export function OnboardingScreen({ profile, onSave }: OnboardingScreenProps) {
           <Typography variant="h1" component="h1">
             Let's get to know you.
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="textSecondary">
             What should we call you, and when should we wish you on your birthday?
           </Typography>
         </Stack>

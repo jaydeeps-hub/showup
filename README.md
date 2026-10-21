@@ -21,7 +21,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 - **Clear error messages** when location permission is denied, location is unavailable, the request times out, or the browser doesn't support geolocation.
 - **Counter and history in Supabase.** Each successful Showup is saved as a row in the `showups` table, and the counter is the number of your rows. If a Showup cannot be saved you are told, and it is not counted.
 - **Safe recovery** when saved data is damaged or storage is blocked.
-- **Dark, mobile-first Material UI design** following the Showup visual design language (charcoal surfaces, one blue accent, Inter font, short purposeful motion that respects "reduce motion").
+- **Dark, mobile-first Material UI design**: near-black surfaces, one deep-blue accent for interaction and selection, green for success and red for errors, Bricolage Grotesque headings with DM Sans body text, and subtle borders instead of shadows. All values come from `src/design-system/tokens.ts`.
 
 ## Technologies
 

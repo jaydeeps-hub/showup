@@ -111,10 +111,10 @@ The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-
 ### Look and feel
 
 1. **Which file controls it?** `src/app/theme.ts`
-2. **What does it do?** Builds the Material UI theme (palette, type scale, shape, short transitions, component styles) from the design tokens in `src/design-system/tokens.ts`.
+2. **What does it do?** Builds the Material UI theme (palette, type scale, shape, component styles) from the design tokens in `src/design-system/tokens.ts`: colours, the two font families, radii (14px controls, 24px dialogs), control heights (54px) and motion timings. Fonts are loaded in `index.html`.
 3. **Depends on:** nothing.
-4. **To change it, start at:** `src/design-system/tokens.ts` for colours, radii, spacing and motion timings; `theme.ts` only for how components use them.
-5. **Test after changing:** text contrast is still readable, especially the dark text on the accent-coloured button.
+4. **To change it, start at:** `src/design-system/tokens.ts` for colours, fonts, radii, sizes and motion; `theme.ts` only for how components use them. Two MUI 9 details to remember: (a) `Typography`'s `color` prop takes `textSecondary`, **not** `text.secondary` (the dotted form silently does nothing; it only works inside `sx`); (b) the text colour on solid messages (success, error, warning) is chosen by `getContrastText` at the bottom of `theme.ts`, so add a new coloured background there if you want specific text on it.
+5. **Test after changing:** `npm run build`, then look at the login, home, profile, gym search, a dialog and the success toast on a phone-width window. Check text contrast (muted grey on near-black is about 6:1; placeholder and disabled text are intentionally lower).
 
 ---
 

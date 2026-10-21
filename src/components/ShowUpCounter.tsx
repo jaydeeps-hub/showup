@@ -15,7 +15,7 @@ export function ShowUpCounter({ count }: ShowUpCounterProps) {
       <Typography component="p" variant="subtitle2" sx={{ mt: 1 }}>
         Total Showups
       </Typography>
-      <Typography component="p" variant="caption" color="text.secondary">
+      <Typography component="p" variant="caption" color="textSecondary">
         Visits verified at your gym
       </Typography>
     </Box>

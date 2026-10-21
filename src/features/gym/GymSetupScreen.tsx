@@ -41,7 +41,7 @@ export function GymSetupScreen({ onSave, onCancel, searchMode }: GymSetupScreenP
           <Typography variant="h1" component="h1">
             Where do you work out?
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="textSecondary">
             Search for your gym and save its location to start showing up.
           </Typography>
         </Stack>

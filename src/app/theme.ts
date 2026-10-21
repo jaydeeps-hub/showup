@@ -2,7 +2,7 @@ import { createTheme } from '@mui/material/styles'
 import type { CSSProperties } from 'react'
 import { tokens } from '../design-system/tokens'
 
-// A "display" text style for rare, high-emphasis numbers (the Showup counter).
+// A "display" text style for large numbers (the Showup counter).
 declare module '@mui/material/styles' {
   interface TypographyVariants {
     display: CSSProperties
@@ -17,114 +17,143 @@ declare module '@mui/material/Typography' {
   }
 }
 
-const { color: c, radius, motion, easing, shadow } = tokens
+const { color: c, radius, size, font, motion, easing, border } = tokens
 
-const FONT_FAMILY = 'Inter, Roboto, "Helvetica Neue", Arial, sans-serif'
+/** Visible keyboard focus: 2px outline with a 2px offset. */
+const FOCUS_RING = { outline: `2px solid ${c.focusRing}`, outlineOffset: 2 }
 
-/** Visible keyboard focus. Plain blue on the dark canvas is well above 3:1 contrast. */
-const FOCUS_RING = { outline: `2px solid ${c.brandPrimary}`, outlineOffset: 2 }
+/** The subtle halo shown around a focused field. */
+const FIELD_HALO = `0 0 0 3px ${c.accentPrimary}40`
 
-/** Subtle surface + matching text/icon colour for each kind of status message. */
-function statusAlert(main: string, subtle: string) {
-  return {
-    backgroundColor: subtle,
-    border: `1px solid ${main}`,
-    color: c.textPrimary,
-    '& .MuiAlert-icon': { color: main },
-  }
-}
+/** Display-font style shared by the heading variants. */
+const display = { fontFamily: font.display, fontWeight: 700, letterSpacing: '-0.01em' }
 
 /**
  * Showup's dark Material UI theme, built entirely from design tokens
  * (src/design-system/tokens.ts). Change the look there, not in components.
  */
-export const theme = createTheme({
-  // 1 spacing unit = 4px, so `p: 4` is the design system's space.4 (16px).
+const baseTheme = createTheme({
+  // 1 spacing unit = 4px, so `p: 4` is 16px on the 4px grid.
   spacing: 4,
-  shape: { borderRadius: radius.md },
+  shape: { borderRadius: radius.control },
   palette: {
     mode: 'dark',
-    primary: { main: c.brandPrimary, light: c.brandHover, dark: c.brandPressed, contrastText: c.brandOnPrimary },
-    success: { main: c.success, contrastText: c.brandOnPrimary },
-    warning: { main: c.warning, contrastText: c.brandOnPrimary },
-    error: { main: c.error, contrastText: c.brandOnPrimary },
-    info: { main: c.info, contrastText: c.brandOnPrimary },
-    background: { default: c.backgroundCanvas, paper: c.surfaceDefault },
+    primary: { main: c.accentPrimary, light: c.accentText, dark: c.accentHover, contrastText: c.onAccent },
+    success: { main: c.success, dark: c.success, contrastText: c.onSuccess },
+    warning: { main: c.warningSurface, dark: c.warningSurface, contrastText: c.warningText },
+    error: { main: c.error, dark: c.error, contrastText: c.onError },
+    info: { main: c.accentText, contrastText: c.onAccent },
+    background: { default: c.background, paper: c.surface1 },
     text: { primary: c.textPrimary, secondary: c.textSecondary, disabled: c.textDisabled },
-    divider: c.borderSubtle,
+    divider: c.border,
     action: {
-      hover: c.surfaceHover,
-      selected: c.surfacePressed,
-      focus: c.surfaceHover,
+      hover: c.surface2,
+      selected: c.accentTint,
+      focus: c.surface2,
       disabled: c.textDisabled,
-      disabledBackground: c.surfaceRaised,
+      disabledBackground: c.surface2,
     },
   },
   typography: {
-    fontFamily: FONT_FAMILY,
+    fontFamily: font.body,
     // rem units so text still scales with the user's browser font-size setting.
-    display: { fontSize: '2.5rem', lineHeight: '3rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' },
-    h1: { fontSize: '2rem', lineHeight: '2.5rem', fontWeight: 700 },
-    h2: { fontSize: '1.5rem', lineHeight: '2rem', fontWeight: 700 },
-    h3: { fontSize: '1.25rem', lineHeight: '1.75rem', fontWeight: 600 },
-    h4: { fontSize: '1.125rem', lineHeight: '1.625rem', fontWeight: 600 },
-    h5: { fontSize: '1.125rem', lineHeight: '1.625rem', fontWeight: 600 },
-    h6: { fontSize: '1.125rem', lineHeight: '1.625rem', fontWeight: 600 },
-    subtitle1: { fontSize: '1rem', lineHeight: '1.5rem', fontWeight: 600 },
-    subtitle2: { fontSize: '0.875rem', lineHeight: '1.25rem', fontWeight: 600 },
-    body1: { fontSize: '1rem', lineHeight: '1.5rem', fontWeight: 400 },
-    body2: { fontSize: '0.875rem', lineHeight: '1.25rem', fontWeight: 400 },
-    button: { fontSize: '0.875rem', lineHeight: '1.25rem', fontWeight: 600, textTransform: 'none' },
-    caption: { fontSize: '0.75rem', lineHeight: '1rem', fontWeight: 400 },
-    overline: { fontSize: '0.75rem', lineHeight: '1rem', fontWeight: 500, textTransform: 'none', letterSpacing: 0 },
+    display: { ...display, fontSize: '2.5rem', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' },
+    h1: { ...display, fontSize: '1.875rem', lineHeight: 1.2 }, // page title, 30px
+    h2: { ...display, fontSize: '1.5rem', lineHeight: 1.25 },
+    h3: { ...display, fontSize: '1.25rem', lineHeight: 1.3 }, // section heading, 20px
+    h4: { ...display, fontSize: '1.125rem', lineHeight: 1.3 }, // 18px
+    h5: { ...display, fontSize: '1.125rem', lineHeight: 1.3 },
+    h6: { ...display, fontSize: '1.125rem', lineHeight: 1.3 },
+    subtitle1: { fontSize: '1rem', lineHeight: 1.5, fontWeight: 600 },
+    subtitle2: { fontSize: '0.875rem', lineHeight: 1.4, fontWeight: 500 }, // labels, 14px
+    body1: { fontSize: '1rem', lineHeight: 1.55, fontWeight: 400 },
+    body2: { fontSize: '0.875rem', lineHeight: 1.5, fontWeight: 400 }, // secondary text
+    button: { fontSize: '1rem', lineHeight: 1.25, fontWeight: 600, textTransform: 'none' },
+    caption: { fontSize: '0.75rem', lineHeight: 1.4, fontWeight: 400 },
+    overline: { fontSize: '0.75rem', lineHeight: 1.4, fontWeight: 500, textTransform: 'none', letterSpacing: 0 },
   },
   transitions: {
-    // Short, purposeful transitions (100-280 ms). Longer ones are not used.
+    // Subtle and brief.
     duration: {
-      shortest: motion.instant,
+      shortest: motion.fast,
       shorter: motion.fast,
       short: motion.standard,
       standard: motion.standard,
-      complex: motion.emphasis,
+      complex: motion.standard,
       enteringScreen: motion.standard,
       leavingScreen: motion.fast,
     },
-    easing: { easeInOut: easing.standard, easeOut: easing.enter, easeIn: easing.exit, sharp: easing.exit },
+    easing: { easeInOut: easing.standard, easeOut: easing.standard, easeIn: easing.standard, sharp: easing.standard },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        body: { backgroundColor: c.backgroundCanvas },
+        body: { backgroundColor: c.background, color: c.textPrimary },
         // Respect "reduce motion": state changes still happen, just instantly.
         '@media (prefers-reduced-motion: reduce)': {
-          '*, *::before, *::after': { transitionDuration: '0.01ms !important', transitionDelay: '0ms !important' },
+          '*, *::before, *::after': {
+            transitionDuration: '0.01ms !important',
+            transitionDelay: '0ms !important',
+            animationDuration: '0.01ms !important',
+          },
         },
       },
     },
     MuiButtonBase: {
-      // Press feedback comes from colour changes, not a ripple animation.
+      // Press feedback comes from colour changes, not a ripple.
       defaultProps: { disableRipple: true },
       styleOverrides: { root: { '&.Mui-focusVisible': FOCUS_RING } },
     },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { borderRadius: radius.md, minHeight: 48, paddingInline: 20 },
-        sizeSmall: { minHeight: 44, paddingInline: 12 },
-        sizeLarge: { minHeight: 56, fontSize: '1rem', lineHeight: '1.5rem' },
+        root: {
+          borderRadius: radius.control,
+          minHeight: size.secondaryButton,
+          paddingInline: 20,
+          '&.Mui-disabled': { color: c.textDisabled },
+        },
+        sizeSmall: { minHeight: size.touchTarget, paddingInline: 12, borderRadius: radius.small },
+        sizeLarge: { minHeight: size.control, fontSize: '1rem', lineHeight: 1.25 },
+        // Primary: solid blue, white text.
+        contained: {
+          '&.Mui-disabled, &.MuiButton-colorPrimary.Mui-disabled, &.MuiButton-colorError.Mui-disabled': {
+            backgroundColor: c.surface2,
+            color: c.textDisabled,
+          },
+        },
         colorPrimary: {
-          '&.MuiButton-contained:hover': { backgroundColor: c.brandHover },
-          '&.MuiButton-contained:active': { backgroundColor: c.brandPressed },
+          '&.MuiButton-contained': { backgroundColor: c.accentPrimary, color: c.onAccent },
+          '&.MuiButton-contained:hover': { backgroundColor: c.accentHover },
         },
         colorError: {
-          '&.MuiButton-contained:hover': { backgroundColor: c.error, filter: 'brightness(1.1)' },
+          '&.MuiButton-contained': { backgroundColor: c.error, color: c.onError },
+          '&.MuiButton-contained:hover': { backgroundColor: c.error, filter: 'brightness(1.08)' },
         },
-        contained: {
-          '&.Mui-disabled': { backgroundColor: c.surfaceRaised, color: c.textDisabled },
+        // Neutral / secondary outlined button: quiet surface, subtle border.
+        outlined: {
+          backgroundColor: c.surface2,
+          borderColor: c.border,
+          color: c.textPrimary,
+          '&:hover': { backgroundColor: c.surface2, borderColor: c.textSubtle },
+          '&.Mui-disabled': { borderColor: c.border },
         },
+        // Ghost: transparent, no border.
         text: {
-          '&:hover': { backgroundColor: c.surfaceHover },
-          '&:active': { backgroundColor: c.surfacePressed },
+          color: c.textPrimary,
+          '&:hover': { backgroundColor: c.surface1 },
+          '&:active': { backgroundColor: c.surface2 },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: size.touchTarget,
+          minHeight: size.touchTarget,
+          borderRadius: radius.control,
+          backgroundColor: c.surface1,
+          '&:hover': { backgroundColor: c.surface2 },
         },
       },
     },
@@ -135,72 +164,156 @@ export const theme = createTheme({
     MuiCard: {
       defaultProps: { variant: 'outlined' },
       styleOverrides: {
-        root: { borderRadius: radius.lg, backgroundColor: c.surfaceDefault, border: `1px solid ${c.borderSubtle}` },
+        root: {
+          borderRadius: radius.control,
+          backgroundColor: c.surface1,
+          border: `${border.width}px solid ${c.border}`,
+        },
       },
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          borderRadius: radius.md,
-          backgroundColor: c.surfaceDefault,
-          // Input boundaries need 3:1 contrast, so they use the tertiary text colour.
-          '& .MuiOutlinedInput-notchedOutline': { borderColor: c.textTertiary },
-          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: c.textSecondary },
-          '&.Mui-focused': { boxShadow: shadow.focus },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: c.brandPrimary, borderWidth: 2 },
+          minHeight: size.control,
+          borderRadius: radius.control,
+          backgroundColor: c.surface1,
+          fontSize: '1rem',
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: c.border, borderWidth: border.width },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: c.textSubtle },
+          // Focused: blue border and a subtle blue halo.
+          '&.Mui-focused': { boxShadow: FIELD_HALO },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: c.accentPrimary, borderWidth: border.widthEmphasis },
           '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: c.error },
+          '&.Mui-error.Mui-focused': { boxShadow: `0 0 0 3px ${c.error}40` },
+          '&.Mui-disabled': { backgroundColor: c.surface2 },
+        },
+        input: {
+          paddingInline: 16,
+          '&::placeholder': { color: c.textSubtle, opacity: 1 },
+          '&.Mui-disabled': { WebkitTextFillColor: c.textDisabled },
         },
       },
     },
     MuiInputLabel: {
       styleOverrides: {
-        root: { color: c.textSecondary, '&.Mui-focused': { color: c.brandHover }, '&.Mui-error': { color: c.error } },
+        root: {
+          color: c.textSecondary,
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          '&.Mui-focused': { color: c.accentText },
+          '&.Mui-error': { color: c.error },
+        },
       },
     },
     MuiFormHelperText: {
-      styleOverrides: { root: { marginInline: 4, '&.Mui-error': { color: c.error } } },
+      styleOverrides: { root: { marginInline: 4, color: c.textSecondary, fontSize: '0.8125rem', '&.Mui-error': { color: c.error } } },
+    },
+    MuiFormLabel: { styleOverrides: { root: { '&.Mui-focused': { color: c.accentText } } } },
+    MuiRadio: {
+      styleOverrides: {
+        root: { color: c.textSubtle, padding: 10, '&.Mui-checked': { color: c.accentPrimary } },
+      },
+    },
+    MuiSwitch: {
+      styleOverrides: {
+        root: { width: 52, height: 32, padding: 0, overflow: 'visible' },
+        switchBase: {
+          padding: 3,
+          '&.Mui-checked': { transform: 'translateX(20px)', color: '#FFFFFF' },
+          '&.Mui-checked + .MuiSwitch-track': { backgroundColor: c.accentPrimary, opacity: 1 },
+        },
+        thumb: { width: 26, height: 26, backgroundColor: '#FFFFFF', boxShadow: 'none' },
+        track: { borderRadius: radius.pill, backgroundColor: c.toggleTrackOff, opacity: 1 },
+      },
     },
     MuiAutocomplete: {
       styleOverrides: {
         paper: {
-          backgroundColor: c.surfaceRaised,
-          border: `1px solid ${c.borderSubtle}`,
-          borderRadius: radius.md,
-          boxShadow: shadow.card,
-          marginTop: 4,
+          backgroundColor: c.surface1,
+          border: `${border.width}px solid ${c.border}`,
+          borderRadius: radius.control,
+          boxShadow: 'none',
+          marginTop: 8,
         },
-        listbox: { padding: 4 },
+        listbox: { padding: 8 },
         option: {
-          borderRadius: radius.sm,
-          minHeight: 48,
-          '&.Mui-focused': { backgroundColor: c.surfaceHover },
-          '&[aria-selected="true"]': { backgroundColor: c.brandSubtle },
+          borderRadius: radius.small,
+          minHeight: size.secondaryButton,
+          marginBottom: 8,
+          '&:last-of-type': { marginBottom: 0 },
+          '&.Mui-focused': { backgroundColor: c.surface2 },
+          // Selected: tinted background plus a visible blue border.
+          '&[aria-selected="true"]': { backgroundColor: c.accentTint, boxShadow: `inset 0 0 0 ${border.widthEmphasis}px ${c.accentPrimary}` },
         },
         loading: { color: c.textSecondary },
         noOptions: { color: c.textSecondary },
       },
     },
+    MuiCircularProgress: { styleOverrides: { colorPrimary: { color: c.accentText } } },
     MuiAlert: {
+      // `filled` makes MUI paint the message from the palette (success.main etc.); the text colour
+      // on each comes from getContrastText below. Used by every message in the app.
+      defaultProps: { variant: 'filled' },
       styleOverrides: {
-        root: { borderRadius: radius.md, alignItems: 'flex-start' },
-        colorSuccess: statusAlert(c.success, c.successSubtle),
-        colorWarning: statusAlert(c.warning, c.warningSubtle),
-        colorError: statusAlert(c.error, c.errorSubtle),
-        colorInfo: statusAlert(c.info, c.infoSubtle),
+        // `root` is emitted last, so these win over Paper's own box-shadow and Alert's defaults.
+        root: ({ ownerState }) => ({
+          borderRadius: radius.control,
+          alignItems: 'flex-start',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          // Quiet inset ring instead of a border (MUI resets borders on filled messages).
+          ...(ownerState.severity === 'warning' && { boxShadow: `inset 0 0 0 ${border.width}px ${c.warningBorder}` }),
+          ...(ownerState.severity === 'info' && {
+            backgroundColor: c.surface1,
+            color: c.textPrimary,
+            boxShadow: `inset 0 0 0 ${border.width}px ${c.border}`,
+            '& .MuiAlert-icon': { color: c.accentText },
+          }),
+          ...((ownerState.severity === 'success' || ownerState.severity === 'error') && {
+            boxShadow: 'none',
+            '& .MuiAlert-icon': { color: 'inherit' },
+          }),
+        }),
+        // The close button inherits the message colour and sits flat on it.
+        action: { padding: 0, '& .MuiIconButton-root': { backgroundColor: 'transparent', color: 'inherit', '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.12)' } } },
       },
     },
+    MuiBackdrop: { styleOverrides: { root: { backgroundColor: c.overlay } } },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundColor: c.surfaceRaised,
-          border: `1px solid ${c.borderSubtle}`,
-          borderRadius: radius.lg,
-          boxShadow: shadow.dialog,
+          backgroundColor: c.surface1,
+          border: `${border.width}px solid ${c.border}`,
+          borderRadius: radius.sheet,
+          boxShadow: 'none',
         },
       },
     },
-    MuiDialogTitle: { styleOverrides: { root: { padding: '24px 24px 8px' } } },
-    MuiDialogContent: { styleOverrides: { root: { padding: '8px 24px' } } },
+    MuiDialogTitle: { styleOverrides: { root: { ...display, fontSize: '1.25rem', lineHeight: 1.3, padding: '24px 24px 8px' } } },
+    MuiDialogContent: { styleOverrides: { root: { padding: '8px 24px', fontSize: '0.9375rem' } } },
     MuiDialogActions: { styleOverrides: { root: { padding: '16px 24px 24px', gap: 8 } } },
+    MuiDivider: { styleOverrides: { root: { borderColor: c.border } } },
+  },
+})
+
+/**
+ * MUI decides the text colour on a coloured background by calling `palette.getContrastText()`,
+ * which only ever returns near-black or white. The design wants specific colours instead (dark
+ * green-black on success, dark red-black on error, light amber on the dark amber warning).
+ * Overriding the function means every MUI component that asks "what text goes on this
+ * background?" gets the design's answer, without per-component CSS tricks.
+ */
+const TEXT_ON: Record<string, string> = {
+  [c.success.toLowerCase()]: c.onSuccess,
+  [c.error.toLowerCase()]: c.onError,
+  [c.warningSurface.toLowerCase()]: c.warningText,
+  [c.accentPrimary.toLowerCase()]: c.onAccent,
+  [c.accentHover.toLowerCase()]: c.onAccent,
+}
+
+export const theme = createTheme(baseTheme, {
+  palette: {
+    getContrastText: (background: string) =>
+      TEXT_ON[background.toLowerCase()] ?? baseTheme.palette.getContrastText(background),
   },
 })

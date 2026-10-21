@@ -28,7 +28,7 @@ export function ScreenLayout({ headerAction, children }: ScreenLayoutProps) {
             sx={{
               width: 28,
               height: 28,
-              borderRadius: `${tokens.radius.sm}px`,
+              borderRadius: `${tokens.radius.small}px`,
               bgcolor: 'primary.main',
               color: 'primary.contrastText',
               display: 'grid',
@@ -37,7 +37,7 @@ export function ScreenLayout({ headerAction, children }: ScreenLayoutProps) {
           >
             <CheckRounded sx={{ fontSize: 18 }} />
           </Box>
-          <Typography component="p" variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography component="p" variant="h4">
             Showup
           </Typography>
         </Box>

@@ -36,7 +36,7 @@ interface ManageProfileScreenProps {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary" component="p">
+      <Typography variant="caption" color="textSecondary" component="p">
         {label}
       </Typography>
       <Typography variant="body1" component="p">
@@ -69,7 +69,7 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
           <Typography variant="h1" component="h1">
             Your profile
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="textSecondary">
             {isEditing ? 'Update how we address you.' : 'Your details and gym.'}
           </Typography>
         </Stack>

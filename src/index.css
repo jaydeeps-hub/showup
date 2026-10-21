@@ -1,5 +1,5 @@
 /* Colours, typography and component styling come from the MUI theme (src/app/theme.ts),
-   which is built from src/design-system/tokens.ts. Only page-level basics live here. */
+   which is built from src/design-system/tokens.ts (fonts are loaded in index.html). Only page-level basics live here. */
 
 :root {
   color-scheme: dark;

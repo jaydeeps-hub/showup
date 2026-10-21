@@ -1,47 +1,72 @@
 /**
- * Showup design tokens (Visual Design Language v1.1.0).
- * Single source of truth for colour, spacing, radius and motion.
- * Components should use these via the MUI theme (src/app/theme.ts) rather than raw values.
+ * Showup design tokens: the single source of truth for colour, type, spacing, shape and motion.
+ * The Material UI theme (src/app/theme.ts) is built from these. Change the look here, not in
+ * components.
+ *
+ * Direction: near-black surfaces, one deep-blue accent for interaction and selection, green for
+ * success, red for errors, subtle borders instead of shadows.
  */
 export const tokens = {
   color: {
-    backgroundCanvas: '#101216',
-    backgroundElevated: '#151920',
-    surfaceDefault: '#1B2028',
-    surfaceRaised: '#222936',
-    surfaceHover: '#293242',
-    surfacePressed: '#303B4D',
-    borderSubtle: '#2A313D',
-    borderStrong: '#465164',
-    textPrimary: '#F4F7FB',
-    textSecondary: '#B3BDCC',
-    textTertiary: '#8793A5',
-    textDisabled: '#687385',
-    brandPrimary: '#4D8DFF',
-    brandHover: '#6AA0FF',
-    brandPressed: '#3477E8',
-    brandSubtle: '#172B49',
-    brandOnPrimary: '#071426',
-    success: '#45C486',
-    successSubtle: '#142F27',
-    warning: '#F2B84B',
-    warningSubtle: '#352A17',
-    error: '#FF6B72',
-    errorSubtle: '#3A2027',
-    info: '#72B7FF',
-    infoSubtle: '#172B3E',
+    background: '#0E0F12',
+    surface1: '#16181D', // cards, inputs, navigation, secondary containers
+    surface2: '#1E2128', // elevated surfaces, hover, disabled backgrounds
+    border: '#2A2E37',
+
+    textPrimary: '#F2F3F5',
+    textSecondary: '#8D93A0',
+    textSubtle: '#626875', // placeholders and low-emphasis text
+    textDisabled: '#6A707C',
+
+    accentPrimary: '#2B50D9', // primary buttons, active controls, selection, progress
+    accentHover: '#3258E6',
+    accentTint: '#17234F', // selected rows, subtle accent backgrounds
+    accentText: '#8FA6FF', // active navigation, links, highlighted labels
+    onAccent: '#FFFFFF', // text on accentPrimary
+    focusRing: '#7C97FF',
+
+    success: '#3DBE8B',
+    successSurface: '#143A2D',
+    onSuccess: '#06231A', // dark text on a success background
+
+    error: '#F0707A',
+    onError: '#2A0A0D', // dark text on an error background
+
+    warningSurface: '#241B10',
+    warningBorder: '#4A3516',
+    warningText: '#E8C48A',
+
+    toggleTrackOff: '#3A3F4B',
+    /** Dim backdrop behind dialogs. */
+    overlay: 'rgba(0, 0, 0, 0.6)',
   },
-  spacing: { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48, 16: 64 },
-  radius: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, pill: 999 },
-  motion: { instant: 100, fast: 150, standard: 200, emphasis: 280, slow: 350 },
-  easing: {
-    standard: 'cubic-bezier(0.2, 0, 0, 1)',
-    enter: 'cubic-bezier(0, 0, 0.2, 1)',
-    exit: 'cubic-bezier(0.4, 0, 1, 1)',
+
+  font: {
+    /** Headings and large numbers. */
+    display: '"Bricolage Grotesque", "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+    /** Everything else. */
+    body: '"DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
   },
-  shadow: {
-    card: '0 2px 8px rgba(0, 0, 0, 0.16)',
-    dialog: '0 12px 36px rgba(0, 0, 0, 0.36)',
-    focus: '0 0 0 3px rgba(77, 141, 255, 0.28)',
+
+  /** 4px grid. */
+  spacing: { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48 },
+
+  radius: {
+    control: 14, // inputs, buttons, standard cards and rows
+    small: 12, // small controls
+    card: 18, // large cards
+    sheet: 24, // dialogs and the top corners of bottom sheets
+    pill: 999,
   },
+
+  size: {
+    control: 54, // primary button and input height
+    secondaryButton: 48,
+    touchTarget: 44, // minimum for icon buttons and compact controls
+  },
+
+  border: { width: 1, widthEmphasis: 1.5 },
+
+  motion: { fast: 120, standard: 180 },
+  easing: { standard: 'cubic-bezier(0.2, 0, 0, 1)' },
 } as const

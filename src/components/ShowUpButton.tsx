@@ -27,25 +27,24 @@ export function ShowUpButton({ isVerifying, onClick }: ShowUpButtonProps) {
         flexDirection: 'column',
         gap: 3,
         padding: 4,
-        fontSize: '1.125rem',
-        lineHeight: '1.5rem',
+        fontFamily: tokens.font.display,
+        fontSize: '1.25rem',
+        lineHeight: 1.2,
         fontWeight: 700,
-        letterSpacing: '0.04em',
+        letterSpacing: '0.02em',
         textTransform: 'uppercase',
-        boxShadow: tokens.shadow.card,
-        // Disabled stays readable (and clearly "busy") rather than fading to near-invisible.
-        '&.Mui-disabled': {
-          backgroundColor: 'background.paper',
-          color: 'text.secondary',
-          border: `1px solid ${tokens.color.borderStrong}`,
-          boxShadow: 'none',
+        // Busy state: a quiet surface with a subtle border, text still readable.
+        '&.Mui-disabled, &.MuiButton-colorPrimary.Mui-disabled': {
+          backgroundColor: tokens.color.surface1,
+          color: tokens.color.textSecondary,
+          border: `${tokens.border.width}px solid ${tokens.color.border}`,
         },
       }}
     >
       {isVerifying ? (
         <>
           <CircularProgress size={32} thickness={4} color="primary" aria-hidden />
-          <span style={{ fontSize: '0.875rem', letterSpacing: 0, textTransform: 'none', fontWeight: 500 }}>
+          <span style={{ fontFamily: tokens.font.body, fontSize: '0.875rem', letterSpacing: 0, textTransform: 'none', fontWeight: 500 }}>
             Checking your location…
           </span>
         </>

@@ -1,3 +1,4 @@
+import CheckRounded from '@mui/icons-material/CheckRounded'
 import Alert from '@mui/material/Alert'
 import Autocomplete from '@mui/material/Autocomplete'
 import Box from '@mui/material/Box'
@@ -172,16 +173,18 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
             : 'No places found. Try a different name or address.'
         }
         disabled={isLoadingDetails}
-        renderOption={(props, option) => {
+        renderOption={(props, option, { selected }) => {
           const { key, ...optionProps } = props
           return (
             <li key={key} {...optionProps}>
-              <Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body1">{option.primaryText}</Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                   {option.secondaryText}
                 </Typography>
               </Box>
+              {/* A tick as well as the blue tint, so selection is not shown by colour alone. */}
+              {selected && <CheckRounded aria-hidden sx={{ ml: 2, fontSize: 20, color: 'primary.light' }} />}
             </li>
           )
         }}

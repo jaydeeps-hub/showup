@@ -16,6 +16,30 @@ Template for each new version:
 ### Tests performed      (only list what was actually run, with results)
 -->
 
+## [Unreleased] - Design refresh (v2, step 7)
+
+Not yet committed or released. Visual changes only: no flows, logic, copy, data or API changes.
+
+### What changed
+
+The whole interface was restyled to a new design system: near-black background `#0E0F12`, surfaces `#16181D` / `#1E2128`, subtle `#2A2E37` borders, off-white `#F2F3F5` and muted grey `#8D93A0` text, and a deep-blue accent `#2B50D9` (hover `#3258E6`, selected tint `#17234F`, active text `#8FA6FF`). Headings use Bricolage Grotesque and body text DM Sans (loaded from Google Fonts in `index.html`). Controls are 54px tall with 14px corners; dialogs have 24px corners. Success and error messages are solid green and red with dark text, warnings are dark amber, and selected search results get a blue tint, a blue border and a tick. The previous palette (`#4D8DFF`) and Inter font are gone.
+
+### Bug found and fixed along the way
+
+`Typography` was ignoring `color="text.secondary"` in MUI 9 (the prop takes `textSecondary`; the dotted form only works in `sx`), so muted text had been rendering in the main text colour on every screen. Eleven places now use `color="textSecondary"`.
+
+### Important files
+
+`src/design-system/tokens.ts` (rewritten), `src/app/theme.ts` (rewritten), `index.html` (fonts, theme colour), `public/favicon.svg`, and small style changes in `ShowUpButton`, `ScreenLayout`, `GymSummary`, `GymSearch` (selected tick) and the eleven `Typography` colour props.
+
+### Data model changes
+
+None.
+
+### Tests performed
+
+See the final report. Screens were checked visually in headless Chrome at 390px width using the real components with sample data.
+
 ## [Unreleased] - Gyms and Showups saved to Supabase (v2, step 6)
 
 Not yet committed or released. Builds on step 5 (already pushed).

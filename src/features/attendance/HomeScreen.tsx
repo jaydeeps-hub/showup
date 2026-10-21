@@ -78,7 +78,7 @@ export function HomeScreen(props: HomeScreenProps) {
             Sign out
           </Button>
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 320 }}>
+        <Typography variant="caption" color="textSecondary" sx={{ textAlign: 'center', maxWidth: 320 }}>
           Showup checks the location your device reports. It does not track workouts.
         </Typography>
       </Stack>

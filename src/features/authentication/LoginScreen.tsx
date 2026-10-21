@@ -55,7 +55,7 @@ export function LoginScreen() {
           <Typography variant="h1" component="h1">
             Welcome
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="textSecondary">
             Sign in to track your gym visits.
           </Typography>
         </Stack>
@@ -88,7 +88,7 @@ export function LoginScreen() {
           >
             {isRedirecting ? 'Redirecting to Google…' : 'Continue with Google'}
           </Button>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+          <Typography variant="caption" color="textSecondary" sx={{ textAlign: 'center' }}>
             Showup uses your Google account only to sign you in.
           </Typography>
         </Stack>
