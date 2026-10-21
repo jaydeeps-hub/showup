@@ -83,8 +83,9 @@ export function LandingScreen() {
         backgroundColor: landing.color.page,
         display: 'flex',
         justifyContent: 'center',
-        alignItems: { xs: 'stretch', sm: 'center' },
-        p: { xs: 2, sm: 6 },
+        alignItems: 'flex-start',
+        px: { xs: 5, sm: 8 },
+        py: { xs: 8, sm: 10 },
         fontFamily: landing.font.body,
       }}
     >
@@ -93,14 +94,8 @@ export function LandingScreen() {
         sx={{
           width: '100%',
           maxWidth: 520,
-          backgroundColor: landing.color.container,
-          border: `1px solid ${landing.color.containerBorder}`,
-          borderRadius: `${landing.radius.container}px`,
-          px: { xs: 5, sm: 8 },
-          py: { xs: 8, sm: 10 },
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
           gap: { xs: 7, sm: 8 },
         }}
       >
@@ -141,7 +136,7 @@ export function LandingScreen() {
             }}
           >
             {/* Plain text for screen readers; the decorative styling of the "o" is visual only. */}
-            <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+            <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
               Show up for yourself.
             </Box>
             <span aria-hidden>
