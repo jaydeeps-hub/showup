@@ -47,6 +47,30 @@ export function LandingScreen() {
     return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
 
+  // iOS Safari shows the page's ROOT background (not the wrapper below) when you pull down to refresh or
+  // overscroll, and tints its status bar from the theme-color tag. Match both to the page colour while this
+  // screen is showing, and put the originals back afterwards.
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const themeColorTag = document.querySelector('meta[name="theme-color"]')
+    const previous = {
+      html: html.style.backgroundColor,
+      body: body.style.backgroundColor,
+      themeColor: themeColorTag?.getAttribute('content') ?? null,
+    }
+
+    html.style.backgroundColor = landing.color.page
+    body.style.backgroundColor = landing.color.page
+    themeColorTag?.setAttribute('content', landing.color.page)
+
+    return () => {
+      html.style.backgroundColor = previous.html
+      body.style.backgroundColor = previous.body
+      if (previous.themeColor !== null) themeColorTag?.setAttribute('content', previous.themeColor)
+    }
+  }, [])
+
   async function handleSignIn() {
     if (isRedirecting) return // ignore a second press while one request is in progress
     setErrorMessage(null)

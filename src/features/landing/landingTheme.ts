@@ -5,7 +5,7 @@
  */
 export const landing = {
   color: {
-    page: '#020817',
+    page: '#050A14',
     container: '#030B1B',
     containerBorder: '#142653',
     primary: '#1554FF',
