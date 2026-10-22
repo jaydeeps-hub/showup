@@ -29,6 +29,11 @@ export function daysText(days: number): string {
   return `${days} ${days === 1 ? 'day' : 'days'}`
 }
 
+/** "2 of 3 days", or "0 of 1 day" when the goal is a single day. */
+export function dayCountText(done: number, goal: number): string {
+  return `${done} of ${goal} ${goal === 1 ? 'day' : 'days'}`
+}
+
 /** The number the picker or stepper starts on: the pending goal, else the current goal, else 3. */
 export function initialGoalDays(goal: GoalState | null): number {
   return goal?.pendingGoal ?? goal?.currentGoal ?? DEFAULT_GOAL_DAYS

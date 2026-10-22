@@ -12,9 +12,10 @@ import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
 import { OnboardingScreen } from '../features/profile/OnboardingScreen'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
+import { useSaveDeviceTimezone } from '../hooks/useSaveDeviceTimezone'
 import { useShowup, type SignedInUser } from '../hooks/useShowup'
 import { getIdentity, signOut } from '../services/authService'
-import { getDisplayName, isProfileComplete } from '../utils/profileValidation'
+import { getFirstName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
 import { DataLoadErrorScreen } from './DataLoadErrorScreen'
 
@@ -38,6 +39,8 @@ export function App() {
  */
 function SignedInApp({ session }: { session: Session }) {
   const user: SignedInUser = useMemo(() => getIdentity(session.user), [session.user])
+  // Weeks and dates are worked out in the user's own time zone, so the database needs to know it.
+  useSaveDeviceTimezone(user.id)
   const showup = useShowup(user)
   // Loaded separately from sign-in: it decides whether to show onboarding.
   const profile = useProfile(session.user.id)
@@ -139,14 +142,12 @@ function SignedInApp({ session }: { session: Session }) {
       <>
         {activeTab === 'home' && (
           <HomeScreen
-            // The saved first and last name; the Google account name is only a fallback while the profile is unavailable.
-            displayName={getDisplayName(profileReady ? profile.profile : null, user.username)}
+            // The saved first name; the Google account name is only a fallback while the profile is unavailable.
+            firstName={getFirstName(profileReady ? profile.profile : null, user.username)}
             gym={showup.gym}
             isVerifying={showup.isVerifying}
             onShowUp={showup.showUp}
-            onManageProfile={profileReady ? () => setTab('profile') : undefined}
             onSetGoal={() => setIsSettingGoal(true)}
-            onSignOut={() => void handleSignOut()}
           />
         )}
         {activeTab === 'pause' && <PauseScreen />}

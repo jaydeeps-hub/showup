@@ -8,13 +8,16 @@ export type GoalLoad = { status: 'loading' } | { status: 'ready'; goal: GoalStat
 /** The result of saving a goal, with the text for the toast either way. */
 export type GoalSaveResult = { ok: true; message: string } | { ok: false; message: string }
 
+/** What `useGoalState` returns: the load state plus `retry` and `save`. */
+export type GoalStateHandle = GoalLoad & { retry: () => void; save: (days: number) => Promise<GoalSaveResult> }
+
 /**
  * Loads the weekly goal (`get_goal_state`) and saves a new one (`set_weekly_goal`).
  *
  * After a successful save it reads the goal back from the server, because the server decides when
  * the new goal starts. The message it returns uses that fresh answer.
  */
-export function useGoalState(): GoalLoad & { retry: () => void; save: (days: number) => Promise<GoalSaveResult> } {
+export function useGoalState(): GoalStateHandle {
   const [state, setState] = useState<GoalLoad>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
 

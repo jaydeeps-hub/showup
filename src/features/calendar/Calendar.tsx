@@ -21,6 +21,7 @@ import {
   monthStartOf,
   type CalendarRow,
 } from '../../utils/calendarDates'
+import { dayCountText } from '../../utils/goal'
 
 const c = home.color
 const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
@@ -218,7 +219,7 @@ function WeekMarker({ week }: { week: CalendarWeek | undefined }) {
       )
     } else if (week.status === 'in_progress' || week.status === 'missed') {
       content = (
-        <Box component="span" aria-label={`${week.showupDays} of ${week.goalDays} days`} sx={{ fontSize: 12, color: c.muted }}>
+        <Box component="span" aria-label={dayCountText(week.showupDays, week.goalDays)} sx={{ fontSize: 12, color: c.muted }}>
           {week.showupDays}/{week.goalDays}
         </Box>
       )

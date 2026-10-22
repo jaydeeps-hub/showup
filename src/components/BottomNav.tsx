@@ -8,7 +8,8 @@ export type AppTab = 'home' | 'pause' | 'profile'
 /** The bar's height above the device's bottom safe area (the home indicator on iPhones). */
 export const TAB_BAR_HEIGHT = 78
 
-const SAFE_AREA_BOTTOM = 'env(safe-area-inset-bottom, 0px)'
+/** The device's bottom safe area (the home indicator on iPhones). */
+export const SAFE_AREA_BOTTOM = 'env(safe-area-inset-bottom, 0px)'
 
 /** Bottom padding for a screen, so its last item can be scrolled clear of the bar. */
 export const TAB_BAR_CLEARANCE = `calc(${TAB_BAR_HEIGHT + 18}px + ${SAFE_AREA_BOTTOM})`

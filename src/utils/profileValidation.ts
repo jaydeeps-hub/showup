@@ -111,6 +111,28 @@ export function getDisplayName(profile: Pick<Profile, 'firstName' | 'lastName'> 
   return name === '' ? fallback : name
 }
 
+/**
+ * The first name for the Home greeting. Uses the saved first name; while the profile is not
+ * available it falls back to the first word of `fallback` (for example the Google account name).
+ */
+export function getFirstName(profile: Pick<Profile, 'firstName'> | null, fallback: string): string {
+  const first = (profile?.firstName ?? '').trim()
+  if (first !== '') return first
+  const firstWord = fallback.trim().split(/\s+/)[0] ?? ''
+  return firstWord === '' ? fallback : firstWord
+}
+
+/**
+ * The letters shown in the profile avatar: the first letter of the first name and of the last name,
+ * in capitals ("Asha Rao" gives "AR"). Empty when there is no name yet.
+ */
+export function getInitials(profile: Pick<Profile, 'firstName' | 'lastName'>): string {
+  return [profile.firstName, profile.lastName]
+    .map((part) => Array.from((part ?? '').trim())[0] ?? '')
+    .join('')
+    .toLocaleUpperCase()
+}
+
 /** Formats `YYYY-MM-DD` for reading, for example "17 May 1990". Returns null if missing or unreadable. */
 export function formatBirthDate(value: string | null): string | null {
   if (!value || !isRealCalendarDate(value)) return null

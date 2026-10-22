@@ -6,6 +6,7 @@ import { Loader } from '../../components/Loader'
 import { home } from '../../design-system/homeTokens'
 import type { HomeSummaryState } from '../../hooks/useHomeSummary'
 import { mondayOf } from '../../utils/calendarDates'
+import { dayCountText } from '../../utils/goal'
 
 const c = home.color
 
@@ -63,10 +64,11 @@ export function WeekProgress({ goalDays, showupDays, paused, onSetGoal }: WeekPr
           This week
         </Box>
         <Box component="span" sx={{ color: c.muted }}>
-          {paused ? 'Paused' : `${showupDays} of ${goalDays} days`}
+          {paused ? 'Paused' : dayCountText(showupDays, goalDays)}
         </Box>
       </Box>
-      <Box role="img" aria-label={paused ? 'This week is paused' : `${showupDays} of ${goalDays} days done`} sx={{ display: 'flex', gap: '6px' }}>
+      {/* One segment per goal day. Visits beyond the goal do not add segments: they are simply all filled. */}
+      <Box role="img" aria-label={paused ? 'This week is paused' : `${dayCountText(showupDays, goalDays)} done`} sx={{ display: 'flex', gap: '6px' }}>
         {dots.map((filled, index) => (
           <Box key={index} component="i" sx={{ flex: 1, height: 8, borderRadius: '4px', bgcolor: filled ? c.ok : c.surface2 }} />
         ))}
@@ -88,10 +90,11 @@ export function PausedBanner() {
   )
 }
 
+/** The "Pause passes left" card, full width. */
 export function PassesLeftStat({ passesLeft }: { passesLeft: number | null }) {
   return (
     <Box sx={{ display: 'flex', gap: '10px', mt: 4 }}>
-      <Box sx={{ flex: 1, bgcolor: c.surface, borderRadius: '14px', p: '12px 14px' }}>
+      <Box sx={{ flex: 1, width: '100%', bgcolor: c.surface, borderRadius: '14px', p: '12px 14px' }}>
         <Box component="b" sx={{ display: 'block', fontFamily: home.font.heading, fontWeight: 700, fontSize: 24, color: c.text, fontVariantNumeric: 'tabular-nums' }}>
           {passesLeft ?? '–'}
         </Box>
