@@ -3,11 +3,11 @@ import CheckRounded from '@mui/icons-material/CheckRounded'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Drawer from '@mui/material/Drawer'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { Toast, type ToastContent } from '../../components/Toast'
 import { home } from '../../design-system/homeTokens'
@@ -74,7 +74,7 @@ export function PauseScreen({ onBack }: PauseScreenProps) {
 
       {state.status === 'loading' && (
         <Stack role="status" direction="row" spacing={3} sx={{ alignItems: 'center', justifyContent: 'center', py: 10, color: 'text.secondary' }}>
-          <CircularProgress size={20} thickness={5} aria-hidden />
+          <Loader />
           <span>Loading your passes…</span>
         </Stack>
       )}
@@ -318,7 +318,7 @@ function PauseContent({ pause, busy, setBusy, onEnd, onToast, onChanged }: Pause
           disabled={busy}
           aria-busy={busy}
           onClick={() => void handleUsePass()}
-          startIcon={busy ? <CircularProgress size={20} thickness={5} color="inherit" aria-hidden /> : undefined}
+          startIcon={busy ? <Loader color="currentColor" /> : undefined}
         >
           {busy ? 'Pausing…' : 'Use pass'}
         </Button>

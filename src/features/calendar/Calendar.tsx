@@ -5,10 +5,10 @@ import PauseRounded from '@mui/icons-material/PauseRounded'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import { useMemo, useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { home } from '../../design-system/homeTokens'
 import { useCalendar } from '../../hooks/useCalendar'
 import type { CalendarData, CalendarWeek } from '../../types'
@@ -88,7 +88,7 @@ export function Calendar({ refreshKey = 0, today: todayProp }: CalendarProps) {
 
       {state.status === 'loading' && (
         <Box role="status" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, minHeight: 220, color: c.muted }}>
-          <CircularProgress size={20} thickness={5} aria-hidden sx={{ color: c.accentText }} />
+          <Loader color={c.accentText} />
           Loading the calendar…
         </Box>
       )}
@@ -181,7 +181,7 @@ function DayCircle(props: { date: string; showedUp: boolean; isToday: boolean; i
         placeItems: 'center',
         fontSize: 13,
         color: isFuture ? c.dayFuture : c.day,
-        ...(showedUp && { bgcolor: c.accent, color: '#FFFFFF', fontWeight: 600 }),
+        ...(showedUp && { bgcolor: c.accent, color: c.onAccent, fontWeight: 600 }),
         ...(isToday && { boxShadow: `inset 0 0 0 2px ${c.accentText}` }),
         ...(dashed && { border: `1.5px dashed ${c.accentText}` }),
       }}

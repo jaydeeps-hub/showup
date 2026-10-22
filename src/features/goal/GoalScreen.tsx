@@ -1,10 +1,10 @@
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { Toast, type ToastContent } from '../../components/Toast'
 import { useGoalState } from '../../hooks/useGoalState'
@@ -49,7 +49,7 @@ export function GoalScreen({ onBack }: GoalScreenProps) {
 
       {goal.status === 'loading' && (
         <Stack role="status" direction="row" spacing={3} sx={{ alignItems: 'center', justifyContent: 'center', py: 10, color: 'text.secondary' }}>
-          <CircularProgress size={20} thickness={5} aria-hidden />
+          <Loader />
           <span>Loading your goal…</span>
         </Stack>
       )}

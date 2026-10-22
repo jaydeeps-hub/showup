@@ -115,8 +115,9 @@ const baseTheme = createTheme({
         },
         sizeSmall: { minHeight: size.touchTarget, paddingInline: 12, borderRadius: radius.small },
         sizeLarge: { minHeight: size.control, fontSize: '1rem', lineHeight: 1.25 },
-        // Primary: solid blue, white text.
+        // Primary: solid blue, white text, 54px tall.
         contained: {
+          minHeight: size.control,
           '&.Mui-disabled, &.MuiButton-colorPrimary.Mui-disabled, &.MuiButton-colorError.Mui-disabled': {
             backgroundColor: c.surface2,
             color: c.textDisabled,
@@ -151,7 +152,7 @@ const baseTheme = createTheme({
         root: {
           minWidth: size.touchTarget,
           minHeight: size.touchTarget,
-          borderRadius: radius.control,
+          borderRadius: radius.small,
           backgroundColor: c.surface1,
           '&:hover': { backgroundColor: c.surface2 },
         },
@@ -219,10 +220,10 @@ const baseTheme = createTheme({
         root: { width: 52, height: 32, padding: 0, overflow: 'visible' },
         switchBase: {
           padding: 3,
-          '&.Mui-checked': { transform: 'translateX(20px)', color: '#FFFFFF' },
+          '&.Mui-checked': { transform: 'translateX(20px)', color: c.onAccent },
           '&.Mui-checked + .MuiSwitch-track': { backgroundColor: c.accentPrimary, opacity: 1 },
         },
-        thumb: { width: 26, height: 26, backgroundColor: '#FFFFFF', boxShadow: 'none' },
+        thumb: { width: 26, height: 26, backgroundColor: c.onAccent, boxShadow: 'none' },
         track: { borderRadius: radius.pill, backgroundColor: c.toggleTrackOff, opacity: 1 },
       },
     },
@@ -249,7 +250,6 @@ const baseTheme = createTheme({
         noOptions: { color: c.textSecondary },
       },
     },
-    MuiCircularProgress: { styleOverrides: { colorPrimary: { color: c.accentText } } },
     MuiAlert: {
       // `filled` makes MUI paint the message from the palette (success.main etc.); the text colour
       // on each comes from getContrastText below. Used by every message in the app.

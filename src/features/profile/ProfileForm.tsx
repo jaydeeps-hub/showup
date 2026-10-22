@@ -1,9 +1,9 @@
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Loader } from '../../components/Loader'
 import { PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
 import type { ProfileEdits, SaveResult } from '../../types'
 import {
@@ -140,7 +140,7 @@ export function ProfileForm(props: ProfileFormProps) {
           fullWidth
           disabled={isSaving}
           aria-busy={isSaving}
-          startIcon={isSaving ? <CircularProgress size={20} thickness={5} color="inherit" aria-hidden /> : undefined}
+          startIcon={isSaving ? <Loader color="currentColor" /> : undefined}
         >
           {isSaving ? 'Saving…' : saveError ? 'Try again' : submitLabel}
         </Button>

@@ -1,31 +1,34 @@
+import { tokens } from './tokens'
+
 /**
- * Colours and fonts for the Home screen and the calendar, taken from the design prototype
- * (docs/design/showup-prototype.html). The rest of the app keeps using tokens.ts; keeping these
- * together means the new screens have no scattered one-off values.
+ * Names for the Home screen, calendar, goal and pause screens, taken from the design prototype
+ * (docs/design/showup-prototype.html). The shared values come from tokens.ts so there is one
+ * definition of each colour; only the few values used by these screens alone are defined here.
  */
 export const home = {
   color: {
-    bg: '#050A14',
-    surface: '#0E1522',
-    surface2: '#172033',
-    line: '#232D42',
-    text: '#F2F3F5',
-    muted: '#8D93A0',
-    accent: '#2B50D9',
-    accentSoft: '#17234F',
+    bg: tokens.color.background,
+    surface: tokens.color.surface1,
+    surface2: tokens.color.surface2,
+    line: tokens.color.border,
+    text: tokens.color.textPrimary,
+    muted: tokens.color.textSecondary,
+    accent: tokens.color.accentPrimary,
+    accentSoft: tokens.color.accentTint,
     accentBorder: '#2A3C7A',
-    accentText: '#8FA6FF',
-    ok: '#3DBE8B',
-    okSoft: '#143A2D',
+    accentText: tokens.color.accentText,
+    onAccent: tokens.color.onAccent,
+    ok: tokens.color.success,
+    okSoft: tokens.color.successSurface,
     /** Day numbers. */
-    day: '#B4B9C4',
+    day: tokens.color.textBody,
     /** Day numbers that are still in the future. */
     dayFuture: '#5C626E',
     /** The label under the big Total showups number. */
     kpiLabel: '#C3CCE8',
   },
   font: {
-    heading: '"Lexend", "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
-    body: '"DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+    heading: tokens.font.display,
+    body: tokens.font.body,
   },
 } as const

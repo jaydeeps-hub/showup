@@ -2,13 +2,13 @@ import CloseRounded from '@mui/icons-material/CloseRounded'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Dialog from '@mui/material/Dialog'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
 import ReactMarkdown from 'react-markdown'
+import { Loader } from '../../components/Loader'
 import type { CmsState } from '../../hooks/useCmsValue'
 
 interface TermsDialogProps {
@@ -49,7 +49,7 @@ export function TermsDialog({ open, onClose, terms }: TermsDialogProps) {
       <DialogContent dividers>
         {terms.status === 'loading' && (
           <Box role="status" sx={{ display: 'flex', alignItems: 'center', gap: 3, color: 'text.secondary', py: 4 }}>
-            <CircularProgress size={20} thickness={5} aria-hidden />
+            <Loader />
             Loading the terms…
           </Box>
         )}

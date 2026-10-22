@@ -1,8 +1,8 @@
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
+import { Loader } from '../../components/Loader'
 import { home } from '../../design-system/homeTokens'
 import type { HomeSummaryState } from '../../hooks/useHomeSummary'
 import { mondayOf } from '../../utils/calendarDates'
@@ -141,7 +141,7 @@ export function HomeSummaryTop({ state, today, onSetGoal }: HomeSummarySectionsP
       <KpiCards totalShowups={ready?.summary.totalShowups ?? null} weeksInARow={ready?.summary.weeksInARow ?? null} />
       {state.status === 'loading' && (
         <Box role="status" sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 4, color: c.muted, fontSize: 14 }}>
-          <CircularProgress size={16} thickness={5} aria-hidden sx={{ color: c.accentText }} />
+          <Loader size={16} color={c.accentText} />
           <Typography component="span" variant="body2" color="inherit">
             Loading your week…
           </Typography>

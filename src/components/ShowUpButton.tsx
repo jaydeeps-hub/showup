@@ -1,7 +1,7 @@
 import FitnessCenterRounded from '@mui/icons-material/FitnessCenterRounded'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import { tokens } from '../design-system/tokens'
+import { Loader } from './Loader'
 
 interface ShowUpButtonProps {
   isVerifying: boolean
@@ -43,7 +43,7 @@ export function ShowUpButton({ isVerifying, onClick }: ShowUpButtonProps) {
     >
       {isVerifying ? (
         <>
-          <CircularProgress size={32} thickness={4} color="primary" aria-hidden />
+          <Loader size={32} />
           <span style={{ fontFamily: tokens.font.body, fontSize: '0.875rem', letterSpacing: 0, textTransform: 'none', fontWeight: 500 }}>
             Checking your location…
           </span>

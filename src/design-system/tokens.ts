@@ -3,18 +3,21 @@
  * The Material UI theme (src/app/theme.ts) is built from these. Change the look here, not in
  * components.
  *
- * Direction: near-black surfaces, one deep-blue accent for interaction and selection, green for
- * success, red for errors, subtle borders instead of shadows.
+ * Direction: deep navy-black surfaces, one deep-blue accent for interaction and selection, green for
+ * success, red for errors, subtle borders instead of shadows. The values match the design prototype
+ * (docs/design/showup-prototype.html). homeTokens.ts and landingTheme.ts read from here, so a colour
+ * is only ever defined once.
  */
 export const tokens = {
   color: {
-    background: '#0E0F12',
-    surface1: '#16181D', // cards, inputs, navigation, secondary containers
-    surface2: '#1E2128', // elevated surfaces, hover, disabled backgrounds
-    border: '#2A2E37',
+    background: '#050A14',
+    surface1: '#0E1522', // cards, inputs, navigation, secondary containers
+    surface2: '#172033', // elevated surfaces, secondary buttons, hover, disabled backgrounds
+    border: '#232D42',
 
     textPrimary: '#F2F3F5',
     textSecondary: '#8D93A0',
+    textBody: '#B4B9C4', // paragraph text under a heading
     textSubtle: '#626875', // placeholders and low-emphasis text
     textDisabled: '#6A707C',
 
@@ -42,8 +45,8 @@ export const tokens = {
   },
 
   font: {
-    /** Headings and large numbers. */
-    display: '"Bricolage Grotesque", "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+    /** Headings and large numbers (Lexend 700). */
+    display: '"Lexend", "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
     /** Everything else. */
     body: '"DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
   },

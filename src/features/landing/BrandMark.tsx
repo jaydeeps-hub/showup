@@ -2,6 +2,19 @@ import Box from '@mui/material/Box'
 import { landing } from './landingTheme'
 
 /**
+ * The ring and wedge drawn inside a 24 x 24 view box. Shared by the "o" in the wordmark and by the
+ * Loader (src/components/Loader.tsx), so both always show the same graphic.
+ */
+export function BrandPieShapes({ color }: { color: string }) {
+  return (
+    <>
+      <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="5" />
+      <path d="M12 3 A9 9 0 0 1 21 12 L12 12 Z" fill={color} />
+    </>
+  )
+}
+
+/**
  * The Showup "o": a blue ring with a solid blue wedge, used in the wordmark and the headline.
  * It is decorative (the word it sits in is still read as normal text), so it is hidden from
  * screen readers. Its size follows the surrounding font size.
@@ -14,8 +27,7 @@ export function BrandO() {
       viewBox="0 0 24 24"
       sx={{ display: 'inline-block', width: '0.62em', height: '0.62em', verticalAlign: '-0.02em', mx: '0.02em' }}
     >
-      <circle cx="12" cy="12" r="9" fill="none" stroke={landing.color.primary} strokeWidth="5" />
-      <path d="M12 3 A9 9 0 0 1 21 12 L12 12 Z" fill={landing.color.primary} />
+      <BrandPieShapes color={landing.color.primary} />
     </Box>
   )
 }

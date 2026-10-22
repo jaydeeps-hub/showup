@@ -18,7 +18,7 @@ export function GoalStepper({ days, onChange, disabled = false }: GoalStepperPro
   const button = {
     width: 44,
     height: 44,
-    borderRadius: '10px',
+    borderRadius: '12px',
     bgcolor: c.surface2,
     color: c.text,
     '&:hover': { bgcolor: c.surface2 },

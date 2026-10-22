@@ -2,11 +2,12 @@ import GoogleIcon from '@mui/icons-material/Google'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Link from '@mui/material/Link'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { PRIVACY_POLICY_URL } from '../../config/constants'
+import { tokens } from '../../design-system/tokens'
 import { useCmsValue } from '../../hooks/useCmsValue'
 import {
   AuthNotConfiguredError,
@@ -198,18 +199,18 @@ export function LandingScreen() {
             onClick={() => void handleSignIn()}
             startIcon={
               isRedirecting ? (
-                <CircularProgress size={22} thickness={5} color="inherit" aria-hidden />
+                <Loader size={22} color="currentColor" />
               ) : (
                 <Box
                   aria-hidden
-                  sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#FFFFFF', color: landing.color.primary, display: 'grid', placeItems: 'center' }}
+                  sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: landing.color.onPrimary, color: landing.color.primary, display: 'grid', placeItems: 'center' }}
                 >
                   <GoogleIcon sx={{ fontSize: 22 }} />
                 </Box>
               )
             }
             sx={{
-              minHeight: 66,
+              minHeight: tokens.size.control,
               borderRadius: `${landing.radius.button}px`,
               fontFamily: landing.font.body,
               fontWeight: 600,
@@ -229,13 +230,13 @@ export function LandingScreen() {
             disabled={disabled}
             onClick={() => void handleSignIn()}
             sx={{
-              minHeight: 52,
+              minHeight: tokens.size.secondaryButton,
               borderRadius: `${landing.radius.button}px`,
               fontFamily: landing.font.body,
               fontWeight: 600,
               fontSize: '1.125rem',
               color: landing.color.heading,
-              '&:hover': { backgroundColor: 'rgba(255,255,255,0.06)' },
+              '&:hover': { backgroundColor: tokens.color.surface1 },
               '&.Mui-focusVisible': FOCUS,
               '&.Mui-disabled': { color: landing.color.supporting },
             }}

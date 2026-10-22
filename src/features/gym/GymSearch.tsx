@@ -6,6 +6,7 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { PLACE_SEARCH_DEBOUNCE_MS, PLACE_SEARCH_MIN_CHARACTERS } from '../../config/constants'
 import {
   createSearchSession,
@@ -27,6 +28,16 @@ interface GymSearchProps {
    * it can never widen the search.
    */
   searchMode?: PlaceSearchMode
+}
+
+/** The shared loader followed by a short status text. */
+function LoadingLine({ text, size = 16 }: { text: string; size?: number }) {
+  return (
+    <Box component="span" role="status" sx={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+      <Loader size={size} />
+      {text}
+    </Box>
+  )
 }
 
 /** Search box backed by Google Maps Places autocomplete. */
@@ -166,7 +177,7 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
         getOptionLabel={(option) => option.primaryText}
         isOptionEqualToValue={(option, value) => option.placeId === value.placeId}
         loading={mapsStatus === 'loading' || isSearching}
-        loadingText={mapsStatus === 'loading' ? 'Loading Google Maps…' : 'Searching…'}
+        loadingText={<LoadingLine text={mapsStatus === 'loading' ? 'Loading Google Maps…' : 'Searching…'} />}
         noOptionsText={
           queryTooShort
             ? `Type at least ${PLACE_SEARCH_MIN_CHARACTERS} characters`
@@ -192,7 +203,7 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
           <TextField
             {...params}
             label="Gym name, address or landmark"
-            helperText={isLoadingDetails ? 'Loading place details…' : ' '}
+            helperText={isLoadingDetails ? <LoadingLine text="Loading place details…" size={14} /> : ' '}
           />
         )}
       />

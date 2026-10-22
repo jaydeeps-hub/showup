@@ -1,10 +1,10 @@
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 import { GymSummary } from '../../components/GymSummary'
+import { Loader } from '../../components/Loader'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { PRIMARY_GYM_LABEL } from '../../config/constants'
 import type { PlaceSearchMode, SaveResult, SelectedPlace } from '../../types'
@@ -76,7 +76,7 @@ export function GymSetupScreen({ onSave, onCancel, searchMode }: GymSetupScreenP
             disabled={!selectedPlace || isSaving}
             aria-busy={isSaving}
             onClick={() => void handleSave()}
-            startIcon={isSaving ? <CircularProgress size={20} thickness={5} color="inherit" aria-hidden /> : undefined}
+            startIcon={isSaving ? <Loader color="currentColor" /> : undefined}
           >
             {isSaving ? 'Saving…' : saveError ? 'Try again' : `Save as ${PRIMARY_GYM_LABEL}`}
           </Button>

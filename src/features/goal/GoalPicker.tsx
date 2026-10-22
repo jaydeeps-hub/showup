@@ -1,8 +1,8 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
+import { Loader } from '../../components/Loader'
 import { home } from '../../design-system/homeTokens'
 import type { GoalState } from '../../types'
 import { goalLabel, initialGoalDays, MAX_GOAL_DAYS, MIN_GOAL_DAYS, pendingGoalNote } from '../../utils/goal'
@@ -67,12 +67,12 @@ export function GoalPicker({ goal, onSet }: GoalPickerProps) {
                 borderRadius: '14px',
                 border: `1.5px solid ${selected ? c.accent : c.line}`,
                 bgcolor: selected ? c.accent : c.surface,
-                color: selected ? '#FFFFFF' : c.text,
+                color: selected ? c.onAccent : c.text,
                 fontFamily: home.font.heading,
                 fontWeight: 700,
                 fontSize: 20,
                 '&:hover': { bgcolor: selected ? c.accent : c.surface2 },
-                '&.Mui-disabled': { color: selected ? '#FFFFFF' : c.text, opacity: 0.6 },
+                '&.Mui-disabled': { color: selected ? c.onAccent : c.text, opacity: 0.6 },
               }}
             >
               {option}
@@ -98,7 +98,7 @@ export function GoalPicker({ goal, onSet }: GoalPickerProps) {
         disabled={isSaving}
         aria-busy={isSaving}
         onClick={() => void handleSet()}
-        startIcon={isSaving ? <CircularProgress size={20} thickness={5} color="inherit" aria-hidden /> : undefined}
+        startIcon={isSaving ? <Loader color="currentColor" /> : undefined}
         sx={{ mt: 6 }}
       >
         {isSaving ? 'Saving…' : 'Set goal'}
