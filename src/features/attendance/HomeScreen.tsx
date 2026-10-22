@@ -3,35 +3,58 @@ import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FeedbackMessage } from '../../components/FeedbackMessage'
 import { GymSummary } from '../../components/GymSummary'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { ShowUpButton } from '../../components/ShowUpButton'
-import { ShowUpCounter } from '../../components/ShowUpCounter'
 import { getFeedbackForOutcome, type FeedbackContent } from '../../config/messages'
+import { useHomeSummary } from '../../hooks/useHomeSummary'
 import type { ShowUpResult } from '../../hooks/useShowup'
 import type { Gym } from '../../types'
+import { localTodayIso } from '../../utils/calendarDates'
+import { Calendar } from '../calendar/Calendar'
+import { HomeSummaryTop, PassesLeftStat } from './HomeSummaryPanel'
 
 interface HomeScreenProps {
   /** The name shown at the top: the user's saved first and last name. */
   displayName: string
   gym: Gym
-  showupCount: number
   isVerifying: boolean
   onShowUp: () => Promise<ShowUpResult | null>
   /** Opens the Profile page. Omitted while the profile is not available, which makes the name plain text. */
   onManageProfile?: () => void
+  /** Opens the weekly goal screen. Shown as a button while the user has no goal. */
+  onSetGoal?: () => void
+  /** Opens the Pause screen. */
+  onPause?: () => void
   onSignOut: () => void
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const { displayName, gym, showupCount, isVerifying, onShowUp, onManageProfile, onSignOut } = props
+  const { displayName, gym, isVerifying, onShowUp, onManageProfile, onSetGoal, onPause, onSignOut } = props
   const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
+  // Changing this number reloads the summary and the calendar.
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [today] = useState(() => localTodayIso())
+  const summary = useHomeSummary(refreshKey)
+
+  // Reload when the person comes back to the app (for example after a day away), the same as when
+  // the screen first appears.
+  useEffect(() => {
+    function reloadWhenVisible() {
+      if (document.visibilityState === 'visible') setRefreshKey((key) => key + 1)
+    }
+    document.addEventListener('visibilitychange', reloadWhenVisible)
+    return () => document.removeEventListener('visibilitychange', reloadWhenVisible)
+  }, [])
 
   async function handleShowUp() {
     const outcome = await onShowUp()
-    if (outcome) setFeedback(getFeedbackForOutcome(outcome))
+    if (!outcome) return
+    setFeedback(getFeedbackForOutcome(outcome))
+    // Any attempt that reached the database can change the numbers, so reload them all.
+    setRefreshKey((key) => key + 1)
   }
 
   return (
@@ -61,12 +84,17 @@ export function HomeScreen(props: HomeScreenProps) {
     >
       <GymSummary label={`Your gym · ${gym.label}`} name={gym.name} address={gym.formattedAddress} />
 
-      <Stack spacing={8} sx={{ alignItems: 'center', justifyContent: 'center', flex: 1, py: 10 }}>
+      <HomeSummaryTop state={summary} today={today} onSetGoal={onSetGoal} />
+
+      <Stack sx={{ alignItems: 'center', py: 8 }}>
         <ShowUpButton isVerifying={isVerifying} onClick={() => void handleShowUp()} />
-        <ShowUpCounter count={showupCount} />
       </Stack>
 
-      <Stack spacing={3} sx={{ alignItems: 'center' }}>
+      <Calendar refreshKey={refreshKey} today={today} />
+
+      <PassesLeftStat passesLeft={summary.status === 'ready' ? summary.summary.passesLeft : null} onPause={onPause} />
+
+      <Stack spacing={3} sx={{ alignItems: 'center', mt: 6 }}>
         <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
           <Button
             size="small"

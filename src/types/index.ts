@@ -84,3 +84,79 @@ export interface Profile {
   createdAt: string
   updatedAt: string
 }
+
+/**
+ * How the database describes one Monday-to-Sunday week. `unknown` stands for any status this
+ * version of the app does not recognise, so a new status on the server never breaks the screen.
+ */
+export type WeekStatus = 'achieved' | 'paused' | 'in_progress' | 'missed' | 'upcoming' | 'unknown'
+
+export interface CalendarWeek {
+  /** The Monday of the week, `YYYY-MM-DD`. */
+  weekStart: string
+  /** The goal that applied to that week. Null for a week before the user's first goal. */
+  goalDays: number | null
+  showupDays: number
+  status: WeekStatus
+}
+
+/** What `get_calendar` returns. Every date is plain `YYYY-MM-DD` text. */
+export interface CalendarData {
+  /** The month being shown (`YYYY-MM-01`), after the server has limited it to the allowed range. */
+  month: string
+  earliestMonth: string
+  latestMonth: string
+  /** The Monday the visible grid starts on and the Sunday it ends on. */
+  gridFrom: string
+  gridTo: string
+  showupDates: string[]
+  weeks: CalendarWeek[]
+}
+
+/** What `get_home_summary` returns. */
+export interface HomeSummary {
+  weeksInARow: number
+  bestWeeksInARow: number
+  /** This week's goal. Null until the user has set one. */
+  goalDays: number | null
+  showupDaysThisWeek: number
+  passesLeft: number
+  totalShowups: number
+}
+
+/**
+ * What `get_goal_state` returns. A change to an existing goal does not apply until the next Monday,
+ * so there can be a pending goal waiting; its start date comes from the server and is never worked
+ * out in the app.
+ */
+export interface GoalState {
+  hasGoal: boolean
+  /** The goal in force this week. Null if the user has never set one. */
+  currentGoal: number | null
+  /** A new goal waiting for its start date. */
+  pendingGoal: number | null
+  /** The Monday the pending goal starts, as `YYYY-MM-DD` text exactly as the server sent it. */
+  pendingFrom: string | null
+}
+
+/** What `get_pause_state` returns: the Mondays of the weeks covered by an active pause. */
+export interface PauseState {
+  activePauses: string[]
+}
+
+/**
+ * Everything the Pause screen needs from `get_pause_state`. Every date is plain `YYYY-MM-DD` text
+ * exactly as the server sent it.
+ */
+export interface PauseDetails extends PauseState {
+  /** Today's date for this user, worked out by the server in their time zone. */
+  today: string
+  /** The Monday of the current week. */
+  thisWeek: string
+  /** How many weeks after this one can still be paused. */
+  maxWeeksAhead: number
+  passesTotal: number
+  passesLeft: number
+  /** The day passes come back, or null if the server did not say. */
+  nextRefill: string | null
+}

@@ -1,6 +1,7 @@
-import { GEOFENCE_RADIUS_METRES, MAX_LOCATION_ACCURACY_METRES } from '../config/constants'
+import { MAX_LOCATION_ACCURACY_METRES } from '../config/constants'
 import type { Gym, ReportedPosition, ShowupOutcome } from '../types'
 import { distanceInMetres } from '../utils/distance'
+import { getCachedAppConfig } from './appConfig'
 import { GeolocationError } from './geolocationService'
 
 /**
@@ -14,16 +15,22 @@ export interface LocationRules {
   maxAccuracyMetres: number
 }
 
-const DEFAULT_RULES: LocationRules = {
-  radiusMetres: GEOFENCE_RADIUS_METRES,
-  maxAccuracyMetres: MAX_LOCATION_ACCURACY_METRES,
+/**
+ * The rules in force right now. The distance limit comes from the database config (see appConfig.ts)
+ * and falls back to 100 m if it has not been loaded.
+ */
+function currentRules(): LocationRules {
+  return {
+    radiusMetres: getCachedAppConfig().maxGymDistanceMeters,
+    maxAccuracyMetres: MAX_LOCATION_ACCURACY_METRES,
+  }
 }
 
 /** Decides whether a reported position counts as being at the gym. */
 export function evaluatePosition(
   position: ReportedPosition,
   gym: Gym,
-  rules: LocationRules = DEFAULT_RULES,
+  rules: LocationRules = currentRules(),
 ): Exclude<ShowupOutcome, { type: 'location-error' }> {
   const distanceMetres = distanceInMetres(position, gym)
 
@@ -43,8 +50,8 @@ export function evaluatePosition(
 
 export interface ShowupCheck {
   outcome: ShowupOutcome
-  /** The browser's reported accuracy, when a position was obtained. Stored with a successful Showup. */
-  accuracyMetres: number | null
+  /** The position the browser reported, when one was obtained. Sent to the database to record a Showup. */
+  position: ReportedPosition | null
 }
 
 /**
@@ -63,8 +70,8 @@ export async function checkLocation(params: {
     position = await getPosition()
   } catch (error) {
     const reason = error instanceof GeolocationError ? error.reason : 'unavailable'
-    return { outcome: { type: 'location-error', reason }, accuracyMetres: null }
+    return { outcome: { type: 'location-error', reason }, position: null }
   }
 
-  return { outcome: evaluatePosition(position, gym), accuracyMetres: position.accuracyMetres }
+  return { outcome: evaluatePosition(position, gym), position }
 }

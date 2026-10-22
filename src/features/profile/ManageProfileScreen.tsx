@@ -11,8 +11,12 @@ import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 import { GymSummary } from '../../components/GymSummary'
 import { ScreenLayout } from '../../components/ScreenLayout'
+import { Toast, type ToastContent } from '../../components/Toast'
+import { useGoalState } from '../../hooks/useGoalState'
 import type { Gym, PlaceSearchMode, Profile, ProfileEdits, SaveResult } from '../../types'
+import { daysText, DEFAULT_GOAL_DAYS, initialGoalDays, pendingGoalNote } from '../../utils/goal'
 import { formatBirthDate, profileToFormValues } from '../../utils/profileValidation'
+import { GoalStepper } from '../goal/GoalStepper'
 import { PlaceSearchModeSetting } from './PlaceSearchModeSetting'
 import { ProfileForm } from './ProfileForm'
 
@@ -55,6 +59,43 @@ function Detail({ label, value }: { label: string; value: string }) {
 export function ManageProfileScreen(props: ManageProfileScreenProps) {
   const { profile, email, gym, onSave, onChangeSearchMode, onChangeGym, onClose, onSignOut } = props
   const [isEditing, setIsEditing] = useState(false)
+  const goal = useGoalState()
+  // The weekly goal being edited, and whether the stepper was used (a user with no goal starts on 3).
+  const [goalDays, setGoalDays] = useState(DEFAULT_GOAL_DAYS)
+  const [goalTouched, setGoalTouched] = useState(false)
+  const [toast, setToast] = useState<ToastContent | null>(null)
+
+  const loadedGoal = goal.status === 'ready' ? goal.goal : null
+  const goalNote = pendingGoalNote(loadedGoal)
+
+  function startEditing() {
+    setGoalDays(initialGoalDays(loadedGoal))
+    setGoalTouched(false)
+    setIsEditing(true)
+  }
+
+  /** True only when the goal value really changed, so set_weekly_goal is not called for nothing. */
+  function goalChanged(): boolean {
+    if (!loadedGoal) return false
+    return goalDays !== initialGoalDays(loadedGoal) || (!loadedGoal.hasGoal && goalTouched)
+  }
+
+  /**
+   * Saves the name and birthday exactly as before, then the weekly goal if it changed. If the details
+   * were saved but the goal was not, the form shows an error and keeps what was typed; pressing the
+   * button again saves the details again (harmless) and retries the goal.
+   */
+  async function saveProfileAndGoal(edits: ProfileEdits): Promise<SaveResult> {
+    const saved = await onSave(edits)
+    if (!saved.ok || !goalChanged()) return saved
+
+    const goalResult = await goal.save(goalDays)
+    if (!goalResult.ok) {
+      return { ok: false, message: `Your details were saved, but your goal could not be changed. ${goalResult.message}` }
+    }
+    setToast({ severity: 'success', message: goalResult.message })
+    return { ok: true }
+  }
 
   return (
     <ScreenLayout
@@ -78,21 +119,78 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
           <ProfileForm
             initialValues={profileToFormValues(profile)}
             submitLabel="Save changes"
-            onSave={onSave}
+            onSave={saveProfileAndGoal}
             onSaved={() => setIsEditing(false)}
             onCancel={() => setIsEditing(false)}
             birthdayHelp="Optional. We use it only to wish you a happy birthday."
-          />
+          >
+            <Stack spacing={2}>
+              <Typography variant="subtitle2" component="p">
+                Weekly goal
+              </Typography>
+              {goal.status === 'loading' && (
+                <Typography variant="body2" color="textSecondary" role="status">
+                  Loading your goal…
+                </Typography>
+              )}
+              {goal.status === 'error' && (
+                <Typography variant="body2" color="textSecondary">
+                  {goal.message}{' '}
+                  <Button size="small" color="inherit" onClick={goal.retry}>
+                    Retry
+                  </Button>
+                </Typography>
+              )}
+              {loadedGoal && (
+                <>
+                  <GoalStepper
+                    days={goalDays}
+                    onChange={(days) => {
+                      setGoalDays(days)
+                      setGoalTouched(true)
+                    }}
+                  />
+                  {!loadedGoal.hasGoal && (
+                    <Typography variant="body2" color="textSecondary">
+                      You haven't set a weekly goal yet. Change the number to set one.
+                    </Typography>
+                  )}
+                  {goalNote && (
+                    <Typography variant="body2" color="textSecondary">
+                      {goalNote}
+                    </Typography>
+                  )}
+                </>
+              )}
+            </Stack>
+          </ProfileForm>
         ) : (
           <Stack spacing={4}>
             <Detail label="First name" value={profile.firstName ?? ''} />
             <Detail label="Last name" value={profile.lastName ?? ''} />
             <Detail label="Date of birth" value={formatBirthDate(profile.dateOfBirth) ?? 'Not set'} />
+            <Detail
+              label="Weekly goal"
+              value={
+                goal.status === 'loading'
+                  ? 'Loading…'
+                  : loadedGoal
+                    ? loadedGoal.currentGoal !== null
+                      ? `${daysText(loadedGoal.currentGoal)} a week`
+                      : 'Not set'
+                    : 'Unavailable'
+              }
+            />
+            {goalNote && (
+              <Typography variant="body2" color="textSecondary">
+                {goalNote}
+              </Typography>
+            )}
             <Button
               variant="outlined"
               color="inherit"
               startIcon={<EditOutlined />}
-              onClick={() => setIsEditing(true)}
+              onClick={startEditing}
               sx={{ alignSelf: 'flex-start' }}
             >
               Edit
@@ -136,6 +234,8 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
           Sign out
         </Button>
       </Stack>
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </ScreenLayout>
   )
 }

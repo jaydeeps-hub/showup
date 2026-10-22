@@ -1,6 +1,7 @@
 import type { GeolocationFailureReason } from '../types'
 import type { ShowUpResult } from '../hooks/useShowup'
-import { GEOFENCE_RADIUS_METRES, PRIMARY_GYM_LABEL } from './constants'
+import { getCachedAppConfig } from '../services/appConfig'
+import { PRIMARY_GYM_LABEL } from './constants'
 
 /** All text shown after pressing SHOW UP lives here so it is easy to edit. */
 export interface FeedbackContent {
@@ -22,16 +23,24 @@ export function getFeedbackForOutcome(outcome: ShowUpResult): FeedbackContent {
     case 'success':
       return { severity: 'success', title: 'Showup recorded', message: 'You showed up!' }
     case 'outside-geofence':
+    case 'too-far':
+      // 'too-far' is the same message when the database (not this device) found the user too far away.
       return {
         severity: 'error',
         title: 'Not at your gym',
         message: `You're not at your saved gym. Please go to ${PRIMARY_GYM_LABEL} and try again.`,
       }
+    case 'already-recorded':
+      return {
+        severity: 'success',
+        title: 'Already counted',
+        message: "You've already showed up today. One Showup counts per day.",
+      }
     case 'poor-accuracy':
       return {
         severity: 'warning',
         title: 'Location not precise enough',
-        message: `Your location is only accurate to about ${Math.round(outcome.accuracyMetres)} metres, which is not precise enough to confirm you are within ${GEOFENCE_RADIUS_METRES} metres of your gym. Wait a moment, or turn on precise location / Wi-Fi, and try again.`,
+        message: `Your location is only accurate to about ${Math.round(outcome.accuracyMetres)} metres, which is not precise enough to confirm you are within ${getCachedAppConfig().maxGymDistanceMeters} metres of your gym. Wait a moment, or turn on precise location / Wi-Fi, and try again.`,
       }
     case 'save-failed':
       return {

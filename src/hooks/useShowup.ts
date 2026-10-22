@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { loadAppConfig } from '../services/appConfig'
 import { checkLocation } from '../services/attendanceService'
 import { getCurrentPosition } from '../services/geolocationService'
 import { fetchActiveGym, saveActiveGym } from '../services/gymService'
@@ -12,7 +13,13 @@ export interface SignedInUser {
 }
 
 /** What a SHOW UP press produced, including the one case the screen must explain separately. */
-export type ShowUpResult = ShowupOutcome | { type: 'save-failed'; message: string }
+export type ShowUpResult =
+  | ShowupOutcome
+  /** The user already showed up today (one Showup counts per day). Not an error. */
+  | { type: 'already-recorded' }
+  /** The database measured the position and found the user too far from the gym. */
+  | { type: 'too-far' }
+  | { type: 'save-failed'; message: string }
 
 /**
  * - 'loading': fetching the gym and Showup count from Supabase.
@@ -49,7 +56,8 @@ export function useShowup(user: SignedInUser) {
   useEffect(() => {
     let cancelled = false // ignore a slow response if the user changed or the component went away
 
-    Promise.all([fetchActiveGym(), fetchShowupCount()])
+    // The config is loaded alongside the gym (and cached for an hour). It never fails: it falls back to defaults.
+    Promise.all([fetchActiveGym(), fetchShowupCount(), loadAppConfig()])
       .then(([gymResult, countResult]) => {
         if (cancelled) return
         if (gymResult.status === 'error' || countResult.status === 'error') {
@@ -98,16 +106,21 @@ export function useShowup(user: SignedInUser) {
     verificationInProgress.current = true
     setIsVerifying(true)
     try {
-      const { outcome, accuracyMetres } = await checkLocation({ gym: currentGym, getPosition: getCurrentPosition })
-      if (outcome.type !== 'success') return outcome
+      // Make sure the distance limit is current before checking (cached, so this is instant after launch).
+      await loadAppConfig()
+      const { outcome, position } = await checkLocation({ gym: currentGym, getPosition: getCurrentPosition })
+      if (outcome.type !== 'success' || !position) return outcome
 
-      // Save first. Only a saved Showup increases the counter.
+      // The database re-measures the distance itself. Only a newly saved Showup increases the counter.
       const saved = await recordShowup({
         gymId: currentGym.id,
-        distanceMetres: outcome.distanceMetres,
-        accuracyMetres: accuracyMetres ?? 0,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracyMetres: position.accuracyMetres,
       })
       if (saved.status === 'error') return { type: 'save-failed', message: saved.message }
+      if (saved.status === 'too-far') return { type: 'too-far' }
+      if (saved.status === 'already-recorded') return { type: 'already-recorded' }
 
       setShowupCount((count) => count + 1)
       return outcome

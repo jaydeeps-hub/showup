@@ -5,12 +5,10 @@
 export const APP_VERSION = '0.2.0'
 
 /**
- * How close (in metres) the user must be to the saved gym's coordinates for a
- * Showup to count. Google stores a single point per place, often the entrance
- * or the building centre, so very small values can reject people standing
- * inside a large building.
+ * NOTE: how close the user must be to the gym is NOT set here any more. It comes from the database
+ * config (`config.max_gym_distance_meters`, default 100 m) through src/services/appConfig.ts, so it can
+ * be changed without releasing a new version of the app.
  */
-export const GEOFENCE_RADIUS_METRES = 100
 
 /**
  * The largest location uncertainty (in metres) we accept. The browser reports

@@ -4,7 +4,9 @@ import type { Session } from '@supabase/supabase-js'
 import { useMemo, useState } from 'react'
 import { HomeScreen } from '../features/attendance/HomeScreen'
 import { LandingScreen } from '../features/landing/LandingScreen'
+import { GoalScreen } from '../features/goal/GoalScreen'
 import { GymSetupScreen } from '../features/gym/GymSetupScreen'
+import { PauseScreen } from '../features/pause/PauseScreen'
 import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
 import { OnboardingScreen } from '../features/profile/OnboardingScreen'
 import { useAuth } from '../hooks/useAuth'
@@ -40,6 +42,8 @@ function SignedInApp({ session }: { session: Session }) {
   const profile = useProfile(session.user.id)
   const [isChangingGym, setIsChangingGym] = useState(false)
   const [isManagingProfile, setIsManagingProfile] = useState(false)
+  const [isSettingGoal, setIsSettingGoal] = useState(false)
+  const [isPausing, setIsPausing] = useState(false)
   const [signOutError, setSignOutError] = useState<string | null>(null)
 
   async function handleSignOut() {
@@ -126,6 +130,10 @@ function SignedInApp({ session }: { session: Session }) {
       )
     }
 
+    // The Home screen is not on screen here, so it loads fresh numbers when it comes back.
+    if (isSettingGoal) return <GoalScreen onBack={() => setIsSettingGoal(false)} />
+    if (isPausing) return <PauseScreen onBack={() => setIsPausing(false)} />
+
     if (!showup.gym || isChangingGym) {
       return (
         <GymSetupScreen
@@ -146,10 +154,11 @@ function SignedInApp({ session }: { session: Session }) {
         // The saved first and last name; the Google account name is only a fallback while the profile is unavailable.
         displayName={getDisplayName(profile.status === 'ready' ? profile.profile : null, user.username)}
         gym={showup.gym}
-        showupCount={showup.showupCount}
         isVerifying={showup.isVerifying}
         onShowUp={showup.showUp}
         onManageProfile={profile.status === 'ready' ? () => setIsManagingProfile(true) : undefined}
+        onSetGoal={() => setIsSettingGoal(true)}
+        onPause={() => setIsPausing(true)}
         onSignOut={() => void handleSignOut()}
       />
     )
