@@ -4,19 +4,29 @@ import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
 import { tokens } from '../design-system/tokens'
+import { TAB_BAR_CLEARANCE } from './BottomNav'
 
 interface ScreenLayoutProps {
   /** Optional content shown on the right of the brand header. */
   headerAction?: ReactNode
+  /** True on the screens that show the bottom tab bar, so the content can scroll clear of it. */
+  hasTabBar?: boolean
   children: ReactNode
 }
 
 /** Shared page frame: brand header and a narrow, centred column that never stretches on desktop. */
-export function ScreenLayout({ headerAction, children }: ScreenLayoutProps) {
+export function ScreenLayout({ headerAction, hasTabBar = false, children }: ScreenLayoutProps) {
   return (
     <Container
       maxWidth="sm"
-      sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', px: { xs: 4, sm: 6 }, py: 6 }}
+      sx={{
+        minHeight: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        px: { xs: 4, sm: 6 },
+        pt: 6,
+        pb: hasTabBar ? TAB_BAR_CLEARANCE : 6,
+      }}
     >
       <Box
         component="header"

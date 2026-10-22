@@ -10,10 +10,13 @@ import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle'
 import Snackbar from '@mui/material/Snackbar'
 import type { FeedbackContent } from '../config/messages'
+import { ABOVE_TAB_BAR } from './BottomNav'
 
 interface FeedbackMessageProps {
   feedback: FeedbackContent | null
   onClose: () => void
+  /** True on the screens with the bottom tab bar, so the success message sits above it. */
+  aboveTabBar?: boolean
 }
 
 const SUCCESS_AUTO_HIDE_MS = 4000
@@ -23,11 +26,12 @@ const SUCCESS_AUTO_HIDE_MS = 4000
  * Problems use a dialog so the user has to read and dismiss them.
  * Each state pairs colour with an icon and a title, never colour alone.
  */
-export function FeedbackMessage({ feedback, onClose }: FeedbackMessageProps) {
+export function FeedbackMessage({ feedback, onClose, aboveTabBar = false }: FeedbackMessageProps) {
   if (feedback?.severity === 'success') {
     return (
       <Snackbar
         open
+        sx={aboveTabBar ? { bottom: { xs: ABOVE_TAB_BAR, sm: ABOVE_TAB_BAR } } : undefined}
         autoHideDuration={SUCCESS_AUTO_HIDE_MS}
         onClose={onClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}

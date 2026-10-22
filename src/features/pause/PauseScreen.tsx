@@ -1,4 +1,3 @@
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -18,17 +17,13 @@ import { confirmText, noPassesText, PAUSE_REASONS, pauseWeekOptions, weekLabel }
 
 const c = home.color
 
-interface PauseScreenProps {
-  /** Go back. Home and the calendar reload their numbers when they are shown again. */
-  onBack?: () => void
-}
-
 /**
  * "Pause your count". Passes, active pauses, the week to pause, an optional reason, and a confirmation
  * sheet before a pass is spent. Everything the database decides (which weeks are allowed, how many
- * passes remain) is shown as the server reports it.
+ * passes remain) is shown as the server reports it. This is a tab: the bottom tab bar (shown by the
+ * app) is how you leave, and Home reloads its numbers when it is shown again.
  */
-export function PauseScreen({ onBack }: PauseScreenProps) {
+export function PauseScreen() {
   const state = usePauseState()
   const [toast, setToast] = useState<ToastContent | null>(null)
   // True while ANY call is running, so a double tap can never spend two passes or end a pause twice.
@@ -53,15 +48,7 @@ export function PauseScreen({ onBack }: PauseScreenProps) {
   }
 
   return (
-    <ScreenLayout
-      headerAction={
-        onBack ? (
-          <Button size="small" color="inherit" startIcon={<ArrowBackRounded />} onClick={onBack}>
-            Back
-          </Button>
-        ) : undefined
-      }
-    >
+    <ScreenLayout hasTabBar>
       <Stack spacing={2}>
         <Typography variant="h1" component="h1">
           Pause your count
@@ -104,7 +91,7 @@ export function PauseScreen({ onBack }: PauseScreenProps) {
         />
       )}
 
-      <Toast toast={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} aboveTabBar />
     </ScreenLayout>
   )
 }

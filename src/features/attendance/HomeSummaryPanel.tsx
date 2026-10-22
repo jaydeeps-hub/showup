@@ -88,7 +88,7 @@ export function PausedBanner() {
   )
 }
 
-export function PassesLeftStat({ passesLeft, onPause }: { passesLeft: number | null; onPause?: () => void }) {
+export function PassesLeftStat({ passesLeft }: { passesLeft: number | null }) {
   return (
     <Box sx={{ display: 'flex', gap: '10px', mt: 4 }}>
       <Box sx={{ flex: 1, bgcolor: c.surface, borderRadius: '14px', p: '12px 14px' }}>
@@ -99,11 +99,6 @@ export function PassesLeftStat({ passesLeft, onPause }: { passesLeft: number | n
           Pause passes left
         </Box>
       </Box>
-      {onPause && (
-        <Button variant="outlined" color="inherit" onClick={onPause} sx={{ flex: 1, alignSelf: 'stretch' }}>
-          Pause a week
-        </Button>
-      )}
     </Box>
   )
 }

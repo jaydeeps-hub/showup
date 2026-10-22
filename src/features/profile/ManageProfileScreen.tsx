@@ -1,4 +1,3 @@
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded'
 import EditLocationAltOutlined from '@mui/icons-material/EditLocationAltOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import LogoutRounded from '@mui/icons-material/LogoutRounded'
@@ -31,8 +30,6 @@ interface ManageProfileScreenProps {
   onChangeSearchMode: (mode: PlaceSearchMode) => Promise<SaveResult>
   /** Opens the gym search so the user can pick a different gym. */
   onChangeGym: () => void
-  /** Leave the page and go back to the home screen. */
-  onClose: () => void
   onSignOut: () => void
 }
 
@@ -51,13 +48,13 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * The Profile page. Details are shown as plain text until the user presses Edit, which swaps in
+ * The Profile tab. Details are shown as plain text until the user presses Edit, which swaps in
  * the form; Cancel or a successful save returns to the plain view. The page also holds Change
- * gym and Sign out. Administrators additionally see the gym search mode setting; regular users
+ * gym and Sign out. The bottom tab bar (shown by the app) is how you leave. Administrators additionally see the gym search mode setting; regular users
  * never do, and cannot change it even by calling the database directly.
  */
 export function ManageProfileScreen(props: ManageProfileScreenProps) {
-  const { profile, email, gym, onSave, onChangeSearchMode, onChangeGym, onClose, onSignOut } = props
+  const { profile, email, gym, onSave, onChangeSearchMode, onChangeGym, onSignOut } = props
   const [isEditing, setIsEditing] = useState(false)
   const goal = useGoalState()
   // The weekly goal being edited, and whether the stepper was used (a user with no goal starts on 3).
@@ -98,13 +95,7 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
   }
 
   return (
-    <ScreenLayout
-      headerAction={
-        <Button size="small" color="inherit" startIcon={<ArrowBackRounded />} onClick={onClose}>
-          Back
-        </Button>
-      }
-    >
+    <ScreenLayout hasTabBar>
       <Stack spacing={6}>
         <Stack spacing={2}>
           <Typography variant="h1" component="h1">
@@ -235,7 +226,7 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
         </Button>
       </Stack>
 
-      <Toast toast={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} aboveTabBar />
     </ScreenLayout>
   )
 }

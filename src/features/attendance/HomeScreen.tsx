@@ -26,13 +26,11 @@ interface HomeScreenProps {
   onManageProfile?: () => void
   /** Opens the weekly goal screen. Shown as a button while the user has no goal. */
   onSetGoal?: () => void
-  /** Opens the Pause screen. */
-  onPause?: () => void
   onSignOut: () => void
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const { displayName, gym, isVerifying, onShowUp, onManageProfile, onSetGoal, onPause, onSignOut } = props
+  const { displayName, gym, isVerifying, onShowUp, onManageProfile, onSetGoal, onSignOut } = props
   const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
   // Changing this number reloads the summary and the calendar.
   const [refreshKey, setRefreshKey] = useState(0)
@@ -59,6 +57,7 @@ export function HomeScreen(props: HomeScreenProps) {
 
   return (
     <ScreenLayout
+      hasTabBar
       headerAction={
         // The name opens the Profile page (where the gym can also be changed).
         <Button
@@ -92,7 +91,7 @@ export function HomeScreen(props: HomeScreenProps) {
 
       <Calendar refreshKey={refreshKey} today={today} />
 
-      <PassesLeftStat passesLeft={summary.status === 'ready' ? summary.summary.passesLeft : null} onPause={onPause} />
+      <PassesLeftStat passesLeft={summary.status === 'ready' ? summary.summary.passesLeft : null} />
 
       <Stack spacing={3} sx={{ alignItems: 'center', mt: 6 }}>
         <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -111,7 +110,7 @@ export function HomeScreen(props: HomeScreenProps) {
         </Typography>
       </Stack>
 
-      <FeedbackMessage feedback={feedback} onClose={() => setFeedback(null)} />
+      <FeedbackMessage feedback={feedback} onClose={() => setFeedback(null)} aboveTabBar />
     </ScreenLayout>
   )
 }

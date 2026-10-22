@@ -2,6 +2,7 @@ import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import type { Session } from '@supabase/supabase-js'
 import { useMemo, useState } from 'react'
+import { BottomNav, type AppTab } from '../components/BottomNav'
 import { HomeScreen } from '../features/attendance/HomeScreen'
 import { LandingScreen } from '../features/landing/LandingScreen'
 import { GoalScreen } from '../features/goal/GoalScreen'
@@ -31,8 +32,8 @@ export function App() {
 
 /**
  * Chooses which Showup screen to show, in this order:
- * loading profile → onboarding (profile incomplete) → loading gym → manage profile →
- * gym setup (no gym) → home.
+ * loading profile → onboarding (profile incomplete) → loading gym → set goal →
+ * gym setup (no gym, or changing it) → the three tabs (Home, Pause, Profile) with the bottom tab bar.
  * There is no router: with a few screens, a few if-statements are clearer.
  */
 function SignedInApp({ session }: { session: Session }) {
@@ -41,9 +42,9 @@ function SignedInApp({ session }: { session: Session }) {
   // Loaded separately from sign-in: it decides whether to show onboarding.
   const profile = useProfile(session.user.id)
   const [isChangingGym, setIsChangingGym] = useState(false)
-  const [isManagingProfile, setIsManagingProfile] = useState(false)
   const [isSettingGoal, setIsSettingGoal] = useState(false)
-  const [isPausing, setIsPausing] = useState(false)
+  // Which tab is showing: Home, Pause or Profile.
+  const [tab, setTab] = useState<AppTab>('home')
   const [signOutError, setSignOutError] = useState<string | null>(null)
 
   async function handleSignOut() {
@@ -109,30 +110,9 @@ function SignedInApp({ session }: { session: Session }) {
       )
     }
 
-    if (isManagingProfile && profile.status === 'ready') {
-      return (
-        <ManageProfileScreen
-          profile={profile.profile}
-          email={session.user.email ?? null}
-          gym={showup.gym}
-          onSave={profile.save}
-          onChangeSearchMode={profile.setPlaceSearchMode}
-          onChangeGym={() => {
-            setIsManagingProfile(false)
-            setIsChangingGym(true)
-          }}
-          onClose={() => setIsManagingProfile(false)}
-          onSignOut={() => {
-            setIsManagingProfile(false)
-            void handleSignOut()
-          }}
-        />
-      )
-    }
-
-    // The Home screen is not on screen here, so it loads fresh numbers when it comes back.
+    // Full-screen steps without the tab bar. Each has its own Back or Cancel, and the tab you came
+    // from is still selected when you return. Home loads fresh numbers when it comes back.
     if (isSettingGoal) return <GoalScreen onBack={() => setIsSettingGoal(false)} />
-    if (isPausing) return <PauseScreen onBack={() => setIsPausing(false)} />
 
     if (!showup.gym || isChangingGym) {
       return (
@@ -149,18 +129,40 @@ function SignedInApp({ session }: { session: Session }) {
       )
     }
 
+    // The three tabs. The Profile tab needs a loaded profile; without one, Home is shown instead.
+    const profileReady = profile.status === 'ready'
+    const activeTab: AppTab = tab === 'profile' && !profileReady ? 'home' : tab
+    // A location check is running: staying on Home lets its result be seen (the name button does the same).
+    const lockedTabs: AppTab[] = showup.isVerifying ? ['pause', 'profile'] : !profileReady ? ['profile'] : []
+
     return (
-      <HomeScreen
-        // The saved first and last name; the Google account name is only a fallback while the profile is unavailable.
-        displayName={getDisplayName(profile.status === 'ready' ? profile.profile : null, user.username)}
-        gym={showup.gym}
-        isVerifying={showup.isVerifying}
-        onShowUp={showup.showUp}
-        onManageProfile={profile.status === 'ready' ? () => setIsManagingProfile(true) : undefined}
-        onSetGoal={() => setIsSettingGoal(true)}
-        onPause={() => setIsPausing(true)}
-        onSignOut={() => void handleSignOut()}
-      />
+      <>
+        {activeTab === 'home' && (
+          <HomeScreen
+            // The saved first and last name; the Google account name is only a fallback while the profile is unavailable.
+            displayName={getDisplayName(profileReady ? profile.profile : null, user.username)}
+            gym={showup.gym}
+            isVerifying={showup.isVerifying}
+            onShowUp={showup.showUp}
+            onManageProfile={profileReady ? () => setTab('profile') : undefined}
+            onSetGoal={() => setIsSettingGoal(true)}
+            onSignOut={() => void handleSignOut()}
+          />
+        )}
+        {activeTab === 'pause' && <PauseScreen />}
+        {activeTab === 'profile' && profile.status === 'ready' && (
+          <ManageProfileScreen
+            profile={profile.profile}
+            email={session.user.email ?? null}
+            gym={showup.gym}
+            onSave={profile.save}
+            onChangeSearchMode={profile.setPlaceSearchMode}
+            onChangeGym={() => setIsChangingGym(true)}
+            onSignOut={() => void handleSignOut()}
+          />
+        )}
+        <BottomNav active={activeTab} onSelect={setTab} disabled={lockedTabs} />
+      </>
     )
   }
 }

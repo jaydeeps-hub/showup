@@ -1,5 +1,6 @@
 import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
+import { ABOVE_TAB_BAR } from './BottomNav'
 
 export interface ToastContent {
   severity: 'success' | 'error'
@@ -9,6 +10,8 @@ export interface ToastContent {
 interface ToastProps {
   toast: ToastContent | null
   onClose: () => void
+  /** True on the screens with the bottom tab bar, so the message sits above it. */
+  aboveTabBar?: boolean
 }
 
 const SUCCESS_AUTO_HIDE_MS = 4000
@@ -16,10 +19,11 @@ const SUCCESS_AUTO_HIDE_MS = 4000
 const ERROR_AUTO_HIDE_MS = 7000
 
 /** A small message at the bottom of the screen that goes away by itself. Used for success and for errors. */
-export function Toast({ toast, onClose }: ToastProps) {
+export function Toast({ toast, onClose, aboveTabBar = false }: ToastProps) {
   return (
     <Snackbar
       open={toast !== null}
+      sx={aboveTabBar ? { bottom: { xs: ABOVE_TAB_BAR, sm: ABOVE_TAB_BAR } } : undefined}
       autoHideDuration={toast?.severity === 'error' ? ERROR_AUTO_HIDE_MS : SUCCESS_AUTO_HIDE_MS}
       onClose={(_event, reason) => {
         // Pressing elsewhere on the page should not dismiss it.
