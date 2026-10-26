@@ -5,25 +5,30 @@
 export const APP_VERSION = '0.2.0'
 
 /**
- * NOTE: how close the user must be to the gym is NOT set here any more. It comes from the database
- * config (`config.max_gym_distance_meters`, default 100 m) through src/services/appConfig.ts, so it can
- * be changed without releasing a new version of the app.
+ * NOTE: how close the user must be to the gym, how long the timer runs and how often it checks are NOT
+ * set here. The database decides them (`config.max_gym_distance_meters`, `config.showup_*`) and the app
+ * only follows what each session says.
  */
 
 /**
- * The largest location uncertainty (in metres) we accept. The browser reports
- * an accuracy radius with every position: "you are somewhere within N metres
- * of this point". If N is larger than this value, the reading is too vague to
- * prove the user is at the gym, so we ask them to retry instead of guessing.
+ * Options passed to navigator.geolocation.getCurrentPosition (src/services/devicePosition.ts). Whether a
+ * position is close enough to the gym, or precise enough, is decided by the database, not by the app.
  */
-export const MAX_LOCATION_ACCURACY_METRES = 100
-
-/** Options passed to navigator.geolocation.getCurrentPosition. */
 export const GEOLOCATION_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 15_000, // give up after 15 seconds
   maximumAge: 0, // never reuse a cached position
 }
+
+/**
+ * The timed Show Up engine (src/hooks/useShowupEngine.ts). How LONG a session lasts and how OFTEN it
+ * checks are never set here: they come from the session the database returns. These two numbers are
+ * only about how the engine behaves while it waits.
+ */
+/** How often the engine looks at the clock, in milliseconds. */
+export const SHOWUP_TICK_MS = 500
+/** How long the engine waits before trying a check again after a failed attempt, in milliseconds. */
+export const SHOWUP_RETRY_MS = 10_000
 
 /**
  * Google Maps place types accepted as a "gym". A selected place must have at

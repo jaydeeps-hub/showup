@@ -1,54 +1,45 @@
-import type { GeolocationFailureReason } from '../types'
-import type { ShowUpResult } from '../hooks/useShowup'
-import { getCachedAppConfig } from '../services/appConfig'
+import type { ToastContent } from '../components/Toast'
+import type { ShowupEvent } from '../services/showupEngine'
 import { PRIMARY_GYM_LABEL } from './constants'
 
-/** All text shown after pressing SHOW UP lives here so it is easy to edit. */
-export interface FeedbackContent {
-  severity: 'success' | 'error' | 'warning'
-  title: string
-  message: string
-}
-
-const LOCATION_ERROR_MESSAGES: Record<GeolocationFailureReason, string> = {
-  unsupported: 'This browser does not support location services. Try a recent version of Chrome, Safari, Edge or Firefox.',
-  'permission-denied':
-    'Showup needs your location to confirm you are at your gym. Allow location access for this site in your browser settings, then try again.',
-  unavailable: 'Your location could not be determined. Check that location services are turned on for your device, then try again.',
-  timeout: 'Finding your location took too long. Move somewhere with a clearer view of the sky or a better signal, then try again.',
-}
-
-export function getFeedbackForOutcome(outcome: ShowUpResult): FeedbackContent {
-  switch (outcome.type) {
-    case 'success':
-      return { severity: 'success', title: 'Showup recorded', message: 'You showed up!' }
-    case 'outside-geofence':
-    case 'too-far':
-      // 'too-far' is the same message when the database (not this device) found the user too far away.
-      return {
-        severity: 'error',
-        title: 'Not at your gym',
-        message: `You're not at your saved gym. Please go to ${PRIMARY_GYM_LABEL} and try again.`,
-      }
-    case 'already-recorded':
+/**
+ * Everything the user is told about a Show Up lives here, in one function, so the mascot can replace
+ * it later without touching the screens. Plain text for now.
+ *
+ * `totalShowups` is the user's Showup count after a visit finished (from get_home_summary). It is only
+ * needed for `completed`; without it that message falls back to the plain version.
+ */
+export function showupMessage(event: ShowupEvent, totalShowups?: number | null): ToastContent {
+  switch (event.type) {
+    case 'completed':
+      // `recorded: false` means the day already had a Showup, so nothing new was added.
+      if (event.recorded === false) return { severity: 'success', message: 'Already counted today' }
       return {
         severity: 'success',
-        title: 'Already counted',
-        message: "You've already showed up today. One Showup counts per day.",
+        message: totalShowups != null ? `You showed up. Showup #${totalShowups}` : 'You showed up.',
       }
-    case 'poor-accuracy':
-      return {
-        severity: 'warning',
-        title: 'Location not precise enough',
-        message: `Your location is only accurate to about ${Math.round(outcome.accuracyMetres)} metres, which is not precise enough to confirm you are within ${getCachedAppConfig().maxGymDistanceMeters} metres of your gym. Wait a moment, or turn on precise location / Wi-Fi, and try again.`,
-      }
-    case 'save-failed':
+    case 'already_done':
+      return { severity: 'success', message: 'You already showed up today.' }
+    case 'left_early':
+      return { severity: 'error', message: "You left before the timer finished. It's been reset." }
+    case 'missed_checks':
       return {
         severity: 'error',
-        title: "Your Showup wasn't saved",
-        message: `You are at your gym, but we couldn't save this visit, so it has not been counted. ${outcome.message}`,
+        message: "We couldn't confirm you stayed. Keep Showup open with the screen on until the timer ends.",
       }
-    case 'location-error':
-      return { severity: 'error', title: 'Location unavailable', message: LOCATION_ERROR_MESSAGES[outcome.reason] }
+    case 'expired':
+      return { severity: 'error', message: 'That timer expired. Tap Show up to start again.' }
+    case 'cancelled':
+      return { severity: 'success', message: 'Timer stopped. Tap Show up to start again.' }
+    case 'too_far':
+      return { severity: 'error', message: `You're not at your saved gym. Please go to ${PRIMARY_GYM_LABEL} and try again.` }
+    case 'poor_accuracy':
+      return { severity: 'error', message: 'Your location signal is weak. Try near a window or outside.' }
+    case 'location_denied':
+      return { severity: 'error', message: 'Location is off for Showup. Allow it in your browser settings, then try again.' }
+    case 'location_unavailable':
+      return { severity: 'error', message: "Couldn't get your location. Try again." }
+    case 'error':
+      return { severity: 'error', message: 'Something went wrong. Try again.' }
   }
 }

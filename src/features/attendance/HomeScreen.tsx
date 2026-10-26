@@ -2,13 +2,11 @@ import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
-import { FeedbackMessage } from '../../components/FeedbackMessage'
 import { GymSummary } from '../../components/GymSummary'
 import { ScreenLayout } from '../../components/ScreenLayout'
 import { ShowUpButton } from '../../components/ShowUpButton'
-import { getFeedbackForOutcome, type FeedbackContent } from '../../config/messages'
+import { useShowupSession } from '../../hooks/showupSessionContext'
 import { useHomeSummary } from '../../hooks/useHomeSummary'
-import type { ShowUpResult } from '../../hooks/useShowup'
 import type { Gym } from '../../types'
 import { localTodayIso } from '../../utils/calendarDates'
 import { Calendar } from '../calendar/Calendar'
@@ -18,37 +16,34 @@ interface HomeScreenProps {
   /** The first name shown in the greeting at the top. */
   firstName: string
   gym: Gym
-  isVerifying: boolean
-  onShowUp: () => Promise<ShowUpResult | null>
   /** Opens the weekly goal screen. Shown as a button while the user has no goal. */
   onSetGoal?: () => void
 }
 
+/**
+ * Home. The Show up button and its ring are driven by the timed Show Up engine (useShowupSession):
+ * this screen only displays its state and reloads the numbers and the calendar when a visit finishes
+ * or turns out to be already counted. What the user is TOLD about a Show Up is shown by ShowupFeedback.
+ */
 export function HomeScreen(props: HomeScreenProps) {
-  const { firstName, gym, isVerifying, onShowUp, onSetGoal } = props
-  const [feedback, setFeedback] = useState<FeedbackContent | null>(null)
+  const { firstName, gym, onSetGoal } = props
+  const showup = useShowupSession()
   // Changing this number reloads the summary and the calendar.
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [visibilityReloads, setVisibilityReloads] = useState(0)
   const [today] = useState(() => localTodayIso())
+  // A finished or already-counted visit changes the totals, the streak and the calendar.
+  const refreshKey = visibilityReloads + showup.completions
   const summary = useHomeSummary(refreshKey)
 
   // Reload when the person comes back to the app (for example after a day away), the same as when
   // the screen first appears.
   useEffect(() => {
     function reloadWhenVisible() {
-      if (document.visibilityState === 'visible') setRefreshKey((key) => key + 1)
+      if (document.visibilityState === 'visible') setVisibilityReloads((count) => count + 1)
     }
     document.addEventListener('visibilitychange', reloadWhenVisible)
     return () => document.removeEventListener('visibilitychange', reloadWhenVisible)
   }, [])
-
-  async function handleShowUp() {
-    const outcome = await onShowUp()
-    if (!outcome) return
-    setFeedback(getFeedbackForOutcome(outcome))
-    // Any attempt that reached the database can change the numbers, so reload them all.
-    setRefreshKey((key) => key + 1)
-  }
 
   return (
     <ScreenLayout hasTabBar showBrand={false}>
@@ -67,14 +62,20 @@ export function HomeScreen(props: HomeScreenProps) {
       <HomeSummaryTop state={summary} today={today} onSetGoal={onSetGoal} />
 
       <Stack sx={{ alignItems: 'center', py: 8 }}>
-        <ShowUpButton isVerifying={isVerifying} onClick={() => void handleShowUp()} />
+        <ShowUpButton
+          state={showup.state}
+          remainingSeconds={showup.remainingSeconds}
+          progress={showup.progress}
+          checksDone={showup.checksDone}
+          checksTotal={showup.checksTotal}
+          onStart={showup.start}
+          onStop={showup.stop}
+        />
       </Stack>
 
       <Calendar refreshKey={refreshKey} today={today} />
 
       <PassesLeftStat passesLeft={summary.status === 'ready' ? summary.summary.passesLeft : null} />
-
-      <FeedbackMessage feedback={feedback} onClose={() => setFeedback(null)} aboveTabBar />
     </ScreenLayout>
   )
 }

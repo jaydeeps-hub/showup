@@ -55,12 +55,18 @@ vi.mock('../hooks/useShowup', () => ({
           createdAt: '2026-10-17T00:00:00Z',
         }
       : null,
-    showupCount: 0,
-    isVerifying: false,
     saveGym: gymState.saveGym,
-    showUp: vi.fn(),
   }),
 }))
+
+// The timed Show Up is not under test here: quiet fakes for its database calls and the screen it draws on Home.
+vi.mock('../services/showupSessionService', () => ({
+  getShowupState: vi.fn(async () => ({ ok: true, value: { today: '2026-10-26', showed_up_today: false, session: null } })),
+  startShowup: vi.fn(),
+  checkShowup: vi.fn(),
+  cancelShowup: vi.fn(),
+}))
+vi.mock('../services/wakeLock', () => ({ acquireWakeLock: vi.fn(), releaseWakeLock: vi.fn(), reacquireWakeLockIfWanted: vi.fn() }))
 
 // Google Maps: two search results, each with the "types" Google would report for it.
 const PLACE_TYPES: Record<string, string[]> = {
@@ -138,15 +144,16 @@ async function searchAndPick(user: ReturnType<typeof userEvent.setup>, name: str
 const saveButton = () => screen.getByRole('button', { name: /save as gym 1/i }) as HTMLButtonElement
 
 async function openManageProfile(user: ReturnType<typeof userEvent.setup>) {
-  // The saved name on the home screen opens the Profile page.
-  await user.click(await screen.findByRole('button', { name: /open profile for/i }))
-  return screen.findByRole('heading', { name: 'Your profile' })
+  // The Profile tab in the bottom bar opens the Profile page, whose title is the person's name.
+  await user.click(await screen.findByRole('button', { name: /^profile$/i }))
+  return screen.findByRole('heading', { name: 'Asha Rao' })
 }
 
-/** Change gym now lives on the Profile page, not on the home screen. */
+/** Change gym is a row in the Profile page's edit view, which the pencil opens. */
 async function openChangeGym(user: ReturnType<typeof userEvent.setup>) {
   await openManageProfile(user)
-  await user.click(screen.getByRole('button', { name: /change gym/i }))
+  await user.click(await screen.findByRole('button', { name: /edit details/i }))
+  await user.click(await screen.findByRole('button', { name: /change gym/i }))
 }
 
 beforeEach(() => {

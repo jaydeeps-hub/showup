@@ -12,8 +12,6 @@ export interface AppConfig {
   maxGymDistanceMeters: number
   /** The earliest month the calendar can show, as `YYYY-MM`. */
   calendarStartMonth: string
-  /** Minutes someone must stay at the gym (not used yet). */
-  minStayMinutes: number
   /** Pause passes available each month. */
   pausePassesPerMonth: number
   /** How many weeks ahead a pause can be booked. */
@@ -24,7 +22,6 @@ export interface AppConfig {
 export const DEFAULT_APP_CONFIG: AppConfig = {
   maxGymDistanceMeters: 100,
   calendarStartMonth: '2026-06',
-  minStayMinutes: 15,
   pausePassesPerMonth: 3,
   pauseMaxWeeksAhead: 1,
 }
@@ -54,7 +51,6 @@ export function parseAppConfig(raw: unknown): AppConfig {
     // A distance of 0 would reject everyone, so at least 1 metre.
     maxGymDistanceMeters: parseWholeNumber(source.max_gym_distance_meters, d.maxGymDistanceMeters, 1),
     calendarStartMonth: parseMonth(source.calendar_start_month, d.calendarStartMonth),
-    minStayMinutes: parseWholeNumber(source.min_stay_minutes, d.minStayMinutes, 0),
     pausePassesPerMonth: parseWholeNumber(source.pause_passes_per_month, d.pausePassesPerMonth, 0),
     pauseMaxWeeksAhead: parseWholeNumber(source.pause_max_weeks_ahead, d.pauseMaxWeeksAhead, 0),
   }

@@ -3,6 +3,7 @@ import Button from '@mui/material/Button'
 import type { Session } from '@supabase/supabase-js'
 import { useMemo, useState } from 'react'
 import { BottomNav, type AppTab } from '../components/BottomNav'
+import { ShowupFeedback } from '../components/ShowupFeedback'
 import { HomeScreen } from '../features/attendance/HomeScreen'
 import { LandingScreen } from '../features/landing/LandingScreen'
 import { GoalScreen } from '../features/goal/GoalScreen'
@@ -10,10 +11,12 @@ import { GymSetupScreen } from '../features/gym/GymSetupScreen'
 import { PauseScreen } from '../features/pause/PauseScreen'
 import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
 import { OnboardingScreen } from '../features/profile/OnboardingScreen'
+import { useShowupSession } from '../hooks/showupSessionContext'
 import { useAuth } from '../hooks/useAuth'
 import { useProfile } from '../hooks/useProfile'
 import { useSaveDeviceTimezone } from '../hooks/useSaveDeviceTimezone'
 import { useShowup, type SignedInUser } from '../hooks/useShowup'
+import { ShowupProvider } from '../hooks/useShowupSession'
 import { getIdentity, signOut } from '../services/authService'
 import { getFirstName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
@@ -36,6 +39,9 @@ export function App() {
  * loading profile → onboarding (profile incomplete) → loading gym → set goal →
  * gym setup (no gym, or changing it) → the three tabs (Home, Pause, Profile) with the bottom tab bar.
  * There is no router: with a few screens, a few if-statements are clearer.
+ *
+ * The timed Show Up (ShowupProvider) wraps ALL of it, not just the tabs: the timer keeps running and its
+ * checks keep firing while the user is on Set goal, Change gym, or any tab.
  */
 function SignedInApp({ session }: { session: Session }) {
   const user: SignedInUser = useMemo(() => getIdentity(session.user), [session.user])
@@ -61,7 +67,8 @@ function SignedInApp({ session }: { session: Session }) {
   }
 
   return (
-    <>
+    <ShowupProvider gymId={showup.gym?.id ?? null} userId={user.id}>
+      <ShowupFeedback />
       {profile.status === 'missing' && (
         <Alert severity="warning" square>
           Your account is signed in, but its profile was not found. The database migrations that create profiles have
@@ -88,7 +95,7 @@ function SignedInApp({ session }: { session: Session }) {
         </Alert>
       )}
       {renderScreen()}
-    </>
+    </ShowupProvider>
   )
 
   function renderScreen() {
@@ -101,7 +108,7 @@ function SignedInApp({ session }: { session: Session }) {
       return <OnboardingScreen profile={profile.profile} onSave={profile.save} />
     }
 
-    // Wait for the gym and Showup count, so we never show "choose your gym" to someone who has one.
+    // Wait for the gym, so we never show "choose your gym" to someone who has one.
     if (showup.dataStatus === 'loading') return <LoadingScreen />
     if (showup.dataStatus === 'error') {
       return (
@@ -135,8 +142,6 @@ function SignedInApp({ session }: { session: Session }) {
     // The three tabs. The Profile tab needs a loaded profile; without one, Home is shown instead.
     const profileReady = profile.status === 'ready'
     const activeTab: AppTab = tab === 'profile' && !profileReady ? 'home' : tab
-    // A location check is running: staying on Home lets its result be seen (the name button does the same).
-    const lockedTabs: AppTab[] = showup.isVerifying ? ['pause', 'profile'] : !profileReady ? ['profile'] : []
 
     return (
       <>
@@ -145,8 +150,6 @@ function SignedInApp({ session }: { session: Session }) {
             // The saved first name; the Google account name is only a fallback while the profile is unavailable.
             firstName={getFirstName(profileReady ? profile.profile : null, user.username)}
             gym={showup.gym}
-            isVerifying={showup.isVerifying}
-            onShowUp={showup.showUp}
             onSetGoal={() => setIsSettingGoal(true)}
           />
         )}
@@ -162,8 +165,20 @@ function SignedInApp({ session }: { session: Session }) {
             onSignOut={() => void handleSignOut()}
           />
         )}
-        <BottomNav active={activeTab} onSelect={setTab} disabled={lockedTabs} />
+        <AppTabBar active={activeTab} onSelect={setTab} profileReady={profileReady} />
       </>
     )
   }
+}
+
+/**
+ * The bottom tab bar. It reads the Show Up engine (so it must sit inside the ShowupProvider) to decide
+ * which tabs to lock: Pause and Profile are locked only while the location is being read to START a
+ * Show Up, a few seconds at most. Once the timer is running they are free, because the timer and its
+ * checks keep going on any tab.
+ */
+function AppTabBar({ active, onSelect, profileReady }: { active: AppTab; onSelect: (tab: AppTab) => void; profileReady: boolean }) {
+  const { state } = useShowupSession()
+  const locked: AppTab[] = state === 'checking' ? ['pause', 'profile'] : !profileReady ? ['profile'] : []
+  return <BottomNav active={active} onSelect={onSelect} disabled={locked} />
 }

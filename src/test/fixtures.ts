@@ -1,4 +1,4 @@
-import type { Gym, ReportedPosition } from '../types'
+import type { Gym } from '../types'
 
 /** Shared sample data for tests. Coordinates are arbitrary, not a real gym. */
 
@@ -14,16 +14,4 @@ export const testGym: Gym = {
   latitude: 12.9716,
   longitude: 77.5946,
   createdAt: '2026-01-01T00:00:00.000Z',
-}
-
-/** One metre of latitude, in degrees (Earth radius 6,371 km). */
-const METRE_IN_LATITUDE_DEGREES = 1 / 111_194.93
-
-/** A position `metres` due north of the test gym. */
-export function positionNorthOfGym(metres: number, accuracyMetres = 10): ReportedPosition {
-  return {
-    latitude: testGym.latitude + metres * METRE_IN_LATITUDE_DEGREES,
-    longitude: testGym.longitude,
-    accuracyMetres,
-  }
 }

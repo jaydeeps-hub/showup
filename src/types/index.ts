@@ -18,16 +18,6 @@ export interface Gym {
   createdAt: string
 }
 
-export interface Coordinates {
-  latitude: number
-  longitude: number
-}
-
-/** A position reported by the browser, including its accuracy radius. */
-export interface ReportedPosition extends Coordinates {
-  accuracyMetres: number
-}
-
 /** A place the user picked from Google Maps search, before it becomes a Gym. */
 export interface SelectedPlace {
   googlePlaceId: string | null
@@ -36,15 +26,6 @@ export interface SelectedPlace {
   latitude: number
   longitude: number
 }
-
-export type GeolocationFailureReason = 'unsupported' | 'permission-denied' | 'unavailable' | 'timeout'
-
-/** Every possible result of pressing the SHOW UP button. */
-export type ShowupOutcome =
-  | { type: 'success'; distanceMetres: number }
-  | { type: 'outside-geofence'; distanceMetres: number }
-  | { type: 'poor-accuracy'; accuracyMetres: number }
-  | { type: 'location-error'; reason: GeolocationFailureReason }
 
 /**
  * The only profile fields a user may change. There is deliberately no `isAdmin` here:
@@ -122,6 +103,81 @@ export interface HomeSummary {
   showupDaysThisWeek: number
   passesLeft: number
   totalShowups: number
+}
+
+/*
+ * The timed Show Up (Phase 6). These types mirror the JSON the database functions return, field for
+ * field (snake_case on purpose), so what the server sends and what the code reads look the same.
+ */
+
+/** How a timed Show Up session stands. Anything other than `running` means it is over. */
+export type SessionStatus = 'running' | 'completed' | 'left_early' | 'missed_checks' | 'expired' | 'cancelled'
+
+/** One scheduled check inside a session. */
+export interface SessionCheckpoint {
+  /** When the check is due, in seconds after the session started. */
+  at_seconds: number
+  /** False when the session has no location checks (only the end counts). */
+  needs_location: boolean
+  /** True once a passing check exists for this checkpoint. */
+  done: boolean
+}
+
+/**
+ * A timed Show Up session, as every Phase 6 database function describes it. All of the timing (how
+ * long, how often, how many misses are forgiven) comes from here; the app never assumes any of it.
+ */
+export interface ShowupSession {
+  session_id: string
+  status: SessionStatus
+  /** ISO timestamps from the SERVER's clock: when the session started, and when this answer was made. */
+  started_at: string
+  server_now: string
+  elapsed_seconds: number
+  duration_seconds: number
+  interval_seconds: number
+  max_missed_checks: number
+  checkpoints: SessionCheckpoint[]
+  location_checks_done: number
+  location_checks_total: number
+}
+
+/** What `get_showup_state` returns. */
+export interface ShowupState {
+  /** Today for this user, `YYYY-MM-DD`, worked out by the server in their time zone. */
+  today: string
+  showed_up_today: boolean
+  /** The running session, if there is one. */
+  session: ShowupSession | null
+}
+
+/** What `start_showup` returns. */
+export interface StartShowupResult {
+  /** True when today already has a Showup, so no session was started. */
+  already_done: boolean
+  session: ShowupSession | null
+}
+
+/** What `check_showup` can answer: `running`, `not_due` and `poor_accuracy` keep the session going; the rest end it. */
+export type CheckResult = 'running' | 'not_due' | 'poor_accuracy' | Exclude<SessionStatus, 'running'>
+
+/** What `check_showup` returns. */
+export interface CheckShowupResult {
+  result: CheckResult
+  /** Whether this reading was close enough. Present only when the server judged a reading. */
+  check_passed?: boolean
+  /** Seconds until the next scheduled check, when the server said. */
+  next_check_in_seconds?: number
+  /** On `completed`: true if a new Showup was written, false if the day already had one. */
+  recorded?: boolean
+  session: ShowupSession
+}
+
+/** A position for the timed Show Up: whole-number accuracy in metres, as the database functions expect. */
+export interface DevicePosition {
+  lat: number
+  lng: number
+  accuracy: number
 }
 
 /**
