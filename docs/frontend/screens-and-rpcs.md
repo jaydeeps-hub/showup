@@ -37,7 +37,7 @@ On launch (once per user per page load) `useSaveDeviceTimezone` calls `set_my_ti
 | `get_app_config` | Loaded once by `useShowup` with the gym (cached ~1 hour, defaults if it fails). Nothing in the app reads its values any more; the server applies the config |
 | Show Up button | Uses the timed Show Up engine, below. Home itself makes no Show Up call |
 
-Home reloads the summary and the calendar when the screen appears, when the app becomes visible again, and each time the engine's `completions` counter goes up (a visit finished, or turned out to be already counted).
+Home reloads the summary and the calendar when the screen appears, when the app becomes visible again, and each time the engine's `completions` counter goes up (a visit finished, or turned out to be already counted). Home reads that counter alone, through `useShowupSelector`, so it does not re-render on every tick of the timer. The Home layout, top to bottom: greeting, gym card, summary cards, **mascot**, (loading line, paused banner, week progress), the Show up button, the calendar, the pass card.
 
 **The Show up button** ([ShowUpButton.tsx](../../src/components/ShowUpButton.tsx)) is a 208px ring (the prototype's `.su`, circumference about 590.6, filling clockwise from 12 o'clock) around a round button. It only displays the engine's state:
 | State | Button | Small text | Ring |
@@ -68,7 +68,7 @@ The old dialogs ("Not at your gym", "Location not precise enough", "Your Showup 
 
 Files: [types](../../src/types/index.ts) (`ShowupSession` and friends, snake_case on purpose to match the JSON), [devicePosition.ts](../../src/services/devicePosition.ts), [showupSessionService.ts](../../src/services/showupSessionService.ts), [showupEngine.ts](../../src/services/showupEngine.ts), [wakeLock.ts](../../src/services/wakeLock.ts), [utils/showupSession.ts](../../src/utils/showupSession.ts), [showupSessionContext.ts](../../src/hooks/showupSessionContext.ts), [useShowupSession.tsx](../../src/hooks/useShowupSession.tsx), [ShowupFeedback.tsx](../../src/components/ShowupFeedback.tsx) and [ShowUpButton.tsx](../../src/components/ShowUpButton.tsx).
 
-`ShowupProvider` wraps **everything a signed-in user sees** in `App.tsx` (loading screens, Set goal, Change gym, and the tabs), so the timer and its checks keep running on every screen. It receives the active gym id (or null before one exists). Screens read it with `useShowupSession()` (named that because `useShowup` is the gym hook).
+`ShowupProvider` wraps **everything a signed-in user sees** in `App.tsx` (loading screens, Set goal, Change gym, and the tabs), so the timer and its checks keep running on every screen. It receives the active gym id (or null before one exists). Screens read it with `useShowupSession()` (named that because `useShowup` is the gym hook), or, when they need only one value and must not re-render on every tick, with `useShowupSelector` / `useShowupActions` (see the mascot section).
 
 **Value exposed:** `state` (`idle | checking | running | done`), `remainingSeconds`, `progress` (0 to 1), `checksDone`, `checksTotal`, `showedUpToday`, `completions`, `start()`, `stop()`, and a one-shot `event` (with `recorded` on `completed`) and `clearEvent()`.
 
@@ -99,6 +99,74 @@ Files: [types](../../src/types/index.ts) (`ShowupSession` and friends, snake_cas
 | repeated `poor_accuracy` or location problems during a running session | announced once, until a check succeeds |
 
 **Removed in 6c:** the one-tap path. The app no longer calls `record_showup` or reads the `showups` table, and `attendanceService`, `geolocationService`, `showupService`, `utils/distance` and `FeedbackMessage` are deleted. `record_showup` and the direct `INSERT` on `showups` still exist in the database (phase 8).
+
+## The mascot (Phase 7c logic, Phase 7d on Home)
+
+The mascot is on **Home only**: a picture and a speech bubble between the summary cards and the paused banner / week progress. It is not on the goal screen, the Profile avatar or the landing page yet.
+
+**On screen** ([MascotBubble.tsx](../../src/components/MascotBubble.tsx), placed by Home through `HomeSummaryTop`'s `afterCards` slot, inside a [MascotBoundary](../../src/components/MascotBoundary.tsx)):
+- A flex row, gap 12px, centred, margin-top 14px, always at least **104px tall** so nothing jumps while content loads.
+- **Picture** on the left: an `<img>` from `imageFor()` (the PNG is about 180x250), **104px high, width auto**, `object-fit: contain`, not shrinking, with the row's `width`/`height` attributes so the browser reserves the shape. It is decorative: `alt=""` and `aria-hidden`. If it fails to load, it tries the `smile` picture **once**; if that fails too (or the failing one was `smile`), the picture is dropped and only the bubble stays. After content loads, **every other picture is preloaded** so changing faces does not flicker. No animation.
+- **Bubble** on the right (the design's `.bub`): surface fill, 1px line border, 16px radius, 10px 14px padding, 14px text in `#D5D8E0`, inside `aria-live="polite"`. If nothing qualifies the bubble is hidden but the row keeps its space.
+- **Until Home's numbers have loaded** the bubble says nothing (with no numbers the total would read as 0 and a returning user would be welcomed as new). While no mascot content has loaded, the bundled words are used, with no picture.
+- **Isolation:** the mascot is wrapped in an error boundary. If anything in it throws, only the mascot disappears (the error is logged) and Home carries on.
+
+**Greeting:** the line above the first name reads **"Welcome"** when `total_showups` is 0, otherwise **"Welcome back"** (also "Welcome back" while the numbers are loading).
+
+**What changes the words:** Home's summary and pause state, the Show Up engine's phase, the minutes left, and `lastOutcome`. `lastOutcome` is set by the engine when a timer ends `left_early` or `missed_checks`, is cleared when the next session starts (the engine becomes `checking`) and on a full reload, and survives leaving Home and returning (it lives in the engine, not the screen). Stopping a timer yourself does not set it.
+
+**Render cost.** The Show Up engine ticks every 500 ms, and `useShowupSession()` re-renders everything that uses it on each tick. So the mascot and Home read the timer through narrow subscriptions instead:
+- `useShowupSelector(select)` re-renders a component only when the one value it selects changes; `useShowupActions()` gives `start` and `stop` with no subscription at all (both in [showupSessionContext.ts](../../src/hooks/showupSessionContext.ts)).
+- Home reads only `completions` (which changes when a visit finishes), so it **does not re-render as the seconds tick**. The countdown and ring are drawn by `ConnectedShowUpButton`, which does tick.
+- The bubble reads a *stepped* version of the seconds left (`coarseRemainingSeconds`), which gives exactly the same answers to the only two questions the words ask ("how many minutes" and "within the almost window") but changes about 16 times over a 15 minute timer instead of 901. Measured over a 5 minute timer: Home itself re-renders at most 5 times, the bubble about 6.
+- `AppTabBar` and `ShowupFeedback` still use `useShowupSession()` and so still re-render each tick (pre-existing, small).
+
+**Config:** the "almost" threshold is read from `config.mascot_almost_seconds` through `loadAppConfig()` (default 180 until it loads).
+
+The 7c logic, unchanged:
+
+**Files:** [mascotService.ts](../../src/services/mascotService.ts) (fetch and strict parse), [mascotStore.ts](../../src/services/mascotStore.ts) (the cache), [utils/mascot.ts](../../src/utils/mascot.ts) (situations, picking, placeholders, pictures), [config/mascotDefaults.ts](../../src/config/mascotDefaults.ts) (bundled words), [hooks/useMascot.ts](../../src/hooks/useMascot.ts) (`useMascotContent()` and `useMascot(context)`).
+
+**Call:** `get_mascot_content(p_locale)`, only through `fetchMascotContent(locale = 'en')`. It never throws: any failure is `{ status: 'error' }`. A picture whose address is not a plain `http(s)` address is dropped (`toSafeImageUrl`), and an unreadable message is dropped without failing the rest.
+
+**Stale while revalidate** (`MascotStore`):
+1. It starts instantly from the copy saved in `localStorage` (key `showup:mascot-content`), or the bundled words if none (or the saved one is broken or has no messages).
+2. The first component to use `useMascotContent()` starts a background fetch on every app launch; after that, when the tab becomes visible, it fetches again only if the last fetch was **more than 5 minutes** ago.
+3. New content replaces the old only when its `version` changed (the bundled words are replaced by any real content).
+4. A failed fetch, or an answer with **no messages**, keeps what is there. A failed fetch still counts as a fetch for the 5-minute rule.
+Two requests at once share one. Storage being unavailable or full is ignored.
+
+**Bundled defaults:** the 16 starting messages from the SQL file, copied exactly (ids are negative so they never clash with real rows). **No default pictures**: a missing picture means the words are shown without one.
+
+**What the mascot knows** (`MascotContext`): `goal` (`get_home_summary.goal_days`, may be null), `done` (`showup_days_this_week`), `wk` (`weeks_in_a_row`), `total` (`total_showups`), `paused` (this week's Monday is in `get_pause_state.active_pauses`), the Show Up engine's `state` (`idle | checking | running | done`) and `remainingSeconds`, `lastOutcome` (`left_early`, `missed_checks` or none) and `almostSeconds` (`config.mascot_almost_seconds` via `get_app_config`, default 180).
+Derived: `next = done + 1`, `remaining = max(0, goal - done)`, `left = ceil(remainingSeconds / 60)`.
+
+**`lastOutcome`** is held by the Show Up engine, not by a screen, so it survives tab switches. It is set when a timer ends as `left_early` or `missed_checks`, and cleared when the user starts again (even if that start then fails), by any other ending, or when the engine is torn down. It is **not** remembered across a page reload.
+
+**Situations.** The code decides which are true; the table decides which true one wins (lowest `priority`, then `id`). Each is an independent yes/no; with no goal, every one that needs the goal is false:
+| Key | True when |
+|---|---|
+| `checking` | engine is checking |
+| `running_almost` | engine is running and `remainingSeconds <= almostSeconds` |
+| `running` | engine is running |
+| `done_extra` / `done_goal_hit` / `done_progress` | engine is done and `done` is above / equal to / below the goal |
+| `paused` | this week is paused |
+| `left_early` / `missed_checks` | `lastOutcome` is that value |
+| `new_user` | `total = 0` |
+| `goal_met` | `done >= goal` |
+| `back_after_miss` | `wk = 0` and `total > 0` |
+| `one_to_go` | `done = goal - 1` |
+| `high_goal` | `goal >= 5` and `goal - done > 1` |
+| `week_start` | `done = 0` |
+| `in_progress` | always |
+
+**Picking** (`pickMascotMessage`): keep rows whose key is a true situation, sort by priority then id, take the first. Rows with an **unknown key** are ignored. When real pictures have been loaded, a row whose **expression has no picture row** is ignored too; with no pictures loaded at all (the bundled words, or a database with no addresses yet) that check is off, so the words still show without a picture.
+
+**Pictures** (`imageFor`): the picture for the expression, else `smile`, else none. The address gets `?v=<v>` (or `&v=<v>` if it already has a query).
+
+**Placeholders** (`fillPlaceholders`): `{goal} {done} {next} {left} {remaining} {wk} {total}`. An unknown placeholder becomes an empty string (a console warning in development).
+
+**Tested:** one test per situation, the cache rules, and a parity test that compares the new logic with the prototype's `skey()` (kept in the test as an oracle, with `missed_checks` added after `left_early`) on all 9,408 reachable combinations of the grid in the task.
 
 ## Pause tab
 | Call | Purpose |

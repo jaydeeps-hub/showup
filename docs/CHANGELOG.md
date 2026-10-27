@@ -4,7 +4,16 @@ Built from `git log` on 2026-10-22, newest first, grouped by backend (migrations
 
 **Not in git:** the SQL run by hand in Supabase has no commit and no date. See [backend/manual-sql-log.md](backend/manual-sql-log.md).
 
-## 2026-10-26 (not yet committed)
+## 2026-10-27 (not yet committed)
+
+### Backend
+- Phase 7a SQL (`docs/backend/phase7a_mascot_tables.sql`) applied manually in Supabase, not in migrations: tables `mascot_images` and `mascot_messages` (with 16 starting messages and 8 picture rows that have no addresses yet), the trigger function `mascot_touch_updated_at`, the function `get_mascot_content(p_locale)` (callable before sign-in), the public `app-assets` bucket (if it could be created from SQL), and the `cms` row `config.mascot_almost_seconds` = 180. See [backend/manual-sql-log.md](backend/manual-sql-log.md).
+
+### Frontend
+- Phase 7d, the mascot on Home: a picture (104px high, decorative, with a fallback to the smile picture and then none, and every picture preloaded) and a speech bubble between the summary cards and the paused banner, with the words picked from the table by the 7c logic. The greeting reads "Welcome" for a user with no showups. The mascot is wrapped in an error boundary so it can never break Home. To keep a running timer from re-rendering Home, added `useShowupSelector` and `useShowupActions`, a `ConnectedShowUpButton` that reads the clock itself, and a stepped seconds value for the bubble (about 16 changes over a 15 minute timer instead of 901). `lastOutcome` now has a visible effect. No pictures are uploaded yet, so only the words show.
+- Phase 7c, the mascot logic (no visible change): `fetchMascotContent`, a stale-while-revalidate store that keeps the last content in `localStorage` and refreshes on launch and on becoming visible after 5 minutes, bundled default words (no pictures), the situation and picking logic (code decides what is true, the table decides what wins), placeholder filling, picture lookup with cache busting, and `lastOutcome` (`left_early` or `missed_checks`) held by the Show Up engine. `config.mascot_almost_seconds` is read through the app config. Includes a parity test against the prototype's `skey()`. No screen uses it yet.
+
+## 2026-10-26
 
 ### Backend
 - Phase 6 SQL (`docs/backend/phase6_showup_sessions.sql`, smoke test `phase6_smoke_test.sql`) applied manually in Supabase, not in migrations: tables `showup_sessions` and `showup_checks`; functions `get_showup_state`, `start_showup`, `check_showup`, `cancel_showup` and the internal `showup_grace_seconds`, `showup_checkpoints`, `showup_session_json`; four config rows. `record_showup` and the direct `INSERT` on `showups` are unchanged. See [backend/manual-sql-log.md](backend/manual-sql-log.md).

@@ -46,6 +46,20 @@ Applied manually from `docs/backend/phase6_showup_sessions.sql`. I compared its 
 
 `showup_sessions.gym_id` references `gyms(id)` with `on delete cascade`, and `showup_sessions.showup_id` references `showups(id)` with `on delete set null`.
 
+## Phase 7a (mascot), 2026-10-27
+
+Applied manually from `docs/backend/phase7a_mascot_tables.sql`. I compared its two functions with the live snapshot: both bodies are identical. All **applied manually, not in migrations**.
+
+| # | Object | Notes |
+|---|---|---|
+| 22 | Storage bucket `app-assets` (public) | The SQL tries to create it and only prints a notice if it cannot; if so, create a PUBLIC bucket named `app-assets` in Supabase Storage by hand. **Whether it exists: unverified** |
+| 23 | Table `mascot_images` | Primary key `key` (`smile`, `wave`, `cheer`, `lift`, `focus`, `sleep`, `avatar`, `logo_white`); `kind` is `expression`, `avatar` or `logo`; `image_url` (empty means not uploaded yet), `alt_text`, `width`, `height`, `is_active`, `updated_at`. The starting rows have **no image addresses**, so until pictures are uploaded and their URLs set, nothing is returned for them |
+| 24 | Table `mascot_messages` | `id`, `key` (the situation), `locale`, `priority` (lower wins), `expression` (a foreign key to `mascot_images.key`), `message`, `scenario` and `shown_when` (notes for editors), `is_active`, `created_at`, `updated_at`. Index `mascot_messages_lookup` on `(locale, is_active, priority)`. Sixteen starting messages (one per situation) are inserted only if the table is empty |
+| 25 | Function `mascot_touch_updated_at()` and triggers `mascot_images_touch`, `mascot_messages_touch` | Keep `updated_at` current on every edit; `get_mascot_content` uses it as the content `version` |
+| 26 | RLS on both tables; policy `public read` (SELECT, `anon` and `authenticated`, `using true`); app roles have `SELECT` only | Nobody can write from the app; edit the tables in the Supabase Table Editor |
+| 27 | Function `get_mascot_content(p_locale text default 'en')` | `STABLE`, **not** `SECURITY DEFINER`; executable by `anon` and `authenticated`, so it works before sign-in. See [overview.md](overview.md) |
+| 28 | `cms` row `config.mascot_almost_seconds` = `180` | Inserted only if the key had never been set. Seconds left at which the mascot switches to "almost there". **Current value: unverified** (the snapshot has no data) |
+
 ## Also in the live database but in no migration (origin unverified)
 
 - Function `rls_auto_enable()` (an event trigger function that turns on row level security for new tables in `public`). It appears in the snapshot with `EXECUTE` for `anon` and `authenticated`. It may be a Supabase default or may have been added by hand; this cannot be told from the repo.

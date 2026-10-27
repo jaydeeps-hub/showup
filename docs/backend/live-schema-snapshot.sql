@@ -433,6 +433,38 @@ end
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.get_mascot_content(p_locale text DEFAULT 'en'::text)
+ RETURNS json
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public'
+AS $function$
+  select json_build_object(
+    'version', coalesce((extract(epoch from greatest(
+                 (select max(updated_at) from public.mascot_images),
+                 (select max(updated_at) from public.mascot_messages))) * 1000)::bigint, 0),
+    'images', coalesce((
+      select json_object_agg(i.key, json_build_object(
+               'kind', i.kind, 'url', i.image_url, 'alt', i.alt_text,
+               'width', i.width, 'height', i.height,
+               'v', (extract(epoch from i.updated_at) * 1000)::bigint))
+      from public.mascot_images i
+      where i.is_active and i.image_url <> ''), '{}'::json),
+    'messages', coalesce((
+      select json_agg(json_build_object(
+               'id', m.id, 'key', m.key, 'locale', m.locale, 'priority', m.priority,
+               'expression', m.expression, 'message', m.message)
+             order by m.priority, m.id)
+      from public.mascot_messages m
+      where m.is_active
+        and (m.locale = p_locale
+             or (m.locale = 'en' and not exists (
+                   select 1 from public.mascot_messages x
+                   where x.is_active and x.key = m.key and x.locale = p_locale)))), '[]'::json)
+  )
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.get_pause_state()
  RETURNS json
  LANGUAGE plpgsql
@@ -536,6 +568,18 @@ CREATE OR REPLACE FUNCTION public.local_today(p_user uuid)
  SET search_path TO 'public'
 AS $function$
   select (now() at time zone coalesce((select timezone from public.profiles where id = p_user), 'Asia/Kolkata'))::date
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.mascot_touch_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+begin
+  new.updated_at := now();
+  return new;
+end
 $function$
 ;
 
@@ -966,10 +1010,14 @@ get_app_config  authenticated  EXECUTE
 get_calendar  authenticated  EXECUTE
 get_goal_state  authenticated  EXECUTE
 get_home_summary  authenticated  EXECUTE
+get_mascot_content  anon  EXECUTE
+get_mascot_content  authenticated  EXECUTE
 get_pause_state  authenticated  EXECUTE
 get_showup_state  authenticated  EXECUTE
 goal_for_week  anon  EXECUTE
 goal_for_week  authenticated  EXECUTE
+mascot_touch_updated_at  anon  EXECUTE
+mascot_touch_updated_at  authenticated  EXECUTE
 record_showup  authenticated  EXECUTE
 rls_auto_enable  anon  EXECUTE
 rls_auto_enable  authenticated  EXECUTE
@@ -986,6 +1034,8 @@ use_pause  authenticated  EXECUTE
 -- TRIGGERS
 
 CREATE TRIGGER gyms_set_updated_at BEFORE UPDATE ON public.gyms FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER mascot_images_touch BEFORE UPDATE ON public.mascot_images FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
+CREATE TRIGGER mascot_messages_touch BEFORE UPDATE ON public.mascot_messages FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
 CREATE TRIGGER profiles_set_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER showups_set_local_date BEFORE INSERT ON public.showups FOR EACH ROW EXECUTE FUNCTION set_showup_local_date();
 
@@ -1003,6 +1053,8 @@ goal_history  "own rows"  SELECT  roles={public}  using=(user_id = auth.uid())  
 gyms  "gyms: insert own"  INSERT  roles={authenticated}  using=-  check=(user_id = ( SELECT auth.uid() AS uid))
 gyms  "gyms: read own"  SELECT  roles={authenticated}  using=(user_id = ( SELECT auth.uid() AS uid))  check=-
 gyms  "gyms: update own"  UPDATE  roles={authenticated}  using=(user_id = ( SELECT auth.uid() AS uid))  check=(user_id = ( SELECT auth.uid() AS uid))
+mascot_images  "public read"  SELECT  roles={anon,authenticated}  using=true  check=-
+mascot_messages  "public read"  SELECT  roles={anon,authenticated}  using=true  check=-
 profiles  "profiles: read own"  SELECT  roles={authenticated}  using=(id = ( SELECT auth.uid() AS uid))  check=-
 profiles  "profiles: update own"  UPDATE  roles={authenticated}  using=(id = ( SELECT auth.uid() AS uid))  check=(id = ( SELECT auth.uid() AS uid))
 showup_checks  "own rows"  SELECT  roles={public}  using=(user_id = ( SELECT auth.uid() AS uid))  check=-
@@ -1023,6 +1075,9 @@ CREATE UNIQUE INDEX gyms_id_user_id_key ON public.gyms USING btree (id, user_id)
 CREATE UNIQUE INDEX gyms_one_active_per_user_idx ON public.gyms USING btree (user_id) WHERE is_active;
 CREATE UNIQUE INDEX gyms_pkey ON public.gyms USING btree (id);
 CREATE INDEX gyms_user_id_created_at_idx ON public.gyms USING btree (user_id, created_at DESC);
+CREATE UNIQUE INDEX mascot_images_pkey ON public.mascot_images USING btree (key);
+CREATE INDEX mascot_messages_lookup ON public.mascot_messages USING btree (locale, is_active, priority);
+CREATE UNIQUE INDEX mascot_messages_pkey ON public.mascot_messages USING btree (id);
 CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
 CREATE UNIQUE INDEX showup_checks_pkey ON public.showup_checks USING btree (id);
 CREATE UNIQUE INDEX showup_checks_session_id_due_at_seconds_key ON public.showup_checks USING btree (session_id, due_at_seconds);
@@ -1058,6 +1113,25 @@ gyms.longitude  double precision  null=NO  default=-
 gyms.is_active  boolean  null=NO  default=true
 gyms.created_at  timestamp with time zone  null=NO  default=now()
 gyms.updated_at  timestamp with time zone  null=NO  default=now()
+mascot_images.key  text  null=NO  default=-
+mascot_images.kind  text  null=NO  default=-
+mascot_images.image_url  text  null=NO  default=''::text
+mascot_images.alt_text  text  null=YES  default=-
+mascot_images.width  integer  null=YES  default=-
+mascot_images.height  integer  null=YES  default=-
+mascot_images.is_active  boolean  null=NO  default=true
+mascot_images.updated_at  timestamp with time zone  null=NO  default=now()
+mascot_messages.id  bigint  null=NO  default=-
+mascot_messages.key  text  null=NO  default=-
+mascot_messages.locale  text  null=NO  default='en'::text
+mascot_messages.priority  integer  null=NO  default=-
+mascot_messages.expression  text  null=NO  default=-
+mascot_messages.message  text  null=NO  default=-
+mascot_messages.scenario  text  null=YES  default=-
+mascot_messages.shown_when  text  null=YES  default=-
+mascot_messages.is_active  boolean  null=NO  default=true
+mascot_messages.created_at  timestamp with time zone  null=NO  default=now()
+mascot_messages.updated_at  timestamp with time zone  null=NO  default=now()
 profiles.id  uuid  null=NO  default=-
 profiles.first_name  text  null=YES  default=-
 profiles.last_name  text  null=YES  default=-

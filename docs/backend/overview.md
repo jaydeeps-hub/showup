@@ -47,6 +47,12 @@ Primary key `(user_id, week_start)`; `goal_days`, `showup_days`, `status` (`achi
 ### `showup_checks` (one row per location check, Phase 6) — applied manually
 `session_id`, `user_id`, `checkpoint_no` (0 is the tap on Show up), `due_at_seconds` (scheduled, seconds after the start), `elapsed_seconds` (when it really happened, server clock), `checked_at`, `distance_meters`, `accuracy_meters`, `passed`. Unique `(session_id, due_at_seconds)`. Users can only read their own rows.
 
+### `mascot_images` (the mascot's pictures, Phase 7) — applied manually
+Primary key `key`. `kind` (`expression`, `avatar`, `logo`), `image_url` (empty until a picture is uploaded), `alt_text`, `width`, `height` (the picture's shape in pixels), `is_active`, `updated_at` (kept current by a trigger). Readable by everyone, writable by nobody from the app.
+
+### `mascot_messages` (what the mascot says, Phase 7) — applied manually
+`id`, `key` (a situation the app knows, for example `one_to_go`), `locale`, `priority` (**lower wins**), `expression` (must name a `mascot_images.key`), `message` (may contain `{goal} {done} {next} {left} {remaining} {wk} {total}`), `scenario` and `shown_when` (notes for editors only), `is_active`, `created_at`, `updated_at`. The app decides which situations are true right now; this table decides which true one wins and what it says. Readable by everyone, writable by nobody from the app.
+
 ### Triggers (public schema)
 `gyms_set_updated_at`, `profiles_set_updated_at` (both `set_updated_at`), `showups_set_local_date` (BEFORE INSERT on `showups`).
 
@@ -128,6 +134,24 @@ Sets a running session to `cancelled`. True if one was cancelled, false if there
 
 The helpers `showup_grace_seconds()` (1800), `showup_checkpoints(int, int)` and `showup_session_json(uuid)` are internal and not granted to `anon` or `authenticated`.
 
+## Mascot RPC (Phase 7)
+
+Source: `docs/backend/phase7a_mascot_tables.sql`, identical to the live snapshot.
+
+### `get_mascot_content(p_locale text default 'en')` → json
+**Callable before sign-in** (`anon` and `authenticated`); `STABLE`, not `SECURITY DEFINER` (the tables allow public reads). Returns
+```
+{ version: bigint,
+  images:   { <key>: { kind, url, alt, width, height, v } },
+  messages: [ { id, key, locale, priority, expression, message } ] }
+```
+- `version` is the newest `updated_at` across both tables, in milliseconds (0 if both are empty). It changes whenever anything is edited.
+- `images` holds only **active** pictures with a **non-empty** address, keyed by `mascot_images.key`. `v` is that picture's own `updated_at` in milliseconds (used to bust the browser cache).
+- `messages` holds the active rows ordered by `priority`, then `id`. A row is included if its `locale` is the requested one, or if it is English and that key has no active row in the requested locale (so a missing translation falls back to English per message).
+- No error codes: it only reads. An empty database gives `{ version: 0, images: {}, messages: [] }`.
+
+The app side is in [../frontend/screens-and-rpcs.md](../frontend/screens-and-rpcs.md#the-mascot-phase-7c-logic-only-not-yet-on-a-screen).
+
 ## Internal helpers
 
 Not granted to `anon` or `authenticated` in the snapshot, except where noted, so the browser cannot call them with someone else's id.
@@ -160,5 +184,6 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `gyms` | read own; insert own; update own |
 | `showups` | read own; insert own at own active gym (**still open**, see roadmap phase 8) |
 | `showup_sessions`, `showup_checks` | read own rows (`user_id = auth.uid()`); no write policy and no write grant, so only the functions write |
+| `mascot_images`, `mascot_messages` | `public read` (SELECT for `anon` and `authenticated`, `using true`); no write policy or grant, so nobody writes from the app |
 | `goal_history`, `week_pauses`, `weekly_results` | read own rows (`user_id = auth.uid()`); no write policy, so only the SQL functions write |
 | `cms` | `Enable read access for all users` and `cms read` (both select, `using true`, role `public`); `cms: public can read landing page content` (select, `anon`/`authenticated`, only `lpage_banner` and `tnc`); `cms admin write` (all, admins only) |

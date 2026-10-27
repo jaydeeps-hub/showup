@@ -5,6 +5,7 @@ import ButtonBase from '@mui/material/ButtonBase'
 import { tokens } from '../design-system/tokens'
 import type { EnginePhase } from '../services/showupEngine'
 import { formatRemaining } from '../utils/showupSession'
+import { useShowupActions, useShowupSelector } from '../hooks/showupSessionContext'
 import { Loader } from './Loader'
 
 /** The ring, from the design prototype (docs/design/showup-prototype.html, .su): a 208px drawing around the button. */
@@ -150,5 +151,30 @@ export function ShowUpButton({ state, remainingSeconds, progress, checksDone, ch
         </>
       )}
     </Box>
+  )
+}
+
+/**
+ * The Show up button wired to the timed Show Up engine. It reads the clock itself, so the screen that
+ * holds it (Home) does not re-render on every tick of a running timer; only this button (the countdown
+ * and the ring) does.
+ */
+export function ConnectedShowUpButton() {
+  const { start, stop } = useShowupActions()
+  const state = useShowupSelector((s) => s.phase)
+  const remainingSeconds = useShowupSelector((s) => s.remainingSeconds)
+  const progress = useShowupSelector((s) => s.progress)
+  const checksDone = useShowupSelector((s) => s.checksDone)
+  const checksTotal = useShowupSelector((s) => s.checksTotal)
+  return (
+    <ShowUpButton
+      state={state}
+      remainingSeconds={remainingSeconds}
+      progress={progress}
+      checksDone={checksDone}
+      checksTotal={checksTotal}
+      onStart={start}
+      onStop={stop}
+    />
   )
 }

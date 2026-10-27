@@ -44,4 +44,6 @@ Radius: 14 controls, inputs, buttons and rows; 12 small controls; 18 large cards
 - **Landing page buttons** use 14px radius and 54/48px heights (the earlier pill style was dropped).
 - **Home greeting** always reads "Welcome back" (the prototype shows "Welcome" before the first showup).
 - **Calendar** uses arrow buttons only; the prototype also supports swiping.
-- **Not built yet (prototype only):** the mascot and speech bubble, the 15-minute Show Up ring and timer, the "Demo: leave the gym early" link (never to be built), and the "Gyms near me" toggle.
+- **The prototype was updated** (the mascot row, a table of mascot messages marked CMS-ready, and a `missed_checks` line were added). The app does **not** use the prototype's drawn mascot (its SVG function). The mascot will use **PNG pictures from the database** (`mascot_images`, in the public `app-assets` bucket), with the words from `mascot_messages`; the decision logic is built (see screens-and-rpcs.md) but nothing is drawn yet. With no picture uploaded, the words show alone.
+- **The mascot is on Home** as PNGs from the database (104px high, decorative) with a speech bubble in the prototype's `.bub` style. It is not drawn on the goal screen, the Profile avatar or the landing page yet.
+- **Not built (prototype only):** the mascot on the goal screen, the "Demo: leave the gym early" link (never to be built), and the "Gyms near me" toggle. (The Show Up ring and timer exist since Phase 6c, but the timer length and checks come from the database, not the prototype's fixed 15 minutes.)

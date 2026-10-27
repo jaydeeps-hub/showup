@@ -173,6 +173,53 @@ export interface CheckShowupResult {
   session: ShowupSession
 }
 
+/*
+ * The mascot (Phase 7). These mirror the JSON `get_mascot_content` returns, so the names are snake_case
+ * where the database's are.
+ */
+
+/** One picture. Pictures with no address are left out by the database, so `url` is never empty here. */
+export interface MascotImage {
+  kind: string
+  url: string
+  alt: string | null
+  width: number | null
+  height: number | null
+  /** The picture's last-changed time in milliseconds. Added to the address so a changed picture is fetched again. */
+  v: number
+}
+
+/** One thing the mascot can say. The database sends them already ordered by `priority`, then `id`. */
+export interface MascotMessage {
+  id: number
+  key: string
+  locale: string
+  /** Lower wins. */
+  priority: number
+  /** Names a picture in `images`. */
+  expression: string
+  message: string
+}
+
+/** What `get_mascot_content` returns. */
+export interface MascotContent {
+  /** Changes whenever anything in the mascot tables is edited. The app swaps content in only when it changes. */
+  version: number
+  images: Record<string, MascotImage>
+  messages: MascotMessage[]
+}
+
+/** A picture ready to draw: the address (with its cache-busting suffix) and its shape. */
+export interface MascotPicture {
+  url: string
+  width: number | null
+  height: number | null
+  alt: string | null
+}
+
+/** How the last timed Show Up ended, when it ended badly. Cleared by the next start. */
+export type LastOutcome = 'left_early' | 'missed_checks'
+
 /** A position for the timed Show Up: whole-number accuracy in metres, as the database functions expect. */
 export interface DevicePosition {
   lat: number

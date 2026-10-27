@@ -16,6 +16,8 @@ export interface AppConfig {
   pausePassesPerMonth: number
   /** How many weeks ahead a pause can be booked. */
   pauseMaxWeeksAhead: number
+  /** Seconds left on a Show Up timer at which the mascot switches to "almost there". */
+  mascotAlmostSeconds: number
 }
 
 /** Used whenever a value is missing or cannot be read. */
@@ -24,6 +26,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   calendarStartMonth: '2026-06',
   pausePassesPerMonth: 3,
   pauseMaxWeeksAhead: 1,
+  mascotAlmostSeconds: 180,
 }
 
 /** How long a fetched config is reused before it is fetched again. */
@@ -53,6 +56,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
     calendarStartMonth: parseMonth(source.calendar_start_month, d.calendarStartMonth),
     pausePassesPerMonth: parseWholeNumber(source.pause_passes_per_month, d.pausePassesPerMonth, 0),
     pauseMaxWeeksAhead: parseWholeNumber(source.pause_max_weeks_ahead, d.pauseMaxWeeksAhead, 0),
+    mascotAlmostSeconds: parseWholeNumber(source.mascot_almost_seconds, d.mascotAlmostSeconds, 0),
   }
 }
 

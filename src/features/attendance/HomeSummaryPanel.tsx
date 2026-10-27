@@ -2,6 +2,7 @@ import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
+import type { ReactNode } from 'react'
 import { Loader } from '../../components/Loader'
 import { home } from '../../design-system/homeTokens'
 import type { HomeSummaryState } from '../../hooks/useHomeSummary'
@@ -111,10 +112,15 @@ interface HomeSummarySectionsProps {
   /** Today as `YYYY-MM-DD`, used to find this week's Monday. */
   today: string
   onSetGoal?: () => void
+  /** Shown right under the summary cards and above the loading line, paused banner and week progress. */
+  afterCards?: ReactNode
 }
 
-/** The summary cards at the top of Home (above the Show Up button). */
-export function HomeSummaryTop({ state, today, onSetGoal }: HomeSummarySectionsProps) {
+/**
+ * The summary cards at the top of Home (above the Show Up button). `afterCards` lets Home place the
+ * mascot between the cards and the paused banner / week progress, as in the design.
+ */
+export function HomeSummaryTop({ state, today, onSetGoal, afterCards }: HomeSummarySectionsProps) {
   if (state.status === 'error') {
     return (
       <Alert
@@ -137,6 +143,7 @@ export function HomeSummaryTop({ state, today, onSetGoal }: HomeSummarySectionsP
   return (
     <>
       <KpiCards totalShowups={ready?.summary.totalShowups ?? null} weeksInARow={ready?.summary.weeksInARow ?? null} />
+      {afterCards}
       {state.status === 'loading' && (
         <Box role="status" sx={{ display: 'flex', alignItems: 'center', gap: 3, mt: 4, color: c.muted, fontSize: 14 }}>
           <Loader size={16} color={c.accentText} />

@@ -1,5 +1,5 @@
 import { SHOWUP_RETRY_MS, SHOWUP_TICK_MS } from '../config/constants'
-import type { CheckShowupResult, DevicePosition, ShowupSession, SessionStatus } from '../types'
+import type { CheckShowupResult, DevicePosition, LastOutcome, ShowupSession, SessionStatus } from '../types'
 import { computeServerOffsetMs, nextDueCheckpoint, remainingSeconds, sessionProgress } from '../utils/showupSession'
 import { isPositionFailure, type PositionFailure } from './devicePosition'
 import type { ServiceResult } from './showupSessionService'
@@ -54,6 +54,12 @@ export interface EngineSnapshot {
   showedUpToday: boolean
   /** Goes up by one each time a visit finishes or turns out to be already counted, so screens know to reload their numbers. */
   completions: number
+  /**
+   * How the most recent timer ended, when it ended badly (the user left, or too many checks were missed).
+   * It stays until the user starts again. Unlike `event` it is not consumed, so any screen can read it, and
+   * it is not remembered across a page reload.
+   */
+  lastOutcome: LastOutcome | null
 }
 
 /** What the engine needs from the outside world. Passed in so tests can fake all of it. */
@@ -88,6 +94,7 @@ export class ShowupEngine {
     event: null,
     showedUpToday: false,
     completions: 0,
+    lastOutcome: null,
   }
   private listeners = new Set<() => void>()
 
@@ -167,7 +174,7 @@ export class ShowupEngine {
     this.busy = false
     this.session = null
     this.announcedProblem = null
-    this.publish({ phase: 'idle', remainingSeconds: 0, progress: 0, checksDone: 0, checksTotal: 0 })
+    this.publish({ phase: 'idle', remainingSeconds: 0, progress: 0, checksDone: 0, checksTotal: 0, lastOutcome: null })
   }
 
   // --- Public actions ----------------------------------------------------------------------
@@ -180,7 +187,8 @@ export class ShowupEngine {
     this.busy = true
     const gymId = this.gymId
     const generation = this.generation
-    this.publish({ phase: 'checking' })
+    // A new attempt: whatever went wrong last time is history.
+    this.publish({ phase: 'checking', lastOutcome: null })
     try {
       let position: DevicePosition
       try {
@@ -329,6 +337,8 @@ export class ShowupEngine {
       checksDone: status === 'completed' && session ? session.location_checks_total : 0,
       checksTotal: session?.location_checks_total ?? 0,
       completions: this.snapshot.completions + (status === 'completed' ? 1 : 0),
+      // Only a bad ending is remembered. A good one, a stop by the user, or an expiry clears it.
+      lastOutcome: status === 'left_early' || status === 'missed_checks' ? status : null,
     })
     this.emit(END_EVENT[status], status === 'completed' ? recorded : undefined)
   }

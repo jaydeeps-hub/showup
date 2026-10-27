@@ -367,6 +367,82 @@ describe('the end of a session', () => {
   })
 })
 
+describe('the last outcome (what the mascot remembers about a bad ending)', () => {
+  it('starts as none', () => {
+    expect(setup().engine.getSnapshot().lastOutcome).toBeNull()
+  })
+
+  it.each(['left_early', 'missed_checks'] as const)('remembers "%s" after the timer ends that way', async (result) => {
+    const { engine } = setup({ check: vi.fn(async () => ok(checkAnswer(result))) })
+    await engine.start()
+    await advance(10_500)
+    expect(engine.getSnapshot().lastOutcome).toBe(result)
+  })
+
+  it('keeps it after the event has been consumed, because it is not a one-shot', async () => {
+    const { engine } = setup({ check: vi.fn(async () => ok(checkAnswer('left_early'))) })
+    await engine.start()
+    await advance(10_500)
+    engine.clearEvent()
+    expect(engine.getSnapshot().event).toBeNull()
+    expect(engine.getSnapshot().lastOutcome).toBe('left_early')
+  })
+
+  it.each(['completed', 'expired'] as const)('is not set by "%s"', async (result) => {
+    const { engine } = setup({ check: vi.fn(async () => ok(checkAnswer(result, result === 'completed' ? { recorded: true } : {}))) })
+    await engine.start()
+    await advance(10_500)
+    expect(engine.getSnapshot().lastOutcome).toBeNull()
+  })
+
+  it('is cleared when the user starts again', async () => {
+    const check = vi.fn<EngineDependencies['check']>()
+    check.mockResolvedValueOnce(ok(checkAnswer('left_early')))
+    check.mockResolvedValue(ok(checkAnswer('running', { check_passed: true }, sessionWithCheckpointDone(10))))
+    const { engine } = setup({ check })
+    await engine.start()
+    await advance(10_500)
+    expect(engine.getSnapshot().lastOutcome).toBe('left_early')
+
+    await engine.start()
+    expect(engine.getSnapshot().lastOutcome).toBeNull()
+    expect(engine.getSnapshot().phase).toBe('running')
+  })
+
+  it('is cleared as soon as a new start begins, even if that start then fails', async () => {
+    const start = vi.fn<EngineDependencies['start']>()
+    start.mockResolvedValueOnce(ok({ already_done: false, session: session() }))
+    start.mockResolvedValue(fail('too_far'))
+    const { engine } = setup({ start, check: vi.fn(async () => ok(checkAnswer('missed_checks'))) })
+    await engine.start()
+    await advance(10_500)
+    expect(engine.getSnapshot().lastOutcome).toBe('missed_checks')
+
+    await engine.start() // fails with too_far
+    expect(engine.getSnapshot().lastOutcome).toBeNull()
+  })
+
+  it('is cleared when the user stops a later timer', async () => {
+    const check = vi.fn<EngineDependencies['check']>()
+    check.mockResolvedValueOnce(ok(checkAnswer('left_early')))
+    const { engine } = setup({ check })
+    await engine.start()
+    await advance(10_500)
+    expect(engine.getSnapshot().lastOutcome).toBe('left_early')
+    await engine.start()
+    await engine.stop()
+    expect(engine.getSnapshot().lastOutcome).toBeNull()
+  })
+
+  it('is forgotten when the engine is destroyed (a different user, or a fresh load)', async () => {
+    const { engine } = setup({ check: vi.fn(async () => ok(checkAnswer('left_early'))) })
+    await engine.start()
+    await advance(10_500)
+    engine.destroy()
+    expect(engine.getSnapshot().lastOutcome).toBeNull()
+  })
+})
+
 describe('stopping', () => {
   it('cancels the session on the server and goes idle', async () => {
     const { engine, deps, events } = setup()

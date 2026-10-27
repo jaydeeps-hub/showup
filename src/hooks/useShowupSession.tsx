@@ -3,7 +3,7 @@ import { getPosition } from '../services/devicePosition'
 import { ShowupEngine, type EngineDependencies } from '../services/showupEngine'
 import { cancelShowup, checkShowup, getShowupState, startShowup } from '../services/showupSessionService'
 import { acquireWakeLock, reacquireWakeLockIfWanted, releaseWakeLock } from '../services/wakeLock'
-import { ShowupSessionContext, type ShowupSessionValue } from './showupSessionContext'
+import { ShowupSessionContext, ShowupStoreContext, type ShowupSessionValue, type ShowupStore } from './showupSessionContext'
 
 /**
  * The timed Show Up, available to the whole app (read it with `useShowupSession()` from
@@ -74,6 +74,7 @@ export function ShowupProvider({ gymId, userId, children }: ShowupProviderProps)
       checksTotal: snapshot.checksTotal,
       showedUpToday: snapshot.showedUpToday,
       completions: snapshot.completions,
+      lastOutcome: snapshot.lastOutcome,
       event: snapshot.event,
       clearEvent: engine.clearEvent,
       start: () => void engine.start(),
@@ -82,5 +83,21 @@ export function ShowupProvider({ gymId, userId, children }: ShowupProviderProps)
     [engine, snapshot],
   )
 
-  return <ShowupSessionContext.Provider value={value}>{children}</ShowupSessionContext.Provider>
+  // The same engine, offered a second way: components that need only one value (the minutes left, whether
+  // it is running) subscribe to just that, so they do not re-render on every tick. See useShowupSelector.
+  const store = useMemo<ShowupStore>(
+    () => ({
+      subscribe: engine.subscribe,
+      getSnapshot: engine.getSnapshot,
+      start: () => void engine.start(),
+      stop: () => void engine.stop(),
+    }),
+    [engine],
+  )
+
+  return (
+    <ShowupStoreContext.Provider value={store}>
+      <ShowupSessionContext.Provider value={value}>{children}</ShowupSessionContext.Provider>
+    </ShowupStoreContext.Provider>
+  )
 }
