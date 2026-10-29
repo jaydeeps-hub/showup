@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient'
 
 /**
  * Settings that can be changed in the database without releasing a new app version (the `config.*`
- * rows in the `cms` table). They are fetched through `get_app_config()` and kept for about an hour.
+ * rows in the `config` table, renamed from `cms` in Phase 9). They are fetched through `get_app_config()` and kept for about an hour.
  * Every value has a safe built-in default, because these rows are edited by hand: a missing, empty
  * or unreadable value never breaks the app, it just falls back.
  */

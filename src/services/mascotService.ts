@@ -1,6 +1,6 @@
 import type { MascotContent, MascotImage, MascotMessage } from '../types'
 import { isRecord, toCount } from '../utils/jsonShape'
-import { toSafeImageUrl } from './cmsService'
+import { toSafeImageUrl } from '../utils/imageUrl'
 import { supabase } from './supabaseClient'
 
 /**

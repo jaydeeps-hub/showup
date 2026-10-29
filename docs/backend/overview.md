@@ -4,7 +4,7 @@ Source of truth for this page: [live-schema-snapshot.sql](live-schema-snapshot.s
 
 The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 tables and functions (timed Show Up).
 
-**Not in the snapshot, so unverified here:** table constraints and foreign keys of the hand-made tables, table-level `GRANT`s, the contents of `cms`, the event trigger that calls `rls_auto_enable`, and triggers on `auth.users`.
+**Not in the snapshot, so unverified here:** table constraints and foreign keys of the hand-made tables, table-level `GRANT`s, the contents of `config` (renamed from `cms` in Phase 9), the event trigger that calls `rls_auto_enable`, and triggers on `auth.users`.
 
 ## Tables
 
@@ -13,7 +13,7 @@ The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 table
 |---|---|
 | `id` uuid | Same as `auth.users.id` |
 | `first_name`, `last_name`, `date_of_birth` | Editable by the user (column grants from migration 3; later changes unverified) |
-| `is_admin` bool, default false | Never writable by app users. Enables the admin-only "any place" gym search and `cms` writes |
+| `is_admin` bool, default false | Never writable by app users. Enables the admin-only "any place" gym search and `config` writes |
 | `place_search_mode` text, default `fitness_only` | `fitness_only` or `any_place`; changed only through `set_place_search_mode` |
 | `timezone` text, default `Asia/Kolkata` | The user's timezone. Drives `local_today`, `showups.local_date` and every week boundary. Set by `set_my_timezone`. **Applied manually** |
 
@@ -29,8 +29,12 @@ The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 table
 | `distance_meters`, `location_accuracy_meters` | Measured by `record_showup` / sent by the device |
 | `verification_method` text, default `gps` | Always the default today |
 
-### `cms` (content and settings, edited by hand)
-`id` bigint, `created_at`, `content_type` text, `value` text. Rows used by the app: `lpage_banner` (id 1, image URL), `tnc` (id 2, Markdown), and the `config.*` settings (see [rules-and-decisions.md](rules-and-decisions.md#config-keys)). Insert a new row to change a value; the newest row per `content_type` wins.
+### `config` (content and settings, edited by hand; now config (renamed in Phase 9))
+This is the old `cms` table, renamed with all its rows. A **different, new table is now called `cms`**: see below.
+`id` bigint, `created_at`, `content_type` text, `value` text. Rows used by the app: `lpage_banner` (image URL), `tnc` (Markdown), `landing.carousel_heading` (text, default "Why it works"), and the `config.*` settings (see [rules-and-decisions.md](rules-and-decisions.md#config-keys)). Insert a new row to change a value; the newest row per `content_type` wins. The landing page reads its three keys with one request (`services/landingContent.ts`), before sign-in.
+
+### `cms` (the new table: landing cards and Quick Start slides, Phase 9) — applied manually
+One row per card or slide: `category` (`landing_carousel` or `quick_start`), `position`, `slug`, `heading`, `subheading`, `image_url` (empty means the app shows a mascot picture), `image_alt`, `is_active`, `created_at`, `updated_at`. Eight starting rows (4 carousel cards, 4 Quick Start slides). Readable by everyone, writable by nobody from the app. Read through `get_cms_content()` (callable before sign-in). **The app does not read this table or that function yet** (a later step). Source: `docs/backend/phase9a_cms_and_config.sql`.
 
 ### `goal_history` (weekly goal, append-only by RPC) — applied manually
 `user_id`, `days_per_week` smallint, `effective_from` date (a Monday), `created_at`. Unique `(user_id, effective_from)`. The goal for a week is the row with the latest `effective_from <= that Monday` (`goal_for_week`).
@@ -166,7 +170,7 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `cfg_int(p_key text, p_default int)` | int | A config value as a whole number, or the default if missing or not a number |
 | `passes_used_in_month(p_user, p_month)` | int | Count of `week_pauses` whose `used_month` is that month (ended pauses included) |
 | `goal_for_week(p_user uuid, p_week date)` | smallint | The goal in force that week, or null. **Applied manually. Executable by `anon` and `authenticated`**; it is not `SECURITY DEFINER`, so it only sees rows the caller's row level security allows (their own `goal_history`) |
-| `cfg(k text, d text)` | text | Newest `cms.value` for `content_type = k`, else `d`. **Applied manually. Executable by `anon` and `authenticated`**; not `SECURITY DEFINER`, and `cms` is readable by everyone per the snapshot (see rules, Security) |
+| `cfg(k text, d text)` | text | Newest `config.value` for `content_type = k`, else `d`. **Applied manually. Executable by `anon` and `authenticated`**; not `SECURITY DEFINER`, and `config` is readable by everyone per the snapshot (see rules, Security) |
 
 ## Other functions in the snapshot
 | Function | Notes |
@@ -186,4 +190,5 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `showup_sessions`, `showup_checks` | read own rows (`user_id = auth.uid()`); no write policy and no write grant, so only the functions write |
 | `mascot_images`, `mascot_messages` | `public read` (SELECT for `anon` and `authenticated`, `using true`); no write policy or grant, so nobody writes from the app |
 | `goal_history`, `week_pauses`, `weekly_results` | read own rows (`user_id = auth.uid()`); no write policy, so only the SQL functions write |
-| `cms` | `Enable read access for all users` and `cms read` (both select, `using true`, role `public`); `cms: public can read landing page content` (select, `anon`/`authenticated`, only `lpage_banner` and `tnc`); `cms admin write` (all, admins only) |
+| `config` (was `cms`) | `Enable read access for all users` and `config read` (renamed from `cms read`; both select, `using true`, role `public`); `cms: public can read landing page content` (select, `anon`/`authenticated`, only `lpage_banner` and `tnc`); `config admin write` (renamed from `cms admin write`; all, admins only). Based on the pre-rename snapshot; the policy names after the rename are from `phase9a_cms_and_config.sql`, and the live policy list has not been re-read |
+| `cms` (new) | `public read` (select, `anon` and `authenticated`, `using true`); no write grant |

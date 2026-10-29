@@ -140,26 +140,26 @@ select
 
 **End-to-end:** sign in as a normal user, tap your name to open the Profile page and confirm there is no "Gym search" setting. Make yourself an administrator (section 4), reload, and the setting appears. Switch to **Any place**, refresh, and confirm it is still selected.
 
-### Verify the landing page content (cms)
+### Verify the landing page content (config; now config (renamed in Phase 9))
 
-**A signed-out visitor can read exactly the two landing page rows** (expect 2 rows):
+**A signed-out visitor can read the landing page rows** (expect `lpage_banner`, `tnc` and `landing.carousel_heading`; the table's read policy may also allow the other `config.*` rows):
 
 ```sql
 set role anon;
-select id, content_type, left(value, 60) as value_start from public.cms order by id;
+select id, content_type, left(value, 60) as value_start from public.config order by id;
 reset role;
 ```
 
-**Nobody can write to cms from the browser** (expect `false`, `false`, `false`):
+**Nobody can write to config from the browser** (expect `false`, `false`, `false`):
 
 ```sql
 select
-  has_table_privilege('anon', 'public.cms', 'INSERT') as anon_insert,
-  has_table_privilege('anon', 'public.cms', 'UPDATE') as anon_update,
-  has_table_privilege('anon', 'public.cms', 'DELETE') as anon_delete;
+  has_table_privilege('anon', 'public.config', 'INSERT') as anon_insert,
+  has_table_privilege('anon', 'public.config', 'UPDATE') as anon_update,
+  has_table_privilege('anon', 'public.config', 'DELETE') as anon_delete;
 ```
 
-If the first query returns no rows although `select * from public.cms` (without `set role anon`) shows them, the policy has not been applied.
+If the first query returns no rows although `select * from public.config` (without `set role anon`) shows them, the policy has not been applied.
 
 ## 5. Troubleshooting
 

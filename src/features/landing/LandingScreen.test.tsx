@@ -7,13 +7,13 @@ import { theme } from '../../app/theme'
 
 /**
  * Journey tests for the landing page, using the REAL screen, hooks, dialog and Markdown rendering.
- * Only the outside world is faked: the CMS lookups and Google sign-in.
+ * Only the outside world is faked: the landing content lookup (the `config` table) and Google sign-in.
  */
 
-const cms = vi.hoisted(() => ({ fetchCmsValue: vi.fn() }))
-vi.mock('../../services/cmsService', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../services/cmsService')>()),
-  fetchCmsValue: cms.fetchCmsValue,
+const content = vi.hoisted(() => ({ fetchLandingContent: vi.fn() }))
+vi.mock('../../services/landingContent', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/landingContent')>()),
+  fetchLandingContent: content.fetchLandingContent,
 }))
 
 const auth = vi.hoisted(() => ({ signInWithGoogle: vi.fn(), consumeRedirectError: vi.fn() }))
@@ -34,6 +34,8 @@ vi.mock('../../config/constants', async (importOriginal) => ({
 }))
 
 const { LandingScreen } = await import('./LandingScreen')
+const { resetLandingContentCache } = await import('../../hooks/useLandingContent')
+const { DEFAULT_BANNER_URL, DEFAULT_LANDING_CONTENT } = await import('../../services/landingContent')
 
 const BANNER_URL = 'https://cdn.example.com/mascot.png'
 const TERMS_MARKDOWN = [
@@ -51,12 +53,22 @@ const TERMS_MARKDOWN = [
   '[bad link](javascript:alert(1))',
 ].join('\n')
 
-/** Answers each CMS lookup by its id, the way the database would. */
-function serveCms(overrides: Partial<Record<number, { status: string; value?: string; message?: string }>> = {}) {
-  cms.fetchCmsValue.mockImplementation(async (entry: { id: number }) => {
-    const custom = overrides[entry.id]
-    if (custom) return custom
-    return entry.id === 1 ? { status: 'found', value: BANNER_URL } : { status: 'found', value: TERMS_MARKDOWN }
+/**
+ * Answers the landing content lookup the way the service would after reading the `config` table. Anything
+ * not given falls back to the same default the real service uses.
+ */
+function serveContent(overrides: { bannerUrl?: string; bannerFromConfig?: boolean; terms?: string | null; failed?: boolean } = {}) {
+  const failed = overrides.failed ?? false
+  content.fetchLandingContent.mockResolvedValue({
+    failed,
+    content: failed
+      ? DEFAULT_LANDING_CONTENT
+      : {
+          bannerUrl: overrides.bannerUrl ?? BANNER_URL,
+          bannerFromConfig: overrides.bannerFromConfig ?? (overrides.bannerUrl ?? BANNER_URL) !== DEFAULT_BANNER_URL,
+          terms: overrides.terms === undefined ? TERMS_MARKDOWN : overrides.terms,
+          carouselHeading: 'Why it works',
+        },
   })
 }
 
@@ -71,9 +83,10 @@ function renderLanding() {
 beforeEach(() => {
   vi.clearAllMocks()
   settings.privacyUrl = ''
+  resetLandingContentCache()
   auth.consumeRedirectError.mockReturnValue(null)
   auth.signInWithGoogle.mockResolvedValue(undefined)
-  serveCms()
+  serveContent()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => {
@@ -93,43 +106,54 @@ describe('content', () => {
   })
 })
 
-describe('banner from the CMS', () => {
-  it('shows the image whose address comes from cms id 1 / lpage_banner, with alt text', async () => {
+describe('banner from the config table', () => {
+  it('shows the image whose address comes from the lpage_banner row, with alt text', async () => {
     renderLanding()
 
     const image = (await screen.findByRole('img', { name: /showup mascot/i })) as HTMLImageElement
     expect(image.src).toBe(BANNER_URL)
-    expect(cms.fetchCmsValue).toHaveBeenCalledWith({ id: 1, contentType: 'lpage_banner' })
+    expect(content.fetchLandingContent).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a loading placeholder first, then the image', async () => {
-    cms.fetchCmsValue.mockImplementation((entry: { id: number }) =>
-      entry.id === 1 ? new Promise(() => {}) : Promise.resolve({ status: 'found', value: TERMS_MARKDOWN }),
-    )
+  it('shows a loading placeholder first, with no picture yet (so the default does not flash)', async () => {
+    content.fetchLandingContent.mockReturnValue(new Promise(() => {}))
     renderLanding()
     expect(screen.queryByRole('img', { name: /showup mascot/i })).toBeNull()
     expect(screen.queryByRole('img', { name: /unavailable/i })).toBeNull()
   })
 
-  it('shows a quiet unavailable frame (and no made-up picture) when the row is missing', async () => {
-    serveCms({ 1: { status: 'not-found' } })
+  it('shows the built-in banner when the table has no banner row', async () => {
+    serveContent({ bannerUrl: DEFAULT_BANNER_URL })
     renderLanding()
 
-    expect(await screen.findByRole('img', { name: /banner image is unavailable/i })).toBeTruthy()
-    expect(screen.queryByRole('img', { name: /showup mascot/i })).toBeNull()
+    const image = (await screen.findByRole('img', { name: /showup mascot/i })) as HTMLImageElement
+    expect(new URL(image.src).pathname).toBe('/images/landing-banner-default.jpg')
   })
 
-  it('shows the unavailable frame when the lookup fails, and the rest of the page still works', async () => {
-    serveCms({ 1: { status: 'error', message: 'permission denied' } })
+  it('shows the built-in banner, and the rest of the page still works, when the lookup fails', async () => {
+    serveContent({ failed: true })
     renderLanding()
 
-    expect(await screen.findByRole('img', { name: /banner image is unavailable/i })).toBeTruthy()
+    const image = (await screen.findByRole('img', { name: /showup mascot/i })) as HTMLImageElement
+    expect(new URL(image.src).pathname).toBe('/images/landing-banner-default.jpg')
     expect(screen.getByRole('button', { name: 'Sign up with Google' })).toBeTruthy()
   })
 
-  it('refuses an address that is not a normal web address', async () => {
-    serveCms({ 1: { status: 'found', value: 'javascript:alert(1)' } })
+  it('falls back to the built-in banner, once, if the configured picture cannot be loaded', async () => {
     renderLanding()
+    const image = (await screen.findByRole('img', { name: /showup mascot/i })) as HTMLImageElement
+    expect(image.src).toBe(BANNER_URL)
+
+    image.dispatchEvent(new Event('error'))
+
+    const fallback = (await screen.findByRole('img', { name: /showup mascot/i })) as HTMLImageElement
+    expect(new URL(fallback.src).pathname).toBe('/images/landing-banner-default.jpg')
+  })
+
+  it('shows a quiet frame, not a loop, if even the built-in banner cannot be loaded', async () => {
+    renderLanding()
+    ;(await screen.findByRole('img', { name: /showup mascot/i })).dispatchEvent(new Event('error'))
+    ;(await screen.findByRole('img', { name: /showup mascot/i })).dispatchEvent(new Event('error'))
 
     expect(await screen.findByRole('img', { name: /banner image is unavailable/i })).toBeTruthy()
     expect(document.querySelector('img')).toBeNull()
@@ -188,20 +212,18 @@ describe('Terms and Conditions popup', () => {
     return screen.findByRole('dialog', { name: 'Terms and Conditions' })
   }
 
-  it('does not load the terms until they are opened', async () => {
+  it('does not open by itself', async () => {
     renderLanding()
     await screen.findByRole('img', { name: /showup mascot/i })
-    expect(cms.fetchCmsValue).not.toHaveBeenCalledWith({ id: 2, contentType: 'tnc' })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('opens a dialog on the same page and loads cms id 2 / tnc', async () => {
+  it('opens a dialog on the same page showing the tnc text from the config table', async () => {
     const user = userEvent.setup()
     renderLanding()
     const dialog = await openTerms(user)
 
     expect(await within(dialog).findByText('1. The Core Purpose')).toBeTruthy()
-    expect(cms.fetchCmsValue).toHaveBeenCalledWith({ id: 2, contentType: 'tnc' })
     // Still on the landing page: the heading is in the document (the modal hides it from screen readers while open).
     expect(screen.getByRole('heading', { level: 1, name: 'Show up for yourself.', hidden: true })).toBeTruthy()
   })
@@ -218,7 +240,7 @@ describe('Terms and Conditions popup', () => {
     expect(dialog.querySelector('strong')?.textContent).toBe('Effective Date:')
   })
 
-  it('never turns CMS text into live HTML or a javascript: link', async () => {
+  it('never turns the stored text into live HTML or a javascript: link', async () => {
     const user = userEvent.setup()
     renderLanding()
     const dialog = await openTerms(user)
@@ -233,19 +255,20 @@ describe('Terms and Conditions popup', () => {
     expect(badLink?.closest('a')?.getAttribute('href') ?? '').not.toMatch(/^javascript:/i)
   })
 
-  it('shows a loading state, then keeps the result when reopened', async () => {
+  it('reads the landing content once for the whole page and keeps the result when reopened', async () => {
     const user = userEvent.setup()
     renderLanding()
     let dialog = await openTerms(user)
     await within(dialog).findByText('1. The Core Purpose')
-    const callsAfterFirstOpen = cms.fetchCmsValue.mock.calls.filter(([e]) => e.id === 2).length
+    const callsAfterFirstOpen = content.fetchLandingContent.mock.calls.length
 
     await user.click(within(dialog).getByRole('button', { name: /close terms/i }))
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     dialog = await openTerms(user)
 
     expect(await within(dialog).findByText('1. The Core Purpose')).toBeTruthy()
-    expect(cms.fetchCmsValue.mock.calls.filter(([e]) => e.id === 2).length).toBe(callsAfterFirstOpen)
+    expect(content.fetchLandingContent.mock.calls.length).toBe(callsAfterFirstOpen)
+    expect(callsAfterFirstOpen).toBe(1) // the banner and the Terms share one request
   })
 
   it('has a visible close button that closes it', async () => {
@@ -266,8 +289,8 @@ describe('Terms and Conditions popup', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
-  it('shows a clear message when the terms row is missing', async () => {
-    serveCms({ 2: { status: 'not-found' } })
+  it('shows a clear message when the table has no Terms', async () => {
+    serveContent({ terms: null })
     const user = userEvent.setup()
     renderLanding()
     const dialog = await openTerms(user)
@@ -276,13 +299,13 @@ describe('Terms and Conditions popup', () => {
   })
 
   it('shows an error with a working retry when the lookup fails', async () => {
-    serveCms({ 2: { status: 'error', message: 'offline' } })
+    serveContent({ failed: true })
     const user = userEvent.setup()
     renderLanding()
     const dialog = await openTerms(user)
     expect(await within(dialog).findByText(/couldn't load the terms/i)).toBeTruthy()
 
-    serveCms() // the connection comes back
+    serveContent() // the connection comes back
     await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
     expect(await within(dialog).findByText('1. The Core Purpose')).toBeTruthy()
   })

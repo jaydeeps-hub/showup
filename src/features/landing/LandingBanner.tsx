@@ -2,24 +2,29 @@ import ImageNotSupportedOutlined from '@mui/icons-material/ImageNotSupportedOutl
 import Box from '@mui/material/Box'
 import Skeleton from '@mui/material/Skeleton'
 import { useState } from 'react'
-import { useCmsValue } from '../../hooks/useCmsValue'
-import { CMS_ENTRIES, toSafeImageUrl } from '../../services/cmsService'
+import { useLandingContent } from '../../hooks/useLandingContent'
+import { DEFAULT_BANNER_URL } from '../../services/landingContent'
 import { landing } from './landingTheme'
 
 /**
- * The mascot banner. The image address comes from the Supabase `cms` table (`id = 1`,
- * `content_type = 'lpage_banner'`); there is no built-in fallback picture.
+ * The mascot banner. The picture's address comes from the Supabase `config` table (renamed from `cms` in
+ * Phase 9; `content_type = 'lpage_banner'`). If the table has none, or it is unusable, or the picture
+ * itself cannot be loaded, the built-in banner (the design's mascot picture) is shown instead, so the
+ * landing page never has a hole where the picture should be.
  *
- * The space is reserved with a fixed aspect ratio from the start, so the page does not jump when
- * the image arrives. While loading it shows a skeleton; if the content or the image itself cannot
- * be loaded it shows a quiet empty frame rather than a broken-image icon.
+ * The space is reserved with a fixed aspect ratio from the start, so the page does not jump when the
+ * image arrives. While the table is being read it shows a skeleton, so a visitor does not see the built-in
+ * picture flash and then change to the configured one.
  */
 export function LandingBanner() {
-  const banner = useCmsValue(CMS_ENTRIES.landingBanner)
-  const [imageFailed, setImageFailed] = useState(false)
+  const { content, status } = useLandingContent()
+  // Every address that failed to load. A bad configured address falls back to the built-in picture, once;
+  // if the built-in picture fails too, a quiet frame is shown. Nothing is ever retried in a loop.
+  const [failed, setFailed] = useState<readonly string[]>([])
 
-  const imageUrl = banner.status === 'found' ? toSafeImageUrl(banner.value) : null
-  const unavailable = banner.status === 'not-found' || banner.status === 'error' || (banner.status === 'found' && !imageUrl) || imageFailed
+  const wanted = content.bannerUrl
+  const url = failed.includes(wanted) ? DEFAULT_BANNER_URL : wanted
+  const nothingToShow = failed.includes(url)
 
   return (
     <Box
@@ -32,21 +37,21 @@ export function LandingBanner() {
         backgroundColor: landing.color.bannerBackground,
       }}
     >
-      {banner.status === 'loading' && (
+      {status === 'loading' && (
         <Skeleton variant="rectangular" animation="wave" sx={{ position: 'absolute', inset: 0, height: '100%', bgcolor: landing.color.skeleton }} />
       )}
 
-      {imageUrl && !imageFailed && (
+      {status !== 'loading' && !nothingToShow && (
         <Box
           component="img"
-          src={imageUrl}
-          alt="The Showup mascot, a cheerful rat in a blue cap and headphones, lifting a barbell in a blue-lit gym"
-          onError={() => setImageFailed(true)}
+          src={url}
+          alt="The Showup mascot, a cheerful hamster in a blue cap and headphones, lifting a barbell in a blue-lit gym"
+          onError={() => setFailed((list) => (list.includes(url) ? list : [...list, url]))}
           sx={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
         />
       )}
 
-      {unavailable && (
+      {status !== 'loading' && nothingToShow && (
         <Box
           role="img"
           aria-label="The banner image is unavailable"

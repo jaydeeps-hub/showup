@@ -9,19 +9,26 @@ import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
 import ReactMarkdown from 'react-markdown'
 import { Loader } from '../../components/Loader'
-import type { CmsState } from '../../hooks/useCmsValue'
+
+/** What the popup knows about the Terms: still loading, readable, not there, or the lookup failed. */
+export type TermsState =
+  | { status: 'loading' }
+  | { status: 'found'; value: string }
+  /** The lookup worked but the table has no Terms. */
+  | { status: 'not-found' }
+  | { status: 'error' }
 
 interface TermsDialogProps {
   open: boolean
   onClose: () => void
   /** The loaded terms. Loaded by the screen that owns this popup, so closing and reopening keeps them. */
-  terms: CmsState & { retry: () => void }
+  terms: TermsState & { retry: () => void }
 }
 
 /**
- * The Terms and Conditions popup. The text is Markdown stored in the Supabase `cms` table
- * (`id = 2`, `content_type = 'tnc'`); nothing is hardcoded. It is fetched the first time the popup
- * opens (see LandingScreen), then kept.
+ * The Terms and Conditions popup. The text is Markdown stored in the Supabase `config` table (now config,
+ * renamed from cms in Phase 9; `content_type = 'tnc'`); nothing is hardcoded. It is read with the rest of the
+ * landing content (see LandingScreen) and kept, so reopening it does not ask again.
  *
  * MUI's Dialog provides the dialog semantics, focus trapping, Escape to close and backdrop clicks.
  * The Markdown is rendered as React elements, never as raw HTML: `skipHtml` drops any HTML in the

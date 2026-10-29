@@ -190,20 +190,23 @@ The choice is saved on the user's profile in Supabase (`place_search_mode`), so 
 
 Signed-out visitors see a landing page: the Showup wordmark, a mascot banner, the headline "Show up for yourself.", a **Sign up with Google** button, **I already have an account**, and a line linking the Terms and Privacy Policy. Both buttons start the app's one existing Google sign-in (Google does not tell sign-up from sign-in apart), so there is no second login path.
 
-**Content comes from Supabase, not from the code.** Two rows of the `public.cms` table are read:
+**Content comes from Supabase, not from the code.** Rows of the `public.config` table (now config (renamed in Phase 9); it was `public.cms`) are read, in one request, before sign-in:
 
-| Used for | `id` | `content_type` | `value` |
+| Used for | `content_type` | `value` | If missing or empty |
 |---|---|---|---|
-| Mascot banner | 1 | `lpage_banner` | the image address (https) |
-| Terms and Conditions | 2 | `tnc` | the text, written in Markdown |
+| Mascot banner | `lpage_banner` | the image address (https) | the design's mascot picture, shipped with the app (`public/images/landing-banner-default.jpg`) |
+| Terms and Conditions | `tnc` | the text, written in Markdown | the popup says the Terms are not available |
+| Heading above the landing carousel | `landing.carousel_heading` | text | "Why it works" |
 
-Clicking **Terms** opens the Terms in a popup on the same page (fetched the first time it is opened, then kept). The Markdown is shown as formatted text and raw HTML in it is ignored, so editing the row cannot inject code into the page. If a row is missing or cannot be read, the page shows a plain "unavailable" state; there is no built-in fallback picture or text.
+The newest row for each `content_type` wins (to change a value, add a new row). Rows are found by `content_type` only, not by `id`. The line under the buttons, "By continuing you agree to the Terms and Privacy Policy.", is written in the app.
 
-**One-time database step:** signed-out visitors can only read `cms` once a read policy exists. Run `supabase/migrations/20261022100000_cms_public_read.sql` in the Supabase SQL Editor. It allows read-only access to just those two content types. Until you do, the banner shows as unavailable and the Terms say they are not available.
+Clicking **Terms** opens the Terms in a popup on the same page (read with the rest of the landing content, then kept). The Markdown is shown as formatted text and raw HTML in it is ignored, so editing the row cannot inject code into the page. If the banner row is missing or cannot be read, the built-in banner is shown. The only built-in content is that banner, the heading "Why it works" and the line under the buttons; there is no built-in Terms text.
+
+**One-time database step:** signed-out visitors can only read `config` (renamed from `cms` in Phase 9) once a read policy exists. Run `supabase/migrations/20261022100000_cms_public_read.sql` in the Supabase SQL Editor. It allows read-only access to just those two content types. Until you do, the banner shows as unavailable and the Terms say they are not available.
 
 **Privacy Policy link:** the project has no privacy policy page yet, so "Privacy Policy" is shown as plain text. When you have one, set `VITE_PRIVACY_POLICY_URL=https://...` in `.env.local` (and in Vercel) and it becomes a link.
 
-**The banner address is a signed link** (it contains a token and expires after 365 days, around 21 October 2027). To avoid an expiring image, either update the `cms` row before then, or make the storage bucket public and store its permanent public address.
+**The banner address is a signed link** (it contains a token and expires after 365 days, around 21 October 2027). To avoid an expiring image, either update the `config` row (renamed from `cms` in Phase 9) before then, or make the storage bucket public and store its permanent public address.
 
 ## Configuring Google Maps
 

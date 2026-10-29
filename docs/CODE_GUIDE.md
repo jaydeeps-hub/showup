@@ -40,11 +40,11 @@ Follow one press of the button through the files:
 
 ### Landing page (signed-out screen)
 
-1. **Which files control it?** `src/features/landing/LandingScreen.tsx` (the page), `LandingBanner.tsx` (the CMS image), `TermsDialog.tsx` (the Terms popup), `BrandMark.tsx` (the blue "o" and dot), and `landingTheme.ts` (its colours, deeper navy than the rest of the app).
-2. **What do they do?** The page starts the existing Google sign-in from both buttons and guards against double requests. The banner and the Terms are read from the Supabase `cms` table by `services/cmsService.ts` (one function, `fetchCmsValue`, always matching BOTH `id` and `content_type`), via `hooks/useCmsValue.ts`.
-3. **What do they depend on?** `authService.signInWithGoogle`, the `cms` table and its read policy (`supabase/migrations/20261022100000_cms_public_read.sql`), and `react-markdown` for the Terms.
-4. **To change it, start at:** wording and layout in `LandingScreen.tsx`; colours in `landingTheme.ts`; which CMS rows are used in `CMS_ENTRIES` in `cmsService.ts`; the Privacy Policy address via `VITE_PRIVACY_POLICY_URL`. A new public CMS entry needs its `content_type` added to the read policy in a new migration.
-5. **Test after changing:** `npm test` (`cmsService.test.ts`, `LandingScreen.test.tsx`), then open the page signed out at phone width, press Terms, and check the banner loads.
+1. **Which files control it?** `src/features/landing/LandingScreen.tsx` (the page), `LandingBanner.tsx` (the banner image), `TermsDialog.tsx` (the Terms popup), `BrandMark.tsx` (the blue "o" and dot), and `landingTheme.ts` (its colours, deeper navy than the rest of the app).
+2. **What do they do?** The page starts the existing Google sign-in from both buttons and guards against double requests. The banner, the Terms and the carousel heading are read from the Supabase `config` table (now config, renamed from `cms` in Phase 9) by `services/landingContent.ts` (one request for the three `content_type` keys, newest row wins, built-in defaults when a key is missing), via `hooks/useLandingContent.ts`, which shares one request between the banner and the Terms popup.
+3. **What do they depend on?** `authService.signInWithGoogle`, the `config` table (now config, renamed from `cms` in Phase 9) and its read policy (`supabase/migrations/20261022100000_cms_public_read.sql`, written when the table was still `cms`), and `react-markdown` for the Terms.
+4. **To change it, start at:** wording and layout in `LandingScreen.tsx`; colours in `landingTheme.ts`; which `config` keys are used in `LANDING_KEYS` in `landingContent.ts`; the Privacy Policy address via `VITE_PRIVACY_POLICY_URL`. A new public `config` key must be readable by signed-out visitors: check the table's read policies in Supabase.
+5. **Test after changing:** `npm test` (`landingContent.test.ts`, `LandingScreen.test.tsx`), then open the page signed out at phone width, press Terms, and check the banner loads.
 
 ### Gym search mode (fitness places vs any place)
 

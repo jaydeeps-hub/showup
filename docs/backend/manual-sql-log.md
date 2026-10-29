@@ -23,11 +23,11 @@ Log format for new entries: date, what was run, why, which snapshot line proves 
 | 6 | Table `week_pauses` | applied manually, not in migrations | Columns `id`, `user_id`, `week_start`, `used_month`, `reason`, `created_at`, `ended_at`. Unique `(user_id, week_start)` |
 | 7 | Table `weekly_results` | applied manually, not in migrations | Columns `user_id`, `week_start`, `goal_days`, `showup_days`, `status`, `weeks_in_a_row`, `closed_at`. Primary key `(user_id, week_start)` |
 | 8 | Function `goal_for_week(p_user uuid, p_week date)` | applied manually, not in migrations | SQL, stable, `search_path public`. Executable by `anon` and `authenticated` |
-| 9 | Function `cfg(k text, d text)` | applied manually, not in migrations | SQL, stable, `search_path public`. Reads the newest `cms.value` for `content_type = k`. Executable by `anon` and `authenticated` |
-| 10 | Five `config.*` rows in `cms` | applied manually, not in migrations | **The rows themselves are not in the snapshot** (it contains no data). Keys known from the code and functions: `config.max_gym_distance_meters`, `config.calendar_start_month`, `config.min_stay_minutes`, `config.pause_passes_per_month`, `config.pause_max_weeks_ahead`. Current values: unverified. App defaults are 100, `2026-06`, 15, 3, 1 |
+| 9 | Function `cfg(k text, d text)` | applied manually, not in migrations | SQL, stable, `search_path public`. Reads the newest `cms.value` for `content_type = k` (the table is now config (renamed in Phase 9); `cfg` was redefined to read `config` in item 29). Executable by `anon` and `authenticated` |
+| 10 | Five `config.*` rows in `cms` (now config (renamed in Phase 9)) | applied manually, not in migrations | **The rows themselves are not in the snapshot** (it contains no data). Keys known from the code and functions: `config.max_gym_distance_meters`, `config.calendar_start_month`, `config.min_stay_minutes`, `config.pause_passes_per_month`, `config.pause_max_weeks_ahead`. Current values: unverified. App defaults are 100, `2026-06`, 15, 3, 1 |
 | 11 | Row level security policies on the hand-made tables | applied manually, not in migrations | `goal_history`, `week_pauses`, `weekly_results`: policy `own rows`, SELECT, `user_id = auth.uid()`, role `public`. Whether RLS is enabled on each table, and the table grants, are unverified |
-| 12 | `cms` policies `Enable read access for all users`, `cms read`, `cms admin write` | applied manually, not in migrations | See the snapshot's policy list. The migration `20261022100000_cms_public_read.sql` adds only `cms: public can read landing page content` |
-| 13 | Table `public.cms` itself | applied manually (created in the Supabase dashboard) | Stated in the comment of migration `20261022100000`; columns `id`, `created_at`, `content_type`, `value` |
+| 12 | `cms` policies `Enable read access for all users`, `cms read`, `cms admin write` (now config (renamed in Phase 9); `cms read` and `cms admin write` were renamed `config read` and `config admin write`) | applied manually, not in migrations | See the snapshot's policy list. The migration `20261022100000_cms_public_read.sql` adds only `cms: public can read landing page content` |
+| 13 | Table `public.cms` itself (now config (renamed in Phase 9)) | applied manually (created in the Supabase dashboard) | Stated in the comment of migration `20261022100000`; columns `id`, `created_at`, `content_type`, `value` |
 | 14 | Function `get_goal_state()` | applied manually, not in migrations | Returns `{has_goal, current_goal, pending_goal, pending_from}`; `authenticated` only |
 | 15 | Function `get_pause_state()` | applied manually, not in migrations | Returns `{today, this_week, max_weeks_ahead, passes_total, passes_left, next_refill, active_pauses}`; `authenticated` only |
 | 16 | Function `set_my_timezone(p_tz text)` | applied manually, not in migrations | Validates against `pg_timezone_names`, raises `invalid_timezone`; `authenticated` only |
@@ -42,7 +42,7 @@ Applied manually from `docs/backend/phase6_showup_sessions.sql`. I compared its 
 | 18 | Table `showup_checks` | One row per location check (`checkpoint_no` 0 is the tap on Show up). Unique `(session_id, due_at_seconds)`. RLS on; policy `own rows` (SELECT) |
 | 19 | Functions `get_showup_state`, `start_showup`, `check_showup`, `cancel_showup` | `SECURITY DEFINER`, `authenticated` only |
 | 20 | Internal `showup_grace_seconds()` (1800), `showup_checkpoints(int, int)`, `showup_session_json(uuid)` | Not executable by `anon` or `authenticated` (absent from the snapshot's permission list) |
-| 21 | `cms` rows `config.showup_duration_seconds` (900), `config.showup_check_interval_seconds` (300), `config.showup_max_missed_checks` (0), `config.max_location_accuracy_meters` (0, meaning off) | The SQL inserts each only if the key had never been set. **Current values: unverified** (the snapshot has no data) |
+| 21 | `config` rows (were `cms`; now config (renamed in Phase 9)) `config.showup_duration_seconds` (900), `config.showup_check_interval_seconds` (300), `config.showup_max_missed_checks` (0), `config.max_location_accuracy_meters` (0, meaning off) | The SQL inserts each only if the key had never been set. **Current values: unverified** (the snapshot has no data) |
 
 `showup_sessions.gym_id` references `gyms(id)` with `on delete cascade`, and `showup_sessions.showup_id` references `showups(id)` with `on delete set null`.
 
@@ -58,7 +58,19 @@ Applied manually from `docs/backend/phase7a_mascot_tables.sql`. I compared its t
 | 25 | Function `mascot_touch_updated_at()` and triggers `mascot_images_touch`, `mascot_messages_touch` | Keep `updated_at` current on every edit; `get_mascot_content` uses it as the content `version` |
 | 26 | RLS on both tables; policy `public read` (SELECT, `anon` and `authenticated`, `using true`); app roles have `SELECT` only | Nobody can write from the app; edit the tables in the Supabase Table Editor |
 | 27 | Function `get_mascot_content(p_locale text default 'en')` | `STABLE`, **not** `SECURITY DEFINER`; executable by `anon` and `authenticated`, so it works before sign-in. See [overview.md](overview.md) |
-| 28 | `cms` row `config.mascot_almost_seconds` = `180` | Inserted only if the key had never been set. Seconds left at which the mascot switches to "almost there". **Current value: unverified** (the snapshot has no data) |
+| 28 | `config` row (was `cms`; now config (renamed in Phase 9)) `config.mascot_almost_seconds` = `180` | Inserted only if the key had never been set. Seconds left at which the mascot switches to "almost there". **Current value: unverified** (the snapshot has no data) |
+
+## Phase 9a (rename and the new cms table), 2026-10-29
+
+Applied manually from `docs/backend/phase9a_cms_and_config.sql`. All **applied manually, not in migrations**. The migrations folder is unchanged: the old migrations still say `public.cms`, and they ran when that was the name of the table that is now `config`.
+
+| # | Object | Notes |
+|---|---|---|
+| 29 | Table `cms` **renamed to `config`** (with its constraint, sequence and the policies `cms read` and `cms admin write` renamed to match); functions `cfg()` and `get_app_config()` redefined to read `config` | Nothing deleted: every row stays. `get_app_config()` keeps its name, its JSON and its grant (`authenticated` only) |
+| 30 | Row `landing.carousel_heading` = "Why it works" in `config` | Inserted only if the key did not exist (it got id 18) |
+| 31 | **New table `cms`**: landing carousel cards and Quick Start slides | `category` (`landing_carousel`, `quick_start`), `position`, `slug`, `heading`, `subheading`, `image_url`, `image_alt`, `is_active`, `created_at`, `updated_at`; unique `(category, slug)`; RLS on, `public read` for `anon` and `authenticated`; eight starting rows. **Not used by the app yet** |
+| 32 | Functions `cms_touch_updated_at()` (trigger `cms_touch`) and `get_cms_content()` | `get_cms_content()` returns `{ version, categories: { <category>: [ { id, slug, position, heading, subheading, image_url, image_alt, v } ] } }` for active rows, in order; executable by `anon` and `authenticated`. **Not used by the app yet** |
+| 33 | Column `profiles.quickstart_completed_at` and function `complete_quickstart()` | `complete_quickstart()` sets the timestamp for the signed-in user (once) and returns whether a row was updated; `authenticated` only. **Not used by the app yet** |
 
 ## Also in the live database but in no migration (origin unverified)
 
@@ -66,7 +78,7 @@ Applied manually from `docs/backend/phase7a_mascot_tables.sql`. I compared its t
 
 ## Things the migration checks but does not create
 
-`supabase/migrations/20261023100000_calendar_backend.sql` stops with a list of missing prerequisites if items 1, 2, 4, 5, 6, 7, 8 and 9 above (and `cms` and `showups`) are missing. So a **new** Supabase project cannot be rebuilt from the migrations folder alone; the manual items must be created first. Because the snapshot has no table definitions, the exact `CREATE TABLE` statements would have to be recovered from the live project (for example by dumping the schema), which has not been done.
+`supabase/migrations/20261023100000_calendar_backend.sql` stops with a list of missing prerequisites if items 1, 2, 4, 5, 6, 7, 8 and 9 above (and `cms`, which is now config (renamed in Phase 9), and `showups`) are missing. So a **new** Supabase project cannot be rebuilt from the migrations folder alone; the manual items must be created first. Because the snapshot has no table definitions, the exact `CREATE TABLE` statements would have to be recovered from the live project (for example by dumping the schema), which has not been done.
 
 ## Entries since this log was created
 

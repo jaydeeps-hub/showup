@@ -8,19 +8,18 @@ import { useEffect, useState } from 'react'
 import { Loader } from '../../components/Loader'
 import { PRIVACY_POLICY_URL } from '../../config/constants'
 import { tokens } from '../../design-system/tokens'
-import { useCmsValue } from '../../hooks/useCmsValue'
+import { useLandingContent } from '../../hooks/useLandingContent'
 import {
   AuthNotConfiguredError,
   AuthRedirectUnavailableError,
   consumeRedirectError,
   signInWithGoogle,
 } from '../../services/authService'
-import { CMS_ENTRIES } from '../../services/cmsService'
 import { isSupabaseConfigured } from '../../services/supabaseClient'
 import { BrandDot, BrandO } from './BrandMark'
 import { LandingBanner } from './LandingBanner'
 import { landing } from './landingTheme'
-import { TermsDialog } from './TermsDialog'
+import { TermsDialog, type TermsState } from './TermsDialog'
 
 const FOCUS = { outline: `2px solid ${landing.color.focusRing}`, outlineOffset: 3 }
 
@@ -32,9 +31,17 @@ const FOCUS = { outline: `2px solid ${landing.color.focusRing}`, outlineOffset: 
 export function LandingScreen() {
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
-  // Fetched the first time the popup opens, and kept here so reopening it does not fetch again.
-  const [termsRequested, setTermsRequested] = useState(false)
-  const terms = useCmsValue(CMS_ENTRIES.termsAndConditions, termsRequested)
+  // The landing content (banner, Terms, carousel heading) is read once for the whole page, from the
+  // `config` table, before sign-in. The Terms popup shows what it found.
+  const landingContent = useLandingContent()
+  const terms: TermsState & { retry: () => void } =
+    landingContent.status === 'loading'
+      ? { status: 'loading', retry: landingContent.retry }
+      : landingContent.content.terms !== null
+        ? { status: 'found', value: landingContent.content.terms, retry: landingContent.retry }
+        : landingContent.status === 'failed'
+          ? { status: 'error', retry: landingContent.retry }
+          : { status: 'not-found', retry: landingContent.retry }
   // Read once on first render, because it also removes the error from the address bar.
   const [errorMessage, setErrorMessage] = useState<string | null>(() => consumeRedirectError())
 
@@ -250,10 +257,7 @@ export function LandingScreen() {
           sx={{ fontFamily: landing.font.body, fontSize: '0.875rem', lineHeight: 1.6, textAlign: 'center', color: landing.color.supporting }}
         >
           By continuing you agree to the{' '}
-          <Link component="button" type="button" onClick={() => {
-              setTermsRequested(true)
-              setTermsOpen(true)
-            }} sx={{ ...linkSx, font: 'inherit', verticalAlign: 'baseline' }}>
+          <Link component="button" type="button" onClick={() => setTermsOpen(true)} sx={{ ...linkSx, font: 'inherit', verticalAlign: 'baseline' }}>
             Terms
           </Link>{' '}
           and{' '}

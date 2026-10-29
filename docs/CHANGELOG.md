@@ -4,6 +4,14 @@ Built from `git log` on 2026-10-22, newest first, grouped by backend (migrations
 
 **Not in git:** the SQL run by hand in Supabase has no commit and no date. See [backend/manual-sql-log.md](backend/manual-sql-log.md).
 
+## 2026-10-29 (not yet committed)
+
+### Backend
+- Phase 9a SQL (`docs/backend/phase9a_cms_and_config.sql`) applied manually in Supabase, not in migrations: the old `cms` table was **renamed `config`** (all rows kept; `cfg()` and `get_app_config()` now read it, with the same names and grants); a **new table `cms`** (eight landing-card and Quick Start rows), `get_cms_content()`, `profiles.quickstart_completed_at` and `complete_quickstart()` were added; the row `landing.carousel_heading` ("Why it works") was added to `config`. The old migration files still say `public.cms` and were not changed. See [backend/manual-sql-log.md](backend/manual-sql-log.md).
+
+### Frontend
+- Phase 9b, the app reads the table `config` (now config, renamed from `cms` in Phase 9) instead of `cms`: the landing banner, the Terms and the new carousel heading are read in ONE request, before sign-in, by `services/landingContent.ts` and `hooks/useLandingContent.ts` (the newest row per `content_type` wins; rows are found by `content_type` only, not by id; key names unchanged). Every key has a built-in default: the design's mascot banner (now a file, `public/images/landing-banner-default.jpg`), "Why it works", and the line "By continuing you agree to the Terms and Privacy Policy.". A missing, empty, unsafe or failing banner now shows the built-in picture instead of an "unavailable" frame. Removed `cmsService.ts` and `useCmsValue.ts`; moved the image address check to `utils/imageUrl.ts`. `get_app_config()` is untouched. **The deployed app breaks between the database rename and deploying this change.**
+
 ## 2026-10-27 (not yet committed)
 
 ### Backend

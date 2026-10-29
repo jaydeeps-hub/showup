@@ -11,10 +11,10 @@ import { landing } from './landingTheme'
  * on screen, and that the signed-in screens get their own colours back.
  */
 
-vi.mock('../../services/cmsService', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../services/cmsService')>()),
-  fetchCmsValue: vi.fn().mockResolvedValue({ status: 'not-found' }),
-}))
+vi.mock('../../services/landingContent', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../services/landingContent')>()
+  return { ...real, fetchLandingContent: vi.fn().mockResolvedValue({ failed: false, content: real.DEFAULT_LANDING_CONTENT }) }
+})
 vi.mock('../../services/authService', () => ({
   signInWithGoogle: vi.fn(),
   consumeRedirectError: vi.fn().mockReturnValue(null),
