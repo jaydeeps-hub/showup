@@ -349,7 +349,8 @@ describe('on the landing page', () => {
         <LandingScreen />
       </ThemeProvider>,
     )
-    expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Why it works' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Why it works' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Sign up with Google' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'I already have an account' })).toBeTruthy()
   })

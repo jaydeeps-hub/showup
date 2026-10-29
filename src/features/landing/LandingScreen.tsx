@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { Loader } from '../../components/Loader'
 import { PRIVACY_POLICY_URL } from '../../config/constants'
 import { tokens } from '../../design-system/tokens'
+import { useCtaMode } from '../../hooks/useCtaMode'
 import { useLandingContent } from '../../hooks/useLandingContent'
 import {
   AuthNotConfiguredError,
@@ -19,6 +20,7 @@ import { isSupabaseConfigured } from '../../services/supabaseClient'
 import { BrandLogo, BrandO } from './BrandMark'
 import { LandingBanner } from './LandingBanner'
 import { LandingCarousel } from './LandingCarousel'
+import { SignInBox } from './SignInBox'
 import { landing } from './landingTheme'
 import { TermsDialog, type TermsState } from './TermsDialog'
 
@@ -32,6 +34,8 @@ const FOCUS = { outline: `2px solid ${landing.color.focusRing}`, outlineOffset: 
 export function LandingScreen() {
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
+  // Whether the sign-in box floats at the bottom of the screen, decided from the room that is really there.
+  const cta = useCtaMode()
   // The landing content (banner, Terms, carousel heading) is read once for the whole page, from the
   // `config` table, before sign-in. The Terms popup shows what it found.
   const landingContent = useLandingContent()
@@ -101,7 +105,7 @@ export function LandingScreen() {
 
   const disabled = isRedirecting || !isSupabaseConfigured
   const linkSx = {
-    color: landing.color.supporting,
+    color: tokens.color.accentText,
     textDecorationColor: 'currentColor',
     textUnderlineOffset: 3,
     '&:hover': { color: landing.color.heading },
@@ -167,10 +171,10 @@ export function LandingScreen() {
         </Box>
 
         {/* "Why it works": drawn only when the database has active carousel cards */}
-        <LandingCarousel />
+        <LandingCarousel blockRef={cta.carouselRef} />
 
-        {/* Actions */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {/* The sign-in box: floats at the bottom of the screen when there is room for it, otherwise ends the page */}
+        <SignInBox mode={cta.mode} boxRef={cta.boxRef}>
           {!isSupabaseConfigured && (
             <Alert severity="warning">
               Sign-in is not set up yet. Copy <code>.env.example</code> to <code>.env.local</code>, add{' '}
@@ -187,6 +191,7 @@ export function LandingScreen() {
           <Button
             variant="contained"
             fullWidth
+            data-cta="primary"
             disabled={disabled}
             aria-busy={isRedirecting}
             onClick={() => void handleSignIn()}
@@ -203,7 +208,7 @@ export function LandingScreen() {
               )
             }
             sx={{
-              minHeight: tokens.size.control,
+              minHeight: 50,
               borderRadius: `${landing.radius.button}px`,
               fontFamily: landing.font.body,
               fontWeight: 600,
@@ -220,43 +225,44 @@ export function LandingScreen() {
           <Button
             variant="text"
             fullWidth
+            data-cta="secondary"
             disabled={disabled}
             onClick={() => void handleSignIn()}
             sx={{
-              minHeight: tokens.size.secondaryButton,
+              minHeight: 46,
               borderRadius: `${landing.radius.button}px`,
               fontFamily: landing.font.body,
               fontWeight: 600,
               fontSize: '1.125rem',
               color: landing.color.heading,
-              '&:hover': { backgroundColor: tokens.color.surface1 },
+              '&:hover': { backgroundColor: tokens.color.surface2 },
               '&.Mui-focusVisible': FOCUS,
               '&.Mui-disabled': { color: landing.color.supporting },
             }}
           >
             I already have an account
           </Button>
-        </Box>
 
-        {/* Legal */}
-        <Typography
-          sx={{ fontFamily: landing.font.body, fontSize: '0.875rem', lineHeight: 1.6, textAlign: 'center', color: landing.color.supporting }}
-        >
-          By continuing you agree to the{' '}
-          <Link component="button" type="button" onClick={() => setTermsOpen(true)} sx={{ ...linkSx, font: 'inherit', verticalAlign: 'baseline' }}>
-            Terms
-          </Link>{' '}
-          and{' '}
-          {PRIVACY_POLICY_URL ? (
-            <Link href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer" sx={linkSx}>
-              Privacy Policy
-            </Link>
-          ) : (
-            // No policy page exists yet; shown as plain text rather than a dead link.
-            <span>Privacy Policy</span>
-          )}
-          .
-        </Typography>
+          {/* Legal: the same line as before, now inside the box */}
+          <Typography
+            sx={{ fontFamily: landing.font.body, fontSize: 12, lineHeight: 1.4, textAlign: 'center', color: tokens.color.textBody, m: 0 }}
+          >
+            By continuing you agree to the{' '}
+            <Link component="button" type="button" onClick={() => setTermsOpen(true)} sx={{ ...linkSx, font: 'inherit', verticalAlign: 'baseline' }}>
+              Terms
+            </Link>{' '}
+            and{' '}
+            {PRIVACY_POLICY_URL ? (
+              <Link href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+                Privacy Policy
+              </Link>
+            ) : (
+              // No policy page exists yet; shown as plain text rather than a dead link.
+              <span>Privacy Policy</span>
+            )}
+            .
+          </Typography>
+        </SignInBox>
       </Box>
 
       <TermsDialog open={termsOpen} onClose={() => setTermsOpen(false)} terms={terms} />

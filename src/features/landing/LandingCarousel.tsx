@@ -10,6 +10,10 @@ import type { CmsItem } from '../../types'
 import { fallbackExpression, imageFor as cardImageFor } from '../../utils/cms'
 import { landing } from './landingTheme'
 
+/** Shows at most `lines` lines of text and cuts the rest with an ellipsis. */
+const CLAMP = (lines: number) =>
+  ({ display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }) as const
+
 /** The page's side padding, which the track cancels out so the cards can scroll right to the screen edge. */
 const PAGE_PADDING = { xs: 5, sm: 8 } as const
 
@@ -17,15 +21,17 @@ const PAGE_PADDING = { xs: 5, sm: 8 } as const
  * "Why it works": the heading and a swipeable row of cards, one per active row of the `landing_carousel`
  * category. The number of cards is simply the number of rows. If the category is missing or empty it is
  * switched off, and nothing at all is drawn: no heading, no carousel, no dots.
+ *
+ * `blockRef` is attached to the whole block (heading to dots) so the page can measure how much room it takes.
  */
-export function LandingCarousel() {
+export function LandingCarousel({ blockRef }: { blockRef?: (element: HTMLElement | null) => void }) {
   const items = useLandingCarouselItems()
   const { content } = useLandingContent()
 
   if (items.length === 0) return null
 
   return (
-    <Box component="section" aria-label={content.carouselHeading} sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <Box component="section" ref={blockRef} aria-label={content.carouselHeading} sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Typography
         variant="h2"
         component="h2"
@@ -146,12 +152,14 @@ function CarouselCard({ item, index }: { item: CmsItem; index: number }) {
       <Box sx={{ p: '16px 18px 20px' }}>
         <Typography
           component="h3"
-          sx={{ fontFamily: landing.font.display, fontWeight: 700, fontSize: 20, lineHeight: 1.25, color: landing.color.heading, m: 0 }}
+          // At most two lines, so every card has a predictable height.
+          sx={{ ...CLAMP(2), fontFamily: landing.font.display, fontWeight: 700, fontSize: 20, lineHeight: 1.25, color: landing.color.heading, m: 0 }}
         >
           {item.heading}
         </Typography>
         {item.subheading !== '' && (
-          <Typography component="p" sx={{ fontFamily: landing.font.body, fontSize: 14, lineHeight: 1.5, color: tokens.color.textBody, m: 0, mt: 2 }}>
+          // At most three lines.
+          <Typography component="p" sx={{ ...CLAMP(3), fontFamily: landing.font.body, fontSize: 14, lineHeight: 1.5, color: tokens.color.textBody, m: 0, mt: 2 }}>
             {item.subheading}
           </Typography>
         )}
