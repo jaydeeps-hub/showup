@@ -3,7 +3,7 @@
 Derived from the code in `src/`. Each service file is the only place that talks to its part of the database; screens never contain database code. Error text is always written by the app: raw database messages are never shown (they go to the console). "Network" means the message matches `failed to fetch | network | load failed | timed out`.
 
 ## Navigation ([src/app/App.tsx](../../src/app/App.tsx))
-No router. Order of checks for a signed-in user: profile loading → onboarding (no first/last name) → gym and Showup data loading or error → **Set goal** (full screen) → **Gym setup** (no gym, or changing it) → the three tabs with the bottom bar: **Pause, Home, Profile** (starts on Home).
+No router. Order of checks for a signed-in user: profile loading → **Quick Start** (once, if not finished; see below) → onboarding (no first/last name) → gym and Showup data loading or error → **Set goal** (full screen) → **Gym setup** (no gym, or changing it) → the three tabs with the bottom bar: **Pause, Home, Profile** (starts on Home).
 
 On launch (once per user per page load) `useSaveDeviceTimezone` calls `set_my_timezone`.
 
@@ -15,8 +15,34 @@ On launch (once per user per page load) `useSaveDeviceTimezone` calls `set_my_ti
 | Any read whose JSON has an unexpected shape | — | Calendar: "The calendar came back in a form we couldn't read. Please try again." Home: "Your summary came back in a form we couldn't read. Please try again." (same wording pattern for goal and pause) |
 | Any call with no Supabase configured | — | "Supabase is not configured." |
 
+## Landing carousel (Phase 9d, landing page only)
+
+**File:** [features/landing/LandingCarousel.tsx](../../src/features/landing/LandingCarousel.tsx), placed in [LandingScreen.tsx](../../src/features/landing/LandingScreen.tsx) between the description and the two Google buttons (the buttons are unchanged). Helpers `imageFor` and `fallbackExpression` are in [utils/cms.ts](../../src/utils/cms.ts).
+
+- **Data:** the active rows of the `landing_carousel` category (`useLandingCarouselItems()`), one card per row, so any number of rows works. The heading is `landing.carousel_heading` from `config` (default "Why it works"). **If the category is missing or empty nothing is drawn: no heading, no carousel, no dots** (and the mascot content is not read).
+- **Layout:** a horizontally scrolling row with scroll snapping (cards snap to the start; 84% wide with a 12px gap, so the next card peeks in), running to the screen edges. Each card has a 4:3 picture area, then the heading (`h3`) and subheading. An empty subheading is left out. The dots (one per card, the active one wider) follow the scroll position and are hidden from screen readers.
+- **Pictures:** the card's own `image_url` (with `?v=` so a changed picture is fetched again) and `image_alt`. If a card has no `image_url`, or its picture fails to load, that card shows a mascot picture instead, chosen by the card's place in the row: wave, cheer, focus, sleep, then repeating. The mascot picture is decorative (empty alt). If the mascot has no picture either, the panel is left plain.
+- **Accessibility:** the track is a focusable `region` with `aria-roledescription="carousel"` (arrow keys scroll it natively); each card is a `group` with `aria-roledescription="slide"` labelled by its `image_alt`, or by its heading when the alt is empty or blank; the dot animation is switched off for `prefers-reduced-motion`.
+- **Not shown:** there is no "sources" or "backed by research" area in the app.
+
+**Tested:** [LandingCarousel.test.tsx](../../src/features/landing/LandingCarousel.test.tsx) (22 tests: hidden when empty, one card and one dot per row, heading from `config`, picture and mascot fallback rules, labels, dots following the scroll, placement on the landing page). Checked by breaking the component six ways; every change made a test fail.
+
+## Quick Start (Phase 9e)
+
+**Files:** [features/quickstart/QuickStartScreen.tsx](../../src/features/quickstart/QuickStartScreen.tsx) (the screen), [App.tsx](../../src/app/App.tsx) (when it appears), [ManageProfileScreen.tsx](../../src/features/profile/ManageProfileScreen.tsx) (the Profile button). Shared with the landing carousel: [components/CardPicture.tsx](../../src/components/CardPicture.tsx) (4:3 picture with the mascot fallback), [components/CarouselDots.tsx](../../src/components/CarouselDots.tsx), `BrandLogo` in [landing/BrandMark.tsx](../../src/features/landing/BrandMark.tsx); `quickStartFallbackExpression` and `quickStartEndingLabel` are in [utils/cms.ts](../../src/utils/cms.ts).
+
+- **The screen:** a full screen with **no tab bar**. Top row: the brand logo and a **Skip** link. Then a swipeable carousel, dots, and one primary button. **One slide per `quick_start` item**: the number of slides, dots and the "last slide" logic all come from the item count (one item means no "Next", only the last button). A swipe of **more than 45px** turns one slide (exactly 45 does not); the arrow keys also turn it when the carousel is focused. Slides move with a `transform` over 0.3s, with no transition under `prefers-reduced-motion`. Slides that are not showing are `aria-hidden`; each slide is labelled "n of total".
+- **A slide:** a 4:3 picture (radius 22, 1px border, surface background, `object-fit: cover`), the heading (28px Lexend 700) and the subheading (16px, `#B4B9C4`). With no `image_url`, or if the picture fails to load, the same panel shows a mascot picture, chosen by the slide's place: **smile, lift, focus, cheer**, then repeating. The prototype's drawn SVG illustrations are not used.
+- **The button:** "Next" on every slide but the last. On the last: **"Set up my profile"** if the person has no first name yet, otherwise **"Done"** (when it is opened from Profile it is always "Done"). **Skip does the same as the last button.** It reports finishing once only, however many times it is pressed.
+- **When it appears:** whenever the app opens with a signed-in person and `needsQuickStart(profile, items, finishPending)` is true: they have not finished it (`profiles.quickstart_completed_at` is empty), no finish is waiting to be retried, and there is at least one `quick_start` item. This includes existing users and the "I already have an account" path. It is shown **before** the screen the app would show next (onboarding for a new person, otherwise Home), and that screen follows when it ends. **It is decided once**, when the profile has loaded, from the content at that moment: if the content only arrives or changes later in the visit, it does not pop up; and if its cards are switched off while it is open, it steps aside instead of showing an empty screen.
+- **What finishing does:** pressing the last button or Skip closes the screen straight away and calls `markQuickStartDone()` (`complete_quickstart()`) in the background. If the database cannot be told, a per-person reminder is kept in the browser and retried on the next launch, and the screen is not shown again for that person in the meantime. With **no `quick_start` items it is not shown and nothing is recorded.**
+- **Profile button:** "Quick start guide" (a "?" in a circle, 14px, `#8FA6FF`, min height 48, 12px above) directly under the details list, **hidden while editing** and hidden when `quick_start` has no items. Shown to every signed-in person. It opens the same screen ending in **"Done"** and returns to Profile; **opening it from Profile never records anything or changes the stored time.**
+- **If the content fetch fails:** the screen uses the bundled starting content (the four slides in [config/cmsDefaults.ts](../../src/config/cmsDefaults.ts)), per the rules in the section above.
+
+**Tested:** [QuickStartScreen.test.tsx](../../src/features/quickstart/QuickStartScreen.test.tsx) (24 tests: slides, dots and button from the item count, picture and mascot fallback, swipe threshold and ends, keyboard, reduced motion, accessibility) and [App.quickStart.test.tsx](../../src/app/App.quickStart.test.tsx) (19 tests through the real App: when it appears, before onboarding, not for finished or pending people, no items, late content, recording on finish and Skip, a failed record, bundled content, the Profile button). Checked by breaking the code in eleven places; all but one change (one that cannot differ, because Profile only opens for a person with a name) made a test fail.
+
 ## Landing (signed out)
-- Google sign-in via Supabase Auth (not an RPC). Reads the landing content from the `config` table (now config, renamed from `cms` in Phase 9), before sign-in, with ONE plain `select` for three keys (`lpage_banner`, `tnc`, `landing.carousel_heading`), newest row per key winning, in [services/landingContent.ts](../../src/services/landingContent.ts) via [useLandingContent](../../src/hooks/useLandingContent.ts) (one shared request for the whole page). Every key has a built-in default: no banner row, an empty one, one that is not a web address, or a failed lookup shows the design's mascot banner (`public/images/landing-banner-default.jpg`); a banner address that fails to load falls back to the built-in picture once, then to a quiet frame; the carousel heading defaults to "Why it works" (there is no carousel on the page yet, so nothing shows it). The line "By continuing you agree to the Terms and Privacy Policy." is written in the app. Terms popup: if there is no `tnc` row it says the Terms are not available; if the lookup failed it shows "We couldn't load the Terms and Conditions. Check your connection and try again." with a retry. Sign-in errors: not set up / redirect unavailable / generic "We could not start Google sign-in…".
+- Google sign-in via Supabase Auth (not an RPC). Reads the landing content from the `config` table (now config, renamed from `cms` in Phase 9), before sign-in, with ONE plain `select` for three keys (`lpage_banner`, `tnc`, `landing.carousel_heading`), newest row per key winning, in [services/landingContent.ts](../../src/services/landingContent.ts) via [useLandingContent](../../src/hooks/useLandingContent.ts) (one shared request for the whole page). Every key has a built-in default: no banner row, an empty one, one that is not a web address, or a failed lookup shows the design's mascot banner (`public/images/landing-banner-default.jpg`); a banner address that fails to load falls back to the built-in picture once, then to a quiet frame; the carousel heading defaults to "Why it works" and is shown above the carousel (see "Landing carousel" below). The line "By continuing you agree to the Terms and Privacy Policy." is written in the app. Terms popup: if there is no `tnc` row it says the Terms are not available; if the lookup failed it shows "We couldn't load the Terms and Conditions. Check your connection and try again." with a retry. Sign-in errors: not set up / redirect unavailable / generic "We could not start Google sign-in…".
 
 ## Onboarding and Profile (table updates, plus RPCs)
 - **Reads** `profiles` (select own row). **Writes** `profiles` (update `first_name`, `last_name`, `date_of_birth` only).
@@ -24,6 +50,7 @@ On launch (once per user per page load) `useSaveDeviceTimezone` calls `set_my_ti
 - Validation (client): "Enter your first name." / "Enter your last name." / "Birthday must be at least 15 years ago." / "Enter a valid date."
 - **Profile tab** also calls `get_goal_state` (read) and `set_weekly_goal` (only when the number changed; see below) and, for admins only, `set_place_search_mode` (SQLSTATE `42501` → "Only administrators can search any place."; network → "We couldn't reach the server…"; other → "We couldn't change this setting. Please try again.").
 - Toast on save: "Changes saved", plus the goal message when the goal changed.
+- **Quick start guide** button under the details list (hidden while editing, and when there are no Quick Start cards); see "Quick Start" above.
 
 ## Gym setup
 - Google Maps Places (autocomplete and details), then `gyms`: update `is_active=false` on the old row and insert the new one (restores the old one if the insert fails). Errors use the generic network / "Something went wrong…" pair. A place that is not a gym: "Not a gym. "<name>" isn't listed on Google Maps as a gym, fitness centre or sports facility. Please select another place." (admins in `any_place` mode skip this check).
@@ -167,6 +194,29 @@ Derived: `next = done + 1`, `remaining = max(0, goal - done)`, `left = ceil(rema
 **Placeholders** (`fillPlaceholders`): `{goal} {done} {next} {left} {remaining} {wk} {total}`. An unknown placeholder becomes an empty string (a console warning in development).
 
 **Tested:** one test per situation, the cache rules, and a parity test that compares the new logic with the prototype's `skey()` (kept in the test as an oracle, with `missed_checks` added after `left_early`) on all 9,408 reachable combinations of the grid in the task.
+
+## Carousel and Quick Start content (Phase 9c data layer; drawn by the landing carousel and the Quick Start screen)
+
+The landing page draws the carousel and the Quick Start screen draws `quick_start` (sections below). The data is read, cached and tested so a screen only has to draw it.
+
+**Files:** [cmsService.ts](../../src/services/cmsService.ts) (fetch and strict parse), [cmsStore.ts](../../src/services/cmsStore.ts) (the cache), [config/cmsDefaults.ts](../../src/config/cmsDefaults.ts) (bundled starting content), [utils/cms.ts](../../src/utils/cms.ts) (`imageFor`, `itemsOf`, `needsQuickStart`), [hooks/useCmsContent.ts](../../src/hooks/useCmsContent.ts) (`useCmsContent`, `useLandingCarouselItems`, `useQuickStartItems`), [quickStartService.ts](../../src/services/quickStartService.ts) and [hooks/useQuickStart.ts](../../src/hooks/useQuickStart.ts). (`cmsService.ts` reads the NEW `cms` table; the old table of that name is `config`, see the landing section.)
+
+**Call:** `get_cms_content()`, only through `fetchCmsContent()`. It never throws: any failure is `{ status: 'error' }`. An item that cannot be read is dropped without failing the rest. Items are ordered by position then id, and **at most 12 are kept per category** (a safety limit in the app).
+
+**Stale while revalidate** (`CmsStore`, the same pattern as the mascot):
+1. It starts instantly from the copy saved in `localStorage` (key `showup:cms-content`), or the bundled starting content if there is none (or the saved one is broken).
+2. The first component to use `useCmsContent()` starts a background fetch on every app launch (it works before sign-in); after that, when the tab becomes visible, it fetches again only if the last fetch was **more than 5 minutes** ago. A failed fetch counts as a fetch for that rule.
+3. New content replaces the old whenever its `version` **differs** from what is showing (the version is text, not "newer").
+4. A failed fetch keeps what is there.
+
+**When the bundled content is used.** Only when a fetch fails AND nothing has ever been saved or fetched. After any successful fetch, or with a saved copy, a failure keeps the last good content, never the bundled one. **A category that a SUCCESSFUL answer leaves out is switched off and is not filled in from the bundled content**, and an answer with no categories at all switches everything off. The bundled content is the 8 starting rows from the SQL file, copied exactly, with no picture addresses.
+
+**Pictures:** `imageFor(item)` is `null` when `image_url` is empty (the screen then shows a mascot picture) and otherwise the address with `?v=<v>` (or `&v=<v>` if it already has a query).
+
+**The Quick Start.**
+- `profiles.quickstart_completed_at` is read with the rest of the profile, in the same request (no new call). A blank or missing value counts as not finished.
+- `needsQuickStart(profile, items, finishPending = false)` is true when `quickstart_completed_at` is null AND the Quick Start has at least one card (and no finish is pending). With no cards the feature is off, so nobody is sent to an empty screen.
+- `markQuickStartDone(userId)` calls `complete_quickstart()`. **It never throws and never blocks the person.** If the call fails, or the database answers `false` (no profile row updated), a reminder is kept in the browser (key `showup:quickstart-done-pending:<user id>`, per person) and `retryPendingQuickStart` tries again on the next launch (`useQuickStart` does this on mount). While a finish is pending, `needsQuickStart` stays false so the person is not sent back through it.
 
 ## Pause tab
 | Call | Purpose |

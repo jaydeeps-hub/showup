@@ -16,8 +16,9 @@ import {
   signInWithGoogle,
 } from '../../services/authService'
 import { isSupabaseConfigured } from '../../services/supabaseClient'
-import { BrandDot, BrandO } from './BrandMark'
+import { BrandLogo, BrandO } from './BrandMark'
 import { LandingBanner } from './LandingBanner'
+import { LandingCarousel } from './LandingCarousel'
 import { landing } from './landingTheme'
 import { TermsDialog, type TermsState } from './TermsDialog'
 
@@ -131,25 +132,7 @@ export function LandingScreen() {
           gap: { xs: 7, sm: 8 },
         }}
       >
-        {/* Wordmark */}
-        <Box component="header" sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <BrandDot />
-          <Typography
-            component="p"
-            sx={{
-              fontFamily: landing.font.display,
-              fontWeight: 700,
-              fontSize: '2rem',
-              lineHeight: 1,
-              letterSpacing: '-0.02em',
-              color: landing.color.heading,
-            }}
-          >
-            Sh
-            <BrandO />
-            wup
-          </Typography>
-        </Box>
+        <BrandLogo />
 
         <LandingBanner />
 
@@ -182,6 +165,9 @@ export function LandingScreen() {
             Pick your gym and a weekly goal. Showup confirms you were there and counts every visit.
           </Typography>
         </Box>
+
+        {/* "Why it works": drawn only when the database has active carousel cards */}
+        <LandingCarousel />
 
         {/* Actions */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

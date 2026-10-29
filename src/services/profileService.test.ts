@@ -35,6 +35,7 @@ const row = {
   date_of_birth: '1990-05-17',
   is_admin: false,
   place_search_mode: 'fitness_only',
+  quickstart_completed_at: null as string | null,
   created_at: '2026-10-17T10:00:00Z',
   updated_at: '2026-10-17T10:05:00Z',
 }
@@ -66,6 +67,7 @@ describe('updateProfile', () => {
         dateOfBirth: '1990-05-17',
         isAdmin: false,
         placeSearchMode: 'fitness_only',
+        quickstartCompletedAt: null,
         createdAt: '2026-10-17T10:00:00Z',
         updatedAt: '2026-10-17T10:05:00Z',
       },
@@ -141,6 +143,33 @@ describe('fetchProfile', () => {
   it('returns not-found when there is no row', async () => {
     calls.maybeSingle.mockResolvedValue({ data: null, error: null })
     expect(await fetchProfile('user-1')).toEqual({ status: 'not-found' })
+  })
+})
+
+describe('quickstartCompletedAt on a loaded profile', () => {
+  const load = async (value: unknown) => {
+    calls.maybeSingle.mockResolvedValue({ data: { ...row, quickstart_completed_at: value }, error: null })
+    const result = await fetchProfile('user-1')
+    return result.status === 'found' ? result.profile.quickstartCompletedAt : 'NOT FOUND'
+  }
+
+  it('is null for a person who has not finished the Quick Start', async () => {
+    expect(await load(null)).toBeNull()
+  })
+
+  it('is the timestamp for a person who has', async () => {
+    expect(await load('2026-10-28T09:30:00+00:00')).toBe('2026-10-28T09:30:00+00:00')
+  })
+
+  it.each([undefined, '', 0, false, {}, []])('counts %j as not finished, so nobody is wrongly skipped past the Quick Start', async (value) => {
+    expect(await load(value)).toBeNull()
+  })
+
+  it('asks the database for the column, in the same read as the rest of the profile (no extra call)', async () => {
+    calls.maybeSingle.mockResolvedValue({ data: row, error: null })
+    await fetchProfile('user-1')
+    expect(calls.select).toHaveBeenCalledTimes(1)
+    expect(String(calls.select.mock.calls[0][0])).toContain('quickstart_completed_at')
   })
 })
 

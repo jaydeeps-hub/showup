@@ -36,8 +36,9 @@ CREATE OR REPLACE FUNCTION public.cfg(k text, d text)
  STABLE
  SET search_path TO 'public'
 AS $function$
-  select coalesce((select value from cms where content_type = k
-                   order by created_at desc, id desc limit 1), d) $function$
+  select coalesce((select value from public.config where content_type = k
+                   order by created_at desc, id desc limit 1), d)
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.cfg_int(p_key text, p_default integer)
@@ -237,6 +238,38 @@ end
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.cms_touch_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+begin
+  new.updated_at := now();
+  return new;
+end
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.complete_quickstart()
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  uid uuid := auth.uid();
+  n int;
+begin
+  if uid is null then raise exception 'not_signed_in'; end if;
+  update public.profiles
+     set quickstart_completed_at = coalesce(quickstart_completed_at, now()), updated_at = now()
+   where id = uid;
+  get diagnostics n = row_count;
+  return n > 0;
+end
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.effective_place_search_mode()
  RETURNS text
  LANGUAGE sql
@@ -285,7 +318,7 @@ AS $function$
   select coalesce(json_object_agg(substr(content_type, 8), value), '{}'::json)
   from (
     select distinct on (content_type) content_type, value
-    from public.cms
+    from public.config
     where content_type like 'config.%'
     order by content_type, created_at desc, id desc
   ) latest
@@ -351,6 +384,32 @@ begin
     'weeks', weeks
   );
 end
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.get_cms_content()
+ RETURNS json
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public'
+AS $function$
+  select json_build_object(
+    'version', (select coalesce((extract(epoch from max(updated_at)) * 1000)::bigint, 0) || '-' || count(*)
+                  from public.cms),
+    'categories', coalesce((
+      select json_object_agg(g.category, g.items)
+      from (
+        select c.category,
+               json_agg(json_build_object(
+                 'id', c.id, 'slug', c.slug, 'position', c.position,
+                 'heading', c.heading, 'subheading', c.subheading,
+                 'image_url', c.image_url, 'image_alt', c.image_alt,
+                 'v', (extract(epoch from c.updated_at) * 1000)::bigint)
+                 order by c.position, c.id) as items
+        from public.cms c
+        where c.is_active
+        group by c.category) g), '{}'::json)
+  )
 $function$
 ;
 
@@ -1004,10 +1063,15 @@ cancel_showup  authenticated  EXECUTE
 cfg  anon  EXECUTE
 cfg  authenticated  EXECUTE
 check_showup  authenticated  EXECUTE
+cms_touch_updated_at  anon  EXECUTE
+cms_touch_updated_at  authenticated  EXECUTE
+complete_quickstart  authenticated  EXECUTE
 effective_place_search_mode  authenticated  EXECUTE
 end_pause  authenticated  EXECUTE
 get_app_config  authenticated  EXECUTE
 get_calendar  authenticated  EXECUTE
+get_cms_content  anon  EXECUTE
+get_cms_content  authenticated  EXECUTE
 get_goal_state  authenticated  EXECUTE
 get_home_summary  authenticated  EXECUTE
 get_mascot_content  anon  EXECUTE
@@ -1033,6 +1097,7 @@ use_pause  authenticated  EXECUTE
 
 -- TRIGGERS
 
+CREATE TRIGGER cms_touch BEFORE UPDATE ON public.cms FOR EACH ROW EXECUTE FUNCTION cms_touch_updated_at();
 CREATE TRIGGER gyms_set_updated_at BEFORE UPDATE ON public.gyms FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER mascot_images_touch BEFORE UPDATE ON public.mascot_images FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
 CREATE TRIGGER mascot_messages_touch BEFORE UPDATE ON public.mascot_messages FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
@@ -1041,14 +1106,15 @@ CREATE TRIGGER showups_set_local_date BEFORE INSERT ON public.showups FOR EACH R
 
 -- ROW LEVEL SECURITY POLICIES
 
-cms  "Enable read access for all users"  SELECT  roles={public}  using=true  check=-
-cms  "cms admin write"  ALL  roles={public}  using=(EXISTS ( SELECT 1
+cms  "public read"  SELECT  roles={anon,authenticated}  using=true  check=-
+config  "Enable read access for all users"  SELECT  roles={public}  using=true  check=-
+config  "cms: public can read landing page content"  SELECT  roles={anon,authenticated}  using=(content_type = ANY (ARRAY['lpage_banner'::text, 'tnc'::text]))  check=-
+config  "config admin write"  ALL  roles={public}  using=(EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND profiles.is_admin)))  check=(EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND profiles.is_admin)))
-cms  "cms read"  SELECT  roles={public}  using=true  check=-
-cms  "cms: public can read landing page content"  SELECT  roles={anon,authenticated}  using=(content_type = ANY (ARRAY['lpage_banner'::text, 'tnc'::text]))  check=-
+config  "config read"  SELECT  roles={public}  using=true  check=-
 goal_history  "own rows"  SELECT  roles={public}  using=(user_id = auth.uid())  check=-
 gyms  "gyms: insert own"  INSERT  roles={authenticated}  using=-  check=(user_id = ( SELECT auth.uid() AS uid))
 gyms  "gyms: read own"  SELECT  roles={authenticated}  using=(user_id = ( SELECT auth.uid() AS uid))  check=-
@@ -1068,7 +1134,10 @@ weekly_results  "own rows"  SELECT  roles={public}  using=(user_id = auth.uid())
 
 -- INDEXES
 
+CREATE INDEX cms_category_order ON public.cms USING btree (category, is_active, "position");
+CREATE UNIQUE INDEX cms_category_slug ON public.cms USING btree (category, slug);
 CREATE UNIQUE INDEX cms_pkey ON public.cms USING btree (id);
+CREATE UNIQUE INDEX config_pkey ON public.config USING btree (id);
 CREATE UNIQUE INDEX goal_history_pkey ON public.goal_history USING btree (id);
 CREATE UNIQUE INDEX goal_history_user_id_effective_from_key ON public.goal_history USING btree (user_id, effective_from);
 CREATE UNIQUE INDEX gyms_id_user_id_key ON public.gyms USING btree (id, user_id);
@@ -1095,9 +1164,21 @@ CREATE UNIQUE INDEX weekly_results_pkey ON public.weekly_results USING btree (us
 -- COLUMNS
 
 cms.id  bigint  null=NO  default=-
+cms.category  text  null=NO  default=-
+cms.position  integer  null=NO  default=-
+cms.slug  text  null=YES  default=-
+cms.heading  text  null=NO  default=-
+cms.subheading  text  null=NO  default=''::text
+cms.image_url  text  null=NO  default=''::text
+cms.image_alt  text  null=YES  default=-
+cms.is_active  boolean  null=NO  default=true
 cms.created_at  timestamp with time zone  null=NO  default=now()
-cms.content_type  text  null=YES  default=-
-cms.value  text  null=YES  default=-
+cms.updated_at  timestamp with time zone  null=NO  default=now()
+config.id  bigint  null=NO  default=-
+config.created_at  timestamp with time zone  null=NO  default=now()
+config.content_type  text  null=YES  default=-
+config.value  text  null=YES  default=-
+config.remark  text  null=YES  default=-
 goal_history.id  uuid  null=NO  default=gen_random_uuid()
 goal_history.user_id  uuid  null=NO  default=-
 goal_history.days_per_week  smallint  null=NO  default=-
@@ -1141,6 +1222,7 @@ profiles.created_at  timestamp with time zone  null=NO  default=now()
 profiles.updated_at  timestamp with time zone  null=NO  default=now()
 profiles.place_search_mode  text  null=NO  default='fitness_only'::text
 profiles.timezone  text  null=NO  default='Asia/Kolkata'::text
+profiles.quickstart_completed_at  timestamp with time zone  null=YES  default=-
 showup_checks.id  uuid  null=NO  default=gen_random_uuid()
 showup_checks.session_id  uuid  null=NO  default=-
 showup_checks.user_id  uuid  null=NO  default=-

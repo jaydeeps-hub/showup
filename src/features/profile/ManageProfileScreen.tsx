@@ -39,6 +39,8 @@ interface ManageProfileScreenProps {
   /** Opens the gym search so the user can pick a different gym. */
   onChangeGym: () => void
   onSignOut: () => void
+  /** Opens the Quick Start guide. Left out when there is no guide to show, which hides the button. */
+  onOpenQuickStart?: () => void
 }
 
 /** One row of the read view: the muted label on the left, the value on the right. */
@@ -81,7 +83,7 @@ function EditLabel({ children }: { children: ReactNode }) {
  * The bottom tab bar (shown by the app) is how you leave.
  */
 export function ManageProfileScreen(props: ManageProfileScreenProps) {
-  const { profile, email, gym, onSave, onChangeSearchMode, onChangeGym, onSignOut } = props
+  const { profile, email, gym, onSave, onChangeSearchMode, onChangeGym, onSignOut, onOpenQuickStart } = props
   const [isEditing, setIsEditing] = useState(false)
   const goal = useGoalState()
   // The weekly goal being edited, and whether the stepper was used (a user with no goal starts on 3).
@@ -278,6 +280,42 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
                 <Typography variant="body2" color="textSecondary" sx={{ mt: 3 }}>
                   {goalNote}
                 </Typography>
+              )}
+              {onOpenQuickStart && (
+                <ButtonBase
+                  onClick={onOpenQuickStart}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    minHeight: 48,
+                    mt: '12px',
+                    p: 0,
+                    borderRadius: '8px',
+                    color: c.accentText,
+                    fontFamily: home.font.body,
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  <Box
+                    component="span"
+                    aria-hidden
+                    sx={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      border: `1.5px solid ${c.accentText}`,
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ?
+                  </Box>
+                  Quick start guide
+                </ButtonBase>
               )}
             </Box>
           )}

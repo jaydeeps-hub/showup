@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 import { landing } from './landingTheme'
 
 /**
@@ -39,5 +40,29 @@ export function BrandDot() {
       aria-hidden
       sx={{ width: 28, height: 28, flexShrink: 0, borderRadius: '50%', backgroundColor: landing.color.primary }}
     />
+  )
+}
+
+/** The dot and the "Showup" wordmark (with the drawn "o"), as at the top of the landing page and the Quick Start. */
+export function BrandLogo() {
+  return (
+    <Box component="header" sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      <BrandDot />
+      <Typography
+        component="p"
+        sx={{
+          fontFamily: landing.font.display,
+          fontWeight: 700,
+          fontSize: '2rem',
+          lineHeight: 1,
+          letterSpacing: '-0.02em',
+          color: landing.color.heading,
+        }}
+      >
+        Sh
+        <BrandO />
+        wup
+      </Typography>
+    </Box>
   )
 }

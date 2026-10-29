@@ -15,6 +15,7 @@ The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 table
 | `first_name`, `last_name`, `date_of_birth` | Editable by the user (column grants from migration 3; later changes unverified) |
 | `is_admin` bool, default false | Never writable by app users. Enables the admin-only "any place" gym search and `config` writes |
 | `place_search_mode` text, default `fitness_only` | `fitness_only` or `any_place`; changed only through `set_place_search_mode` |
+| `quickstart_completed_at` timestamptz, null | When the person finished the Quick Start; **null until they do**. Nobody is marked as done in advance. Set once by `complete_quickstart()` (never overwritten). Read with the rest of the profile (table-level `select` grant, so no extra grant is needed). **Applied manually** (Phase 9a) |
 | `timezone` text, default `Asia/Kolkata` | The user's timezone. Drives `local_today`, `showups.local_date` and every week boundary. Set by `set_my_timezone`. **Applied manually** |
 
 ### `gyms`
@@ -34,7 +35,7 @@ This is the old `cms` table, renamed with all its rows. A **different, new table
 `id` bigint, `created_at`, `content_type` text, `value` text. Rows used by the app: `lpage_banner` (image URL), `tnc` (Markdown), `landing.carousel_heading` (text, default "Why it works"), and the `config.*` settings (see [rules-and-decisions.md](rules-and-decisions.md#config-keys)). Insert a new row to change a value; the newest row per `content_type` wins. The landing page reads its three keys with one request (`services/landingContent.ts`), before sign-in.
 
 ### `cms` (the new table: landing cards and Quick Start slides, Phase 9) — applied manually
-One row per card or slide: `category` (`landing_carousel` or `quick_start`), `position`, `slug`, `heading`, `subheading`, `image_url` (empty means the app shows a mascot picture), `image_alt`, `is_active`, `created_at`, `updated_at`. Eight starting rows (4 carousel cards, 4 Quick Start slides). Readable by everyone, writable by nobody from the app. Read through `get_cms_content()` (callable before sign-in). **The app does not read this table or that function yet** (a later step). Source: `docs/backend/phase9a_cms_and_config.sql`.
+One row per card or slide: `category` (`landing_carousel` or `quick_start`), `position` (order within the category, lowest first), `slug` (unique with `category`), `heading` (required), `subheading`, `image_url` (empty means the app shows a mascot picture), `image_alt`, `is_active`, `created_at`, `updated_at` (kept current by the trigger `cms_touch`). Eight starting rows (4 carousel cards, 4 Quick Start slides); their pictures have since been uploaded to the public `app-assets` bucket (measured 2026-10-29: every item had an address). Readable by everyone, writable by nobody from the app. **How many screens a carousel has is simply how many ACTIVE rows its category has**: hide a row with `is_active = false`, add a row to show more, and a category with no active rows is switched off. Read through `get_cms_content()` below. Source: `docs/backend/phase9a_cms_and_config.sql`.
 
 ### `goal_history` (weekly goal, append-only by RPC) — applied manually
 `user_id`, `days_per_week` smallint, `effective_from` date (a Monday), `created_at`. Unique `(user_id, effective_from)`. The goal for a week is the row with the latest `effective_from <= that Monday` (`goal_for_week`).
@@ -137,6 +138,25 @@ A reading is credited to the **latest checkpoint due** (2 s tolerance). Position
 Sets a running session to `cancelled`. True if one was cancelled, false if there was nothing running (already ended, or not the caller's).
 
 The helpers `showup_grace_seconds()` (1800), `showup_checkpoints(int, int)` and `showup_session_json(uuid)` are internal and not granted to `anon` or `authenticated`.
+
+## Carousel and Quick Start RPCs (Phase 9)
+
+Source: `docs/backend/phase9a_cms_and_config.sql`, applied manually (the snapshot has not been regenerated since, so its permission list is **unverified** for these; the grants below are from the SQL file, and `get_cms_content` was confirmed callable with the public key on 2026-10-29).
+
+### `get_cms_content()` → json
+**Callable before sign-in** (`anon` and `authenticated`); `STABLE`, not `SECURITY DEFINER` (the table allows public reads). Returns
+```
+{ version: text,
+  categories: { landing_carousel: [item, ...], quick_start: [item, ...] } }
+item = { id, slug, position, heading, subheading, image_url, image_alt, v }
+```
+- `version` is **text**, for example `"1793260675788-8"`: the newest `updated_at` in milliseconds, a dash, and the number of rows. It changes when anything is edited, added, hidden or deleted, so the app swaps content in whenever it **differs** (it is not a number to compare).
+- Only **active** rows, grouped by category, ordered by `position`, then `id`. A category with no active rows is **missing** from `categories` (it is switched off); it is not an empty list.
+- `image_url` may be `''`. `v` is the row's `updated_at` in milliseconds, used to bust the image cache.
+- No error codes: it only reads.
+
+### `complete_quickstart()` → boolean
+`SECURITY DEFINER`, `authenticated` only, takes no arguments (it uses `auth.uid()`). Sets `profiles.quickstart_completed_at` to now **only if it is still empty** (a second call changes nothing), and returns `true` if a profile row was updated, `false` if there was none. Error: `not_signed_in`.
 
 ## Mascot RPC (Phase 7)
 

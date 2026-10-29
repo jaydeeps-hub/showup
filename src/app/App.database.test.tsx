@@ -34,6 +34,7 @@ const profile: Profile = {
   dateOfBirth: null,
   isAdmin: false,
   placeSearchMode: 'fitness_only',
+  quickstartCompletedAt: '2026-10-19T10:00:00Z', // these tests predate the Quick Start: treat the person as done
   createdAt: '2026-10-19T10:00:00Z',
   updatedAt: '2026-10-19T10:00:00Z',
 }
@@ -220,11 +221,14 @@ describe('loading the gym from Supabase', () => {
     expect(await showUpButton()).toBeTruthy()
   })
 
-  it('does not read the browser\'s localStorage at all any more', async () => {
+  it('does not keep the gym in the browser\'s localStorage any more', async () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem')
     renderApp()
     await showUpButton()
-    expect(getItem.mock.calls.filter(([key]) => String(key).startsWith('showup:'))).toEqual([])
+    // The only things the app keeps in the browser are cached content and the "Quick Start finished, not yet
+    // recorded" reminder. None of them is the gym.
+    const kept = /^showup:(cms-content|mascot-content|quickstart-done-pending:)/
+    expect(getItem.mock.calls.map(([key]) => String(key)).filter((key) => key.startsWith('showup:') && !kept.test(key))).toEqual([])
   })
 })
 

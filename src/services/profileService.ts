@@ -17,11 +17,13 @@ interface ProfileRow {
   date_of_birth: string | null
   is_admin: boolean
   place_search_mode: string
+  quickstart_completed_at: string | null
   created_at: string
   updated_at: string
 }
 
-const PROFILE_COLUMNS = 'id, first_name, last_name, date_of_birth, is_admin, place_search_mode, created_at, updated_at'
+const PROFILE_COLUMNS =
+  'id, first_name, last_name, date_of_birth, is_admin, place_search_mode, quickstart_completed_at, created_at, updated_at'
 
 export type ProfileResult =
   | { status: 'found'; profile: Profile }
@@ -46,6 +48,8 @@ function toProfile(row: ProfileRow): Profile {
     dateOfBirth: row.date_of_birth,
     isAdmin: row.is_admin,
     placeSearchMode: toEffectiveMode(row),
+    // Anything that is not a non-empty text (null, missing from an older row, blank) counts as "not finished".
+    quickstartCompletedAt: typeof row.quickstart_completed_at === 'string' && row.quickstart_completed_at !== '' ? row.quickstart_completed_at : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

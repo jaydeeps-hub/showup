@@ -62,6 +62,11 @@ export interface Profile {
    * `fitness_only`, whatever was stored earlier (the database works this out, not the app).
    */
   placeSearchMode: PlaceSearchMode
+  /**
+   * When the person finished the Quick Start (an ISO timestamp), or null if they have not. Nobody is marked
+   * as done in advance: an empty value means "show the Quick Start".
+   */
+  quickstartCompletedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -171,6 +176,39 @@ export interface CheckShowupResult {
   /** On `completed`: true if a new Showup was written, false if the day already had one. */
   recorded?: boolean
   session: ShowupSession
+}
+
+/*
+ * The landing carousel and Quick Start content (Phase 9). These mirror the JSON `get_cms_content` returns.
+ */
+
+/** The groups of cards the table holds. Each is shown by its own part of the app. */
+export type CmsCategory = 'landing_carousel' | 'quick_start'
+
+/** One card or slide. */
+export interface CmsItem {
+  id: number
+  /** A short stable name, for example `biggest-step`. Null on a row that has none. */
+  slug: string | null
+  /** The order within the category, lowest first. */
+  position: number
+  heading: string
+  subheading: string
+  /** The picture's address. Empty means "no picture": the app shows a mascot picture instead. */
+  image_url: string
+  image_alt: string | null
+  /** The row's last-changed time in milliseconds, added to the picture address so a changed picture is fetched again. */
+  v: number
+}
+
+/**
+ * What `get_cms_content` returns. A category with no active items is simply MISSING from `categories`:
+ * that means it is switched off. The number of screens in a carousel is the number of items it has.
+ */
+export interface CmsContent {
+  /** A text that changes whenever anything in the table is edited, added, hidden or deleted. */
+  version: string
+  categories: Partial<Record<CmsCategory, CmsItem[]>>
 }
 
 /*

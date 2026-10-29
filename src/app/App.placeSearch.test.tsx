@@ -105,6 +105,7 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     dateOfBirth: null,
     isAdmin: false,
     placeSearchMode: 'fitness_only',
+    quickstartCompletedAt: '2026-10-17T10:00:00Z', // these tests predate the Quick Start: treat the person as done
     createdAt: '2026-10-17T10:00:00Z',
     updatedAt: '2026-10-17T10:00:00Z',
     ...overrides,
