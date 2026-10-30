@@ -67,6 +67,23 @@ export const PRIMARY_GYM_LABEL = 'Gym 1'
 /** Wait this long after the user stops typing before calling Google. */
 export const PLACE_SEARCH_DEBOUNCE_MS = 300
 
+/** Wait this long after the user stops typing before calling Google while "Gyms near me" is on (a little longer, to save requests). */
+export const NEAR_ME_SEARCH_DEBOUNCE_MS = 350
+
+/**
+ * Options for the one-off position read when the person turns "Gyms near me" on. Much looser than the Show Up
+ * ones above: a rough position is enough to sort a list, so there is no high-accuracy fix, a 10 s wait, and a
+ * position up to a minute old is fine.
+ */
+export const NEAR_ME_GEOLOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 10_000,
+  maximumAge: 60_000,
+}
+
+/** The note shown under the "Gyms near me" toggle when location was refused, unavailable or timed out. */
+export const LOCATION_OFF_NOTE = 'Location is off. Allow it in your browser settings to sort by distance.'
+
 /** Minimum characters typed before searching Google Maps. */
 export const PLACE_SEARCH_MIN_CHARACTERS = 3
 

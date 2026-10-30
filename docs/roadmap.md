@@ -40,10 +40,27 @@ Still open after 6c:
 
 Still open after 7d:
 1. **Upload the pictures.** Put the PNGs in the public `app-assets` bucket and set `mascot_images.image_url` for `smile`, `wave`, `cheer`, `lift`, `focus` and `sleep`. Until then the mascot shows words only. Once at least one picture exists, a message whose expression has no picture is skipped in favour of the next one.
-2. **Other places for the mascot:** the goal screen (the prototype has one), the Profile avatar (`avatar` image) and a white logo (`logo_white`) are not built.
+2. **Other places for the mascot:** the goal screen's logic is done (Phase 10c) but the screen is not built; the Profile avatar (`avatar` image) and the white logo (`logo_white`, now wanted on the landing page and Home, see Phase 10) are not built.
 3. **`left_early` (80) and `missed_checks` (85) rank below `paused` (70)** in the table, so a paused week never shows them. Change the numbers in `mascot_messages` if that is not wanted.
 4. **`lastOutcome` is forgotten on a page reload** (by design).
 5. **`AppTabBar` and `ShowupFeedback` still re-render on every timer tick**; they could move to the selector hooks the same way Home did.
+
+## Phase 10 progress (onboarding rework)
+Design changes in `docs/design/showup-prototype.html` that Phase 10 has to build (recorded 2026-10-30; none is built yet):
+1. **Setting a goal is optional.** The Set Goal step of onboarding gets a Skip button and a pop-up that encourages the person to set a goal.
+2. **Home with no goal:** the "0 weeks in a row" card becomes a "Set a Weekly Goal" button of the same size. It opens a standalone Set Goal screen with a Back button and no Skip.
+3. **No weekly progress bar above the calendar** for a person who has not set a goal.
+4. **The Showup logo** on the landing page and on Home uses `logo_white` from `mascot_images` (it is live; `get_mascot_content()` returns it).
+
+| Step | Status | Notes |
+|---|---|---|
+| 10a Database: mascot lines for the goal screen | Done | `docs/backend/10a_onboarding_mascot.sql`, applied manually and logged (items 34 to 37). `mascot_messages.screen` and `label`; `goal_1` ... `goal_7`; two "Gyms near me" settings in `config` (not read by the app yet). The schema snapshot is not regenerated yet |
+| 10c Mascot logic for the goal screen | **Done** (no visual change) | `screen` and `label` on `MascotMessage`; `pickMascotMessage(..., screen = 'home')`; `pickGoalMascotMessage`; `goal_N` situations; the seven bundled goal rows as the fallback. Home behaviour and its tests are unchanged |
+| 10d Details screen ("What should we call you?") | **Done** (UI only; not tried in a browser or on a phone) | `OnboardingStepHeader` (back arrow, 33% bar, "1 of 3"), the new title and note, plain design-style inputs with blur checks and Enter-to-next, Continue off until both names have text and pushed to the bottom. Save logic and routing unchanged. Back on this step signs out (to confirm) |
+| 10e Weekly goal screen | **Done** (UI only; not tried in a browser or on a phone) | The onboarding design: header (100%, "3 of 3"), mascot row from the `goal_N` row (80px), big number with the database caption, seven radio buttons, help text, Set goal (60px, pushed to the bottom). `set_weekly_goal` and the routing are unchanged. Shared `MascotRow` now also draws Home's mascot. `goalLabel` removed |
+| 10f Add gym screen | **Done** (UI only; not tried in a browser or on a phone) | The onboarding design: header (66%, "2 of 3"; from Profile a back arrow only), title, search box with a clear ✕, results as a radiogroup with a check, loading / error with Retry / no-results states, "Save gym" with the toast "<name> saved" and a 700 ms hand-off. Search and save logic unchanged. The dropdown became an inline list. No back arrow on the onboarding step (to confirm) |
+| 10g "Gyms near me" | **Done** (not tried in a browser or on a phone) | Toggle row, location asked only on the tap, nearby search (Places API (New)) and a biased typed search, distances in the app, 5-minute in-memory cache, on/off flag in `localStorage` (applied only when location is already allowed), `gym_search_radius_meters` / `gym_search_max_results` in the app config. `place_search_mode` untouched |
+| Skip and pop-up on the goal step, the goal as a forced third step, going on to the goal step after the gym, Home "Set a Weekly Goal" button, hidden progress bar, `logo_white`, "Gyms near me" | Not done | The rest of Phase 10 |
 
 ## Phase 9 progress
 | Step | Status | Notes |

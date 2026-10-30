@@ -1,13 +1,14 @@
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import type { Session } from '@supabase/supabase-js'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BottomNav, type AppTab } from '../components/BottomNav'
 import { ShowupFeedback } from '../components/ShowupFeedback'
+import { Toast, type ToastContent } from '../components/Toast'
 import { HomeScreen } from '../features/attendance/HomeScreen'
 import { LandingScreen } from '../features/landing/LandingScreen'
 import { GoalScreen } from '../features/goal/GoalScreen'
-import { GymSetupScreen } from '../features/gym/GymSetupScreen'
+import { GymSetupScreen, GYM_SAVED_PAUSE_MS } from '../features/gym/GymSetupScreen'
 import { QuickStartScreen } from '../features/quickstart/QuickStartScreen'
 import { PauseScreen } from '../features/pause/PauseScreen'
 import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
@@ -25,6 +26,9 @@ import { needsQuickStart, quickStartEndingLabel } from '../utils/cms'
 import { getFirstName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
 import { DataLoadErrorScreen } from './DataLoadErrorScreen'
+
+/** The longest the gym screen is kept up after a save: the screen's own pause, plus room for it to finish. */
+const GYM_SAVED_HOLD_LIMIT_MS = GYM_SAVED_PAUSE_MS + 1500
 
 /**
  * Top level: decides between loading, the sign-in screen and the Showup app,
@@ -56,6 +60,19 @@ function SignedInApp({ session }: { session: Session }) {
   // Loaded separately from sign-in: it decides whether to show onboarding.
   const profile = useProfile(session.user.id)
   const [isChangingGym, setIsChangingGym] = useState(false)
+  // True from the moment a gym is saved until its "<name> saved" message has been shown. The gym is already stored by
+  // then, and without this the screen would disappear (no gym screen is needed once there is a gym) before it showed.
+  const [gymSavedShowing, setGymSavedShowing] = useState(false)
+  // "<name> saved". It lives here, not in the gym screen, so it stays up after that screen has gone.
+  const [gymToast, setGymToast] = useState<ToastContent | null>(null)
+  // The gym screen normally ends the hold-back itself, a moment after the save. If that screen goes away first (the
+  // profile reloads, say), nothing would ever end it, and a new gym screen would be stranded on "2 of 3". So the hold
+  // also ends by itself a little later than the screen's own pause.
+  useEffect(() => {
+    if (!gymSavedShowing) return
+    const timer = setTimeout(() => setGymSavedShowing(false), GYM_SAVED_HOLD_LIMIT_MS)
+    return () => clearTimeout(timer)
+  }, [gymSavedShowing])
   const [isSettingGoal, setIsSettingGoal] = useState(false)
   // Which tab is showing: Home, Pause or Profile.
   const [tab, setTab] = useState<AppTab>('home')
@@ -113,6 +130,7 @@ function SignedInApp({ session }: { session: Session }) {
         </Alert>
       )}
       {renderScreen()}
+      <Toast toast={gymToast} onClose={() => setGymToast(null)} />
     </ShowupProvider>
   )
 
@@ -139,7 +157,9 @@ function SignedInApp({ session }: { session: Session }) {
     // New users (no first or last name yet) complete their profile first. Once it is saved the
     // profile is complete, so this is skipped on every later visit and after a refresh.
     if (profile.status === 'ready' && !isProfileComplete(profile.profile)) {
-      return <OnboardingScreen profile={profile.profile} onSave={profile.save} />
+      // The first step has nothing before it except the landing page, and for someone already signed in
+      // "back to the start" means signing out (the auth listener then shows the landing page).
+      return <OnboardingScreen profile={profile.profile} onSave={profile.save} onBack={() => void handleSignOut()} />
     }
 
     // Wait for the gym, so we never show "choose your gym" to someone who has one.
@@ -158,15 +178,24 @@ function SignedInApp({ session }: { session: Session }) {
     // from is still selected when you return. Home loads fresh numbers when it comes back.
     if (isSettingGoal) return <GoalScreen onBack={() => setIsSettingGoal(false)} />
 
-    if (!showup.gym || isChangingGym) {
+    if (!showup.gym || isChangingGym || gymSavedShowing) {
       return (
         <GymSetupScreen
+          // The same screen is step 2 of onboarding (no gym yet) or "Change gym" from Profile (a gym already exists).
+          isOnboarding={!isChangingGym && (!showup.gym || gymSavedShowing)}
           onSave={async (place) => {
             const result = await showup.saveGym(place)
-            if (result.ok) setIsChangingGym(false)
+            if (result.ok) setGymSavedShowing(true)
             return result
           }}
-          onCancel={showup.gym ? () => setIsChangingGym(false) : undefined}
+          onSaved={(gymName) => setGymToast({ severity: 'success', message: `${gymName} saved` })}
+          // After "<name> saved": on to what comes next, or back to Profile if it was opened from there.
+          onDone={() => {
+            setGymSavedShowing(false)
+            setIsChangingGym(false)
+          }}
+          // The back arrow: out of "Change gym" back to Profile. First-time setup has no earlier screen here.
+          onBack={isChangingGym ? () => setIsChangingGym(false) : undefined}
           // Only a loaded profile can widen the search; in every other case it stays restricted.
           searchMode={profile.status === 'ready' ? profile.profile.placeSearchMode : 'fitness_only'}
         />

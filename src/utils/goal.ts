@@ -7,22 +7,7 @@ export const MAX_GOAL_DAYS = 7
 /** Where the picker starts for someone with no goal yet. */
 export const DEFAULT_GOAL_DAYS = 3
 
-const GOAL_LABELS: Record<number, string> = {
-  1: 'A gentle start',
-  2: 'Light and steady',
-  3: 'Steady',
-  4: 'Committed',
-  5: 'A strong week',
-  6: 'Nearly every day',
-  7: 'Every day',
-}
-
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
-
-/** The encouraging label for a number of days, or an empty string for anything outside 1 to 7. */
-export function goalLabel(days: number): string {
-  return GOAL_LABELS[days] ?? ''
-}
 
 /** "1 day" or "3 days". */
 export function daysText(days: number): string {

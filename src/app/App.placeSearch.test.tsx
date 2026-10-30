@@ -136,13 +136,13 @@ function renderApp() {
 
 /** Types into the gym search and picks a result by its name. */
 async function searchAndPick(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const box = await screen.findByLabelText(/gym name, address or landmark/i)
+  const box = await screen.findByRole('searchbox', { name: /search gyms/i })
   await user.click(box)
   await user.type(box, 'iron')
-  await user.click(await screen.findByRole('option', { name: new RegExp(name, 'i') }))
+  await user.click(await screen.findByRole('radio', { name: new RegExp(name, 'i') }))
 }
 
-const saveButton = () => screen.getByRole('button', { name: /save as gym 1/i }) as HTMLButtonElement
+const saveButton = () => screen.getByRole('button', { name: /^save gym$/i }) as HTMLButtonElement
 
 async function openManageProfile(user: ReturnType<typeof userEvent.setup>) {
   // The Profile tab in the bottom bar opens the Profile page, whose title is the person's name.
@@ -178,7 +178,8 @@ describe('regular user (is_admin = false)', () => {
 
     await searchAndPick(user, 'Iron Gym')
 
-    expect(await screen.findByText(/selected as gym 1/i)).toBeTruthy()
+    // Accepted: Save gym is on only once the place has passed the search-mode check, and its row is the one checked.
+    await vi.waitFor(() => expect(saveButton().disabled).toBe(false))
     expect(saveButton().disabled).toBe(false)
   })
 
@@ -298,7 +299,8 @@ describe('administrator (is_admin = true)', () => {
 
     await searchAndPick(user, '12 Quiet Street')
 
-    expect(await screen.findByText(/selected as gym 1/i)).toBeTruthy()
+    // Accepted: Save gym is on only once the place has passed the search-mode check, and its row is the one checked.
+    await vi.waitFor(() => expect(saveButton().disabled).toBe(false))
     expect(screen.queryByText(/not a gym/i)).toBeNull()
     expect(saveButton().disabled).toBe(false)
   })
@@ -312,7 +314,8 @@ describe('administrator (is_admin = true)', () => {
     await openChangeGym(user)
     await searchAndPick(user, '12 Quiet Street')
 
-    expect(await screen.findByText(/selected as gym 1/i)).toBeTruthy()
+    // Accepted: Save gym is on only once the place has passed the search-mode check, and its row is the one checked.
+    await vi.waitFor(() => expect(saveButton().disabled).toBe(false))
   })
 
   it('is restricted again on the change-gym screen after switching back to fitness places', async () => {

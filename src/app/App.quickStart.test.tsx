@@ -58,7 +58,10 @@ vi.mock('../services/goalService', () => ({
   setWeeklyGoal: vi.fn(),
 }))
 vi.mock('../services/timezoneService', () => ({ saveDeviceTimezone: vi.fn() }))
-vi.mock('../services/appConfig', () => ({ loadAppConfig: vi.fn(async () => ({})) }))
+vi.mock('../services/appConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/appConfig')>()),
+  loadAppConfig: vi.fn(async () => ({})),
+}))
 vi.mock('../services/gymService', () => ({
   fetchActiveGym: vi.fn(async () => ({ status: 'ok', gym: savedGym })),
   saveActiveGym: vi.fn(),
@@ -227,10 +230,10 @@ describe('when it appears', () => {
     renderApp()
 
     expect(await screen.findByRole('heading', { name: 'Live step 1' })).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: "Let's get to know you." })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'What should we call you?' })).toBeNull()
 
     await walkThrough(user, 'Set up my profile')
-    expect(await screen.findByRole('heading', { name: "Let's get to know you." })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'What should we call you?' })).toBeTruthy()
     expect(quickStartScreen()).toBeNull()
   })
 

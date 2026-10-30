@@ -40,7 +40,7 @@ flowchart TD
     Load -->|user + gym| Home
     Problem --> Welcome
     Welcome -->|Continue| Setup[Gym setup<br/>Google Maps search]
-    Setup -->|Save as Gym 1| Home[Home screen<br/>SHOW UP + counter]
+    Setup -->|Save gym| Home[Home screen<br/>SHOW UP + counter]
     Home -->|tap your name| Profile[Profile page<br/>Edit details, Change gym, Sign out]
     Profile -->|Change gym| Setup
     Profile -->|Back| Home
@@ -120,9 +120,9 @@ flowchart LR
 
 1. `GymSearch` asks `mapsService.loadPlacesLibrary()` to load the Google Maps script (only once per page). It then creates an **autocomplete session token**.
 2. As the user types (at least 3 characters, 300 ms after they stop), it calls `searchPlaces(text, token)`. That uses `AutocompleteSuggestion.fetchAutocompleteSuggestions` from Places API (New).
-3. Suggestions appear in an MUI `Autocomplete`. When one is picked, `getPlaceDetails` calls `prediction.toPlace().fetchFields(['id', 'displayName', 'formattedAddress', 'location', 'types'])`.
+3. Results appear as a list of rows under the search box (Phase 10f; this used to be an MUI `Autocomplete` dropdown). When one is picked, `getPlaceDetails` calls `prediction.toPlace().fetchFields(['id', 'displayName', 'formattedAddress', 'location', 'types'])`.
 4. **Gym check:** `isFitnessPlace(types)` in `services/gymValidation.ts` checks Google's categories for the place against `ALLOWED_GYM_PLACE_TYPES` (`config/constants.ts`), e.g. `gym`, `fitness_center` or `yoga_studio`. If none match, `GymSearch` shows "Not a gym … Please select another place." and nothing can be saved. This stops people saving a random spot, such as their home, and earning Showups there. The types are used only for this check and are not stored.
-5. If it passes, the result is a `SelectedPlace`. `GymSetupScreen` shows it in a `GymSummary` card and enables **Save as Gym 1**.
+5. If it passes, the result is a `SelectedPlace`. The chosen row shows a check mark and `GymSetupScreen` enables **Save gym**.
 6. `useShowup.saveGym` turns it into a `Gym` with its own Showup `id`, the user's `userId`, the label "Gym 1", and a `createdAt` timestamp. It replaces any previous gym for that user.
 
 The gym gets its **own** ID, separate from Google's `googlePlaceId`, so events never depend on Google's identifiers.

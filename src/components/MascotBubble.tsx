@@ -1,18 +1,12 @@
-import Box from '@mui/material/Box'
 import { useEffect, useMemo, useState } from 'react'
-import { home } from '../design-system/homeTokens'
 import { useShowupSelector } from '../hooks/showupSessionContext'
 import { useMascotContent } from '../hooks/useMascot'
 import { DEFAULT_APP_CONFIG, loadAppConfig } from '../services/appConfig'
 import type { HomeSummaryState } from '../hooks/useHomeSummary'
-import type { MascotContent, MascotPicture } from '../types'
 import { mondayOf } from '../utils/calendarDates'
 import { coarseRemainingSeconds, imageFor, pickMascotMessage, type MascotContext } from '../utils/mascot'
-
-const c = home.color
-
-/** The picture's height in pixels. Its width follows from its shape, so the row never jumps. */
-export const MASCOT_HEIGHT = 104
+import { MascotRow } from './MascotRow'
+import { usePreloadMascotImages } from './usePreloadMascotImages'
 
 interface MascotBubbleProps {
   /** Home's numbers and pauses, or its loading / error state. */
@@ -63,31 +57,7 @@ export function MascotBubble({ summary, today }: MascotBubbleProps) {
 
   usePreloadMascotImages(content)
 
-  return (
-    <Box
-      sx={{ display: 'flex', alignItems: 'center', gap: '12px', mt: '14px', minHeight: MASCOT_HEIGHT, fontFamily: home.font.body }}
-    >
-      {picture && <MascotPictureImage key={picture.url} picture={picture} content={content} />}
-      {pick && (
-        <Box
-          // Read out politely when the words change (a screen reader is not interrupted mid-sentence).
-          aria-live="polite"
-          sx={{
-            bgcolor: c.surface,
-            border: `1px solid ${c.line}`,
-            borderRadius: '16px',
-            p: '10px 14px',
-            fontSize: 14,
-            color: '#D5D8E0',
-            minWidth: 0,
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {pick.text}
-        </Box>
-      )}
-    </Box>
-  )
+  return <MascotRow picture={picture} content={content} text={pick ? pick.text : null} />
 }
 
 /**
@@ -110,52 +80,4 @@ function useMascotAlmostSeconds(): number {
     }
   }, [])
   return seconds
-}
-
-/**
- * The mascot's picture. Decorative: the words say everything, so it is hidden from screen readers.
- * If it fails to load, try the `smile` picture once; if that fails too, show nothing (the bubble stays).
- * The row's height is fixed by the parent, and the width/height attributes reserve the shape, so
- * nothing jumps while it loads.
- */
-function MascotPictureImage({ picture, content }: { picture: MascotPicture; content: MascotContent }) {
-  const [useFallback, setUseFallback] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const smile = useMemo(() => imageFor({ images: content.images }, 'smile'), [content.images])
-  const shown = useFallback && smile ? smile : picture
-  if (failed) return null
-
-  return (
-    <Box
-      component="img"
-      src={shown.url}
-      alt=""
-      aria-hidden
-      // The attributes let the browser reserve the right shape before the picture arrives.
-      {...(shown.width ? { width: shown.width } : {})}
-      {...(shown.height ? { height: shown.height } : {})}
-      onError={() => {
-        // First failure: try the smile picture (unless that is what just failed). Second: give up quietly.
-        if (!useFallback && smile && smile.url !== picture.url) setUseFallback(true)
-        else setFailed(true)
-      }}
-      sx={{ height: MASCOT_HEIGHT, width: 'auto', flex: 'none', objectFit: 'contain', display: 'block' }}
-    />
-  )
-}
-
-/**
- * After the content has loaded, fetch every picture once in the background, so changing faces (waiting,
- * cheering, resting) shows at once instead of flickering while the next picture downloads.
- */
-function usePreloadMascotImages(content: MascotContent): void {
-  useEffect(() => {
-    // Each Image is only created to make the browser download and cache the picture. Nothing is stored:
-    // once it is cached, the real <img> shows it instantly.
-    for (const key of Object.keys(content.images)) {
-      const picture = imageFor(content, key)
-      if (picture) new Image().src = picture.url
-    }
-  }, [content])
 }

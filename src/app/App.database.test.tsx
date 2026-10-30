@@ -71,7 +71,10 @@ vi.mock('../services/goalService', () => ({
   setWeeklyGoal: vi.fn(),
 }))
 vi.mock('../services/timezoneService', () => ({ saveDeviceTimezone: vi.fn() }))
-vi.mock('../services/appConfig', () => ({ loadAppConfig: vi.fn(async () => ({})) }))
+vi.mock('../services/appConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/appConfig')>()),
+  loadAppConfig: vi.fn(async () => ({})),
+}))
 
 // A fake database for the gym.
 const db = vi.hoisted(() => ({ fetchActiveGym: vi.fn(), saveActiveGym: vi.fn() }))
@@ -158,10 +161,10 @@ function renderApp() {
 
 /** Searches for the gym and picks the result. */
 async function chooseGym(user: ReturnType<typeof userEvent.setup>) {
-  const box = await screen.findByLabelText(/gym name, address or landmark/i)
+  const box = await screen.findByRole('searchbox', { name: /search gyms/i })
   await user.click(box)
   await user.type(box, 'iron')
-  await user.click(await screen.findByRole('option', { name: /iron gym/i }))
+  await user.click(await screen.findByRole('radio', { name: /iron gym/i }))
 }
 
 const showUpButton = () => screen.findByRole('button', { name: /^show up$/i })
@@ -251,7 +254,7 @@ describe('saving a gym', () => {
     const user = userEvent.setup()
     renderApp()
     await chooseGym(user)
-    await user.click(screen.getByRole('button', { name: /save as gym 1/i }))
+    await user.click(screen.getByRole('button', { name: /^save gym$/i }))
 
     expect(await showUpButton()).toBeTruthy()
     expect(db.saveActiveGym).toHaveBeenCalledTimes(1)
@@ -263,12 +266,12 @@ describe('saving a gym', () => {
     const user = userEvent.setup()
     renderApp()
     await chooseGym(user)
-    await user.click(screen.getByRole('button', { name: /save as gym 1/i }))
+    await user.click(screen.getByRole('button', { name: /^save gym$/i }))
 
     expect(await screen.findByRole('alert')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^show up$/i })).toBeNull() // not claimed as saved
-    expect(screen.getByText(/selected as gym 1/i)).toBeTruthy() // the choice is kept
+    expect(screen.getByRole('radio', { name: /iron gym/i }).getAttribute('aria-checked')).toBe('true') // the choice is kept
   })
 
   it('can be retried after a failure', async () => {
@@ -276,7 +279,7 @@ describe('saving a gym', () => {
     const user = userEvent.setup()
     renderApp()
     await chooseGym(user)
-    await user.click(screen.getByRole('button', { name: /save as gym 1/i }))
+    await user.click(screen.getByRole('button', { name: /^save gym$/i }))
     await screen.findByRole('alert')
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
@@ -302,7 +305,7 @@ describe('changing gym', () => {
     renderApp()
     await openChangeGym(user)
     await chooseGym(user)
-    await user.click(screen.getByRole('button', { name: /save as gym 1/i }))
+    await user.click(screen.getByRole('button', { name: /^save gym$/i }))
 
     expect(await screen.findByText('Second Gym')).toBeTruthy()
     expect(db.saveActiveGym).toHaveBeenCalledTimes(1)
@@ -314,10 +317,10 @@ describe('changing gym', () => {
     renderApp()
     await openChangeGym(user)
     await chooseGym(user)
-    await user.click(screen.getByRole('button', { name: /save as gym 1/i }))
+    await user.click(screen.getByRole('button', { name: /^save gym$/i }))
     await screen.findByRole('alert')
 
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
 
     expect(await screen.findByRole('button', { name: /^profile$/i })).toBeTruthy()
     expect(screen.getByText('Iron Gym')).toBeTruthy() // the original gym is still the active one

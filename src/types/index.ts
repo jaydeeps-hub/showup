@@ -227,6 +227,9 @@ export interface MascotImage {
   v: number
 }
 
+/** The screens whose mascot lines the database holds. */
+export type MascotScreen = 'home' | 'goal'
+
 /** One thing the mascot can say. The database sends them already ordered by `priority`, then `id`. */
 export interface MascotMessage {
   id: number
@@ -237,6 +240,13 @@ export interface MascotMessage {
   /** Names a picture in `images`. */
   expression: string
   message: string
+  /**
+   * Which screen shows the line. A line with no `screen` (old saved content, old bundled words) counts as
+   * `'home'`, which is what every line was before the goal screen had a mascot.
+   */
+  screen?: MascotScreen
+  /** A short caption. The goal screen shows it under the big number. Null or missing means none. */
+  label?: string | null
 }
 
 /** What `get_mascot_content` returns. */

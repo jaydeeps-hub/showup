@@ -101,7 +101,7 @@ function renderApp() {
   )
 }
 
-const onboardingHeading = () => screen.queryByRole('heading', { name: "Let's get to know you." })
+const onboardingHeading = () => screen.queryByRole('heading', { name: 'What should we call you?' })
 const homeShowUpButton = () => screen.queryByRole('button', { name: /show up/i })
 
 beforeEach(() => {
@@ -120,8 +120,8 @@ describe('incomplete-profile routing', () => {
     useFakeDatabase(profile())
     renderApp()
 
-    expect(await screen.findByRole('heading', { name: "Let's get to know you." })).toBeTruthy()
-    expect(screen.getByText('What should we call you, and when should we wish you on your birthday?')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'What should we call you?' })).toBeTruthy()
+    expect(screen.getByText('Just the basics. It takes a few seconds.')).toBeTruthy()
     expect(homeShowUpButton()).toBeNull()
   })
 
@@ -137,7 +137,7 @@ describe('incomplete-profile routing', () => {
   it('shows onboarding when only one name is present', async () => {
     useFakeDatabase(profile({ firstName: 'Asha' }))
     renderApp()
-    expect(await screen.findByRole('heading', { name: "Let's get to know you." })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'What should we call you?' })).toBeTruthy()
   })
 
   it('pre-fills names that Google already provided', async () => {
@@ -234,23 +234,29 @@ describe('completing onboarding', () => {
     expect(db.updateProfile).toHaveBeenCalledTimes(1) // not saved again, no duplicate
   })
 
-  it('requires first and last name and does not call the database', async () => {
+  it('keeps Continue off, and does not call the database, until both names have text', async () => {
     useFakeDatabase(profile())
     const user = userEvent.setup()
     renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Continue' }))
+    const cont = (await screen.findByRole('button', { name: 'Continue' })) as HTMLButtonElement
+    expect(cont.disabled).toBe(true)
+    await user.type(screen.getByLabelText(/first name/i), 'Asha')
+    expect(cont.disabled).toBe(true)
+    await user.type(screen.getByLabelText(/last name/i), '   ')
+    expect(cont.disabled).toBe(true) // spaces alone are not a name
+    await user.type(screen.getByLabelText(/last name/i), 'Rao')
+    expect(cont.disabled).toBe(false)
 
-    expect(await screen.findByText('Enter your first name.')).toBeTruthy()
-    expect(screen.getByText('Enter your last name.')).toBeTruthy()
     expect(db.updateProfile).not.toHaveBeenCalled()
     expect(onboardingHeading()).toBeTruthy()
   })
 
-  it('explains why the birthday is asked', async () => {
+  it('explains the birthday is optional and can be added later', async () => {
     useFakeDatabase(profile())
     renderApp()
-    expect(await screen.findByText(/we use it only to wish you a happy birthday/i)).toBeTruthy()
+    expect(await screen.findByText('You can add this later.')).toBeTruthy()
+    expect(screen.getByText('Optional')).toBeTruthy()
   })
 
   it('rejects a birthday that is less than 15 years ago and does not save', async () => {
@@ -662,7 +668,7 @@ describe('is_admin cannot be changed through the UI', () => {
   it('shows no admin control on onboarding or Manage Profile', async () => {
     useFakeDatabase(profile())
     const first = renderApp()
-    await screen.findByRole('heading', { name: "Let's get to know you." })
+    await screen.findByRole('heading', { name: 'What should we call you?' })
     expect(screen.queryByText(/admin/i)).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()

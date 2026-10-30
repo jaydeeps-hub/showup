@@ -1,4 +1,4 @@
-import type { MascotContent, MascotImage, MascotMessage } from '../types'
+import type { MascotContent, MascotImage, MascotMessage, MascotScreen } from '../types'
 import { isRecord, toCount } from '../utils/jsonShape'
 import { toSafeImageUrl } from '../utils/imageUrl'
 import { supabase } from './supabaseClient'
@@ -46,6 +46,10 @@ function parseMessage(raw: unknown): MascotMessage | null {
   ) {
     return null
   }
+  // An answer from before the goal screen has no `screen`: those lines are Home's. A `screen` this app does
+  // not know (a newer screen than this release) is kept out, so it can never be mistaken for Home's.
+  const screen = raw.screen === undefined || raw.screen === null ? 'home' : toScreen(raw.screen)
+  if (screen === null) return null
   return {
     id,
     key: raw.key,
@@ -53,7 +57,13 @@ function parseMessage(raw: unknown): MascotMessage | null {
     priority,
     expression: raw.expression,
     message: raw.message,
+    screen,
+    label: typeof raw.label === 'string' && raw.label.trim() !== '' ? raw.label : null,
   }
+}
+
+function toScreen(value: unknown): MascotScreen | null {
+  return value === 'home' || value === 'goal' ? value : null
 }
 
 /**

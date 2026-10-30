@@ -9,6 +9,9 @@ import type { MascotMessage } from '../types'
  * There are NO default pictures. A message whose picture is missing is shown without one.
  *
  * Ids are negative so they can never clash with a real database row (those are positive).
+ *
+ * These are the HOME rows only. The goal screen's rows are in DEFAULT_GOAL_MASCOT_MESSAGES below, kept apart so
+ * that "the defaults cover every Home situation" stays true.
  */
 export const DEFAULT_MASCOT_MESSAGES: readonly MascotMessage[] = [
   { id: -1, key: 'checking', locale: 'en', priority: 10, expression: 'focus', message: 'Hang on, confirming where you are.' },
@@ -27,4 +30,24 @@ export const DEFAULT_MASCOT_MESSAGES: readonly MascotMessage[] = [
   { id: -14, key: 'high_goal', locale: 'en', priority: 130, expression: 'lift', message: '{done} of {goal} so far. Rest days are part of the plan too.' },
   { id: -15, key: 'week_start', locale: 'en', priority: 140, expression: 'smile', message: 'New week, fresh start. Show up today and you’re at 1 of {goal}.' },
   { id: -16, key: 'in_progress', locale: 'en', priority: 150, expression: 'smile', message: 'Show up today and you’re at {next} of {goal}.' },
+]
+
+/**
+ * The goal screen's words when the database has none for it: the 7 rows from
+ * docs/backend/10a_onboarding_mascot.sql, copied exactly (key, screen, priority, expression, message, label).
+ * One row per number of days: `goal_1` ... `goal_7`. The bubble is the same for every number; the label under the
+ * big number and the face change.
+ *
+ * Ids are negative, as above, and continue after the Home rows.
+ */
+const GOAL_BUBBLE = 'Pick a number you can keep. Rest days are part of the plan.'
+
+export const DEFAULT_GOAL_MASCOT_MESSAGES: readonly MascotMessage[] = [
+  { id: -17, key: 'goal_1', screen: 'goal', locale: 'en', priority: 1, expression: 'smile', message: GOAL_BUBBLE, label: 'A gentle start' },
+  { id: -18, key: 'goal_2', screen: 'goal', locale: 'en', priority: 2, expression: 'smile', message: GOAL_BUBBLE, label: 'Light and steady' },
+  { id: -19, key: 'goal_3', screen: 'goal', locale: 'en', priority: 3, expression: 'smile', message: GOAL_BUBBLE, label: 'Steady' },
+  { id: -20, key: 'goal_4', screen: 'goal', locale: 'en', priority: 4, expression: 'smile', message: GOAL_BUBBLE, label: 'Committed' },
+  { id: -21, key: 'goal_5', screen: 'goal', locale: 'en', priority: 5, expression: 'lift', message: GOAL_BUBBLE, label: 'A strong week' },
+  { id: -22, key: 'goal_6', screen: 'goal', locale: 'en', priority: 6, expression: 'lift', message: GOAL_BUBBLE, label: 'Nearly every day' },
+  { id: -23, key: 'goal_7', screen: 'goal', locale: 'en', priority: 7, expression: 'sleep', message: GOAL_BUBBLE, label: 'Are you sure? Rest days are important too.' },
 ]

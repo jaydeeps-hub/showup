@@ -33,6 +33,14 @@ export function latestBirthDate(today: Date): string {
   return toDateInputValue(sameDay.getMonth() === month ? sameDay : new Date(year, month + 1, 0))
 }
 
+/** What the inline message says when a name is left empty (shown when the field loses focus). */
+export const NAME_REQUIRED_MESSAGE = { firstName: 'Enter your first name', lastName: 'Enter your last name' } as const
+
+/** True when a name field has some text in it (spaces alone do not count). */
+export function hasNameText(value: string): boolean {
+  return value.trim() !== ''
+}
+
 /** True for a real calendar date written as `YYYY-MM-DD` (so "2026-02-30" is rejected). */
 function isRealCalendarDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)

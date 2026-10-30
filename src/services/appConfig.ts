@@ -18,7 +18,15 @@ export interface AppConfig {
   pauseMaxWeeksAhead: number
   /** Seconds left on a Show Up timer at which the mascot switches to "almost there". */
   mascotAlmostSeconds: number
+  /** How far, in metres, "Gyms near me" looks around the device. Google allows at most 50,000. */
+  gymSearchRadiusMeters: number
+  /** The most gyms "Gyms near me" lists. Google allows 1 to 20. */
+  gymSearchMaxResults: number
 }
+
+/** The most Google accepts for a nearby search's radius, and for its number of results. */
+export const MAX_GYM_SEARCH_RADIUS_METERS = 50_000
+export const MAX_GYM_SEARCH_RESULTS = 20
 
 /** Used whenever a value is missing or cannot be read. */
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -27,6 +35,8 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   pausePassesPerMonth: 3,
   pauseMaxWeeksAhead: 1,
   mascotAlmostSeconds: 180,
+  gymSearchRadiusMeters: 5000,
+  gymSearchMaxResults: 20,
 }
 
 /** How long a fetched config is reused before it is fetched again. */
@@ -38,6 +48,12 @@ function parseWholeNumber(value: unknown, fallback: number, min: number): number
   if (!/^-?\d+$/.test(text)) return fallback
   const parsed = Number(text)
   return Number.isSafeInteger(parsed) && parsed >= min ? parsed : fallback
+}
+
+/** A whole number from `min` to `max`, or `fallback` if the value is not one (a typo cannot make Google refuse a request). */
+function parseWholeNumberInRange(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = parseWholeNumber(value, Number.NaN, min)
+  return Number.isNaN(parsed) || parsed > max ? fallback : parsed
 }
 
 /** `YYYY-MM` with a real month, or `fallback`. */
@@ -57,6 +73,8 @@ export function parseAppConfig(raw: unknown): AppConfig {
     pausePassesPerMonth: parseWholeNumber(source.pause_passes_per_month, d.pausePassesPerMonth, 0),
     pauseMaxWeeksAhead: parseWholeNumber(source.pause_max_weeks_ahead, d.pauseMaxWeeksAhead, 0),
     mascotAlmostSeconds: parseWholeNumber(source.mascot_almost_seconds, d.mascotAlmostSeconds, 0),
+    gymSearchRadiusMeters: parseWholeNumberInRange(source.gym_search_radius_meters, d.gymSearchRadiusMeters, 1, MAX_GYM_SEARCH_RADIUS_METERS),
+    gymSearchMaxResults: parseWholeNumberInRange(source.gym_search_max_results, d.gymSearchMaxResults, 1, MAX_GYM_SEARCH_RESULTS),
   }
 }
 

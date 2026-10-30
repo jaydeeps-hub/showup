@@ -56,7 +56,21 @@ Primary key `(user_id, week_start)`; `goal_days`, `showup_days`, `status` (`achi
 Primary key `key`. `kind` (`expression`, `avatar`, `logo`), `image_url` (empty until a picture is uploaded), `alt_text`, `width`, `height` (the picture's shape in pixels), `is_active`, `updated_at` (kept current by a trigger). Readable by everyone, writable by nobody from the app.
 
 ### `mascot_messages` (what the mascot says, Phase 7) — applied manually
-`id`, `key` (a situation the app knows, for example `one_to_go`), `locale`, `priority` (**lower wins**), `expression` (must name a `mascot_images.key`), `message` (may contain `{goal} {done} {next} {left} {remaining} {wk} {total}`), `scenario` and `shown_when` (notes for editors only), `is_active`, `created_at`, `updated_at`. The app decides which situations are true right now; this table decides which true one wins and what it says. Readable by everyone, writable by nobody from the app.
+`id`, `key` (a situation the app knows, for example `one_to_go`), `locale`, `priority` (**lower wins**), `expression` (must name a `mascot_images.key`), `message` (may contain `{goal} {done} {next} {left} {remaining} {wk} {total}`), `screen` (**Phase 10a**: `home` or `goal`, default `home`; which screen shows the line, check constraint `mascot_messages_screen_check`), `label` (**Phase 10a**: an optional short caption; the goal screen shows it under the big number), `scenario` and `shown_when` (notes for editors only), `is_active`, `created_at`, `updated_at`. The app decides which situations are true right now; this table decides which true one wins and what it says. Readable by everyone, writable by nobody from the app.
+
+**The goal screen's rows (Phase 10a, applied manually from `docs/backend/10a_onboarding_mascot.sql`).** Seven rows with `screen = 'goal'`, keys `goal_1` ... `goal_7`, priority 1 to 7, one for each number of days a week. `goal_N` is true when the selected number is N, so exactly one row applies. All seven say the same bubble, "Pick a number you can keep. Rest days are part of the plan."; the face and the caption under the big number change:
+
+| Key | Face (`expression`) | Caption (`label`) |
+|---|---|---|
+| `goal_1` | `smile` | A gentle start |
+| `goal_2` | `smile` | Light and steady |
+| `goal_3` | `smile` | Steady |
+| `goal_4` | `smile` | Committed |
+| `goal_5` | `lift` | A strong week |
+| `goal_6` | `lift` | Nearly every day |
+| `goal_7` | `sleep` | Are you sure? Rest days are important too. |
+
+The Add gym screen has no mascot, so there are no `gym` rows (the SQL removes any an earlier version of it added).
 
 ### Triggers (public schema)
 `gyms_set_updated_at`, `profiles_set_updated_at` (both `set_updated_at`), `showups_set_local_date` (BEFORE INSERT on `showups`).
@@ -160,18 +174,19 @@ item = { id, slug, position, heading, subheading, image_url, image_alt, v }
 
 ## Mascot RPC (Phase 7)
 
-Source: `docs/backend/phase7a_mascot_tables.sql`, identical to the live snapshot.
+Source: `docs/backend/phase7a_mascot_tables.sql` (Phase 7), redefined by `docs/backend/10a_onboarding_mascot.sql` (Phase 10a, adds `screen` and `label`). The live snapshot file has not been regenerated since Phase 9a, so it does not show the Phase 10a changes yet.
 
 ### `get_mascot_content(p_locale text default 'en')` → json
 **Callable before sign-in** (`anon` and `authenticated`); `STABLE`, not `SECURITY DEFINER` (the tables allow public reads). Returns
 ```
 { version: bigint,
   images:   { <key>: { kind, url, alt, width, height, v } },
-  messages: [ { id, key, locale, priority, expression, message } ] }
+  messages: [ { id, key, screen, locale, priority, expression, message, label } ] }
 ```
 - `version` is the newest `updated_at` across both tables, in milliseconds (0 if both are empty). It changes whenever anything is edited.
 - `images` holds only **active** pictures with a **non-empty** address, keyed by `mascot_images.key`. `v` is that picture's own `updated_at` in milliseconds (used to bust the browser cache).
 - `messages` holds the active rows ordered by `priority`, then `id`. A row is included if its `locale` is the requested one, or if it is English and that key has no active row in the requested locale (so a missing translation falls back to English per message).
+- `screen` (`home` or `goal`) and `label` (text or `null`) are on **every** message since Phase 10a (`docs/backend/10a_onboarding_mascot.sql`, applied manually; the earlier source file `phase7a_mascot_tables.sql` still has the old shape of the function). An answer from before that has neither field; the app counts such a message as `home`.
 - No error codes: it only reads. An empty database gives `{ version: 0, images: {}, messages: [] }`.
 
 The app side is in [../frontend/screens-and-rpcs.md](../frontend/screens-and-rpcs.md#the-mascot-phase-7c-logic-only-not-yet-on-a-screen).

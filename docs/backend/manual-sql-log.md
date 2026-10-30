@@ -72,6 +72,17 @@ Applied manually from `docs/backend/phase9a_cms_and_config.sql`. All **applied m
 | 32 | Functions `cms_touch_updated_at()` (trigger `cms_touch`) and `get_cms_content()` | `get_cms_content()` returns `{ version, categories: { <category>: [ { id, slug, position, heading, subheading, image_url, image_alt, v } ] } }` for active rows, in order; executable by `anon` and `authenticated`. **Not used by the app yet** |
 | 33 | Column `profiles.quickstart_completed_at` and function `complete_quickstart()` | `complete_quickstart()` sets the timestamp for the signed-in user (once) and returns whether a row was updated; `authenticated` only. **Not used by the app yet** |
 
+## Phase 10a (mascot on the goal screen, "Gyms near me" settings), 2026-10-30
+
+Applied manually from `docs/backend/10a_onboarding_mascot.sql` (version 2 of that file; the file name has no `phase` prefix). All **applied manually, not in migrations**. Checked on 2026-10-30 by calling the public `get_mascot_content()`: it returns 23 messages (16 for `home`, 7 for `goal`, ids 17 to 23) and every message has `screen` and `label`.
+
+| # | Object | Notes |
+|---|---|---|
+| 34 | Columns `mascot_messages.screen` (`text not null default 'home'`) and `mascot_messages.label` (`text`, optional) | Every row that existed before is `home`. Constraint `mascot_messages_screen_check`: `screen in ('home', 'goal')`. Index `mascot_messages_screen_lookup` on `(screen, locale, is_active, priority)`. The file also deletes any `screen = 'gym'` rows an earlier version of it may have added (the Add gym screen has no mascot) |
+| 35 | Function `get_mascot_content(p_locale)` redefined | Same signature and grants (`anon`, `authenticated`; `STABLE`, not `SECURITY DEFINER`). Each message now also carries `screen` and `label` |
+| 36 | Seven `mascot_messages` rows for the goal screen: `goal_1` ... `goal_7` | `screen = 'goal'`, priority 1 to 7, one row per number of days, inserted only if the key did not exist for `en`. The bubble is the same for all seven; the face and the label differ (see [overview.md](overview.md)) |
+| 37 | Two `config` rows: `config.gym_search_radius_meters` = `5000`, `config.gym_search_max_results` = `20` | Inserted only if the key did not exist; the SQL writes to `config`, or to `cms` if the Phase 9a rename had not happened. **For the "Gyms near me" step: the app does not read them yet** |
+
 ## Also in the live database but in no migration (origin unverified)
 
 - Function `rls_auto_enable()` (an event trigger function that turns on row level security for new tables in `public`). It appears in the snapshot with `EXECUTE` for `anon` and `authenticated`. It may be a Supabase default or may have been added by hand; this cannot be told from the repo.

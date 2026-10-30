@@ -18,6 +18,8 @@ describe('parseAppConfig', () => {
         pause_passes_per_month: '2',
         pause_max_weeks_ahead: '4',
         mascot_almost_seconds: '240',
+        gym_search_radius_meters: '3000',
+        gym_search_max_results: '12',
       }),
     ).toEqual({
       maxGymDistanceMeters: 150,
@@ -25,6 +27,8 @@ describe('parseAppConfig', () => {
       pausePassesPerMonth: 2,
       pauseMaxWeeksAhead: 4,
       mascotAlmostSeconds: 240,
+      gymSearchRadiusMeters: 3000,
+      gymSearchMaxResults: 12,
     })
   })
 

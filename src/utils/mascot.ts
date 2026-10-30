@@ -1,4 +1,5 @@
-import type { LastOutcome, MascotContent, MascotMessage, MascotPicture } from '../types'
+import { DEFAULT_GOAL_MASCOT_MESSAGES } from '../config/mascotDefaults'
+import type { LastOutcome, MascotContent, MascotMessage, MascotPicture, MascotScreen } from '../types'
 
 /**
  * The mascot's brain, as plain functions with no React and no network, so it can be tested exhaustively.
@@ -111,6 +112,13 @@ export function fillPlaceholders(text: string, values: Record<string, number | s
 export interface MascotPick {
   expression: string
   text: string
+  /** The row's short caption, if it has one (the goal screen shows it under the big number). */
+  label?: string | null
+}
+
+/** The screen a row belongs to. A row with no `screen` (old saved content, old bundled words) is a Home row. */
+export function screenOf(row: Pick<MascotMessage, 'screen'>): MascotScreen {
+  return row.screen ?? 'home'
 }
 
 /**
@@ -121,20 +129,72 @@ export interface MascotPick {
  *
  * `knownExpressions` is the set of expression names that exist. Pass `null` to skip that check (the
  * bundled defaults have no pictures at all, and a message without a picture is still shown).
+ *
+ * `screen` says whose rows to consider; the others are ignored. It defaults to `'home'`, and a row with no
+ * `screen` counts as Home, so every existing caller and every old saved copy behaves exactly as before. (It is
+ * the last parameter so the existing third one stays where it was.) The goal screen has its own picker below.
  */
 export function pickMascotMessage(
   messages: readonly MascotMessage[],
   context: MascotContext,
   knownExpressions: ReadonlySet<string> | null = null,
+  screen: MascotScreen = 'home',
 ): MascotPick | null {
   const truth = trueSituations(context)
   const candidates = messages
+    .filter((row) => screenOf(row) === screen)
     .filter((row) => Object.prototype.hasOwnProperty.call(truth, row.key) && truth[row.key as SituationKey])
     .filter((row) => knownExpressions === null || knownExpressions.has(row.expression))
     .sort((a, b) => a.priority - b.priority || a.id - b.id)
   const winner = candidates[0]
   if (!winner) return null
-  return { expression: winner.expression, text: fillPlaceholders(winner.message, placeholderValues(context)) }
+  return { expression: winner.expression, text: fillPlaceholders(winner.message, placeholderValues(context)), label: winner.label ?? null }
+}
+
+/** How many numbers the goal screen offers: 1 to 7 days a week. */
+export const GOAL_DAY_OPTIONS = [1, 2, 3, 4, 5, 6, 7] as const
+
+/** The keys the goal screen's rows use: `goal_1` ... `goal_7`. */
+export const GOAL_SITUATION_KEYS = GOAL_DAY_OPTIONS.map((days) => `goal_${days}`)
+
+/**
+ * Which goal situations are true for the selected number: `goal_N` is true exactly when the selected number is N.
+ * So at most one is true, and none is when the number is not a whole number from 1 to 7.
+ */
+export function trueGoalSituations(selectedDays: number): Record<string, boolean> {
+  return Object.fromEntries(GOAL_DAY_OPTIONS.map((days) => [`goal_${days}`, selectedDays === days]))
+}
+
+/**
+ * The goal screen's rows: the ones the database sent for it, or, when it sent none (an old saved copy, or a
+ * database that has not had Phase 10a applied), the bundled ones. It is "none at all", not "some missing":
+ * if the database has the goal screen at all, what it says is used as it is.
+ */
+export function goalMessagesFrom(messages: readonly MascotMessage[]): readonly MascotMessage[] {
+  const fetched = messages.filter((row) => screenOf(row) === 'goal')
+  return fetched.length > 0 ? fetched : DEFAULT_GOAL_MASCOT_MESSAGES
+}
+
+/**
+ * What the mascot says and shows on the goal screen for the selected number of days: the winning row's face
+ * (`expression`), bubble (`text`) and caption under the big number (`label`). Same rules as Home: only rows of
+ * the goal screen whose key is a true situation count, the lowest priority wins (then id), and a row whose
+ * expression has no picture is skipped when `knownExpressions` is given. If the content has no goal rows, the
+ * bundled ones are used. Returns null only when nothing qualifies (a number outside 1 to 7).
+ */
+export function pickGoalMascotMessage(
+  messages: readonly MascotMessage[],
+  selectedDays: number,
+  knownExpressions: ReadonlySet<string> | null = null,
+): MascotPick | null {
+  const truth = trueGoalSituations(selectedDays)
+  const winner = goalMessagesFrom(messages)
+    .filter((row) => Object.prototype.hasOwnProperty.call(truth, row.key) && truth[row.key])
+    .filter((row) => knownExpressions === null || knownExpressions.has(row.expression))
+    .sort((a, b) => a.priority - b.priority || a.id - b.id)[0]
+  if (!winner) return null
+  // No placeholders yet in the goal lines, but the same filling keeps an editor's {goal} working if one is added.
+  return { expression: winner.expression, text: fillPlaceholders(winner.message, { goal: selectedDays }), label: winner.label ?? null }
 }
 
 /**
