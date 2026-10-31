@@ -420,3 +420,64 @@ describe('OnboardingStepHeader and progressPercent', () => {
     expect(screen.getByTestId('step-progress').parentElement!.getAttribute('aria-hidden')).toBe('true')
   })
 })
+
+describe('layout: the progress bar and the date field (found on a phone)', () => {
+  const css = () => Array.from(document.querySelectorAll('style')).map((style) => style.textContent ?? '').join('\n')
+  const rulesOf = (node: HTMLElement) =>
+    Array.from(node.classList).filter((n) => n.startsWith('css-')).map((n) => css().match(new RegExp(`\\.${n}\\{[^}]*\\}`))?.[0] ?? '').join(' ')
+
+  it('step 1 keeps no room for a back arrow, so the progress bar starts at the left edge of the content', async () => {
+    renderApp()
+    await title()
+    const bar = screen.getByTestId('step-progress').parentElement as HTMLElement
+    const row = bar.parentElement as HTMLElement
+    // The row holds only the bar and the count: nothing before the bar, not even an empty placeholder.
+    expect(Array.from(row.children).map((child) => child === bar || child.textContent === '1 of 3')).toEqual([true, true])
+    expect(bar.previousElementSibling).toBeNull()
+  })
+
+  it('on the later steps, a missing arrow still keeps its room (the bar does not jump while a save is on its way)', () => {
+    const { container, rerender } = render(
+      <ThemeProvider theme={theme}>
+        <OnboardingStepHeader step={2} onBack={() => {}} />
+      </ThemeProvider>,
+    )
+    const barLeftSibling = () => (container.querySelector('[data-testid="step-progress"]')!.parentElement as HTMLElement).previousElementSibling as HTMLElement
+    expect(barLeftSibling().tagName).toBe('BUTTON') // the arrow
+    rerender(
+      <ThemeProvider theme={theme}>
+        <OnboardingStepHeader step={2} />
+      </ThemeProvider>,
+    )
+    // Arrow gone for a moment: an empty 44px placeholder takes its place.
+    expect(barLeftSibling().tagName).toBe('DIV')
+    expect(rulesOf(barLeftSibling())).toContain('width:44px')
+  })
+
+  it('the date field is built so a phone cannot make it wider than the other fields', async () => {
+    renderApp()
+    await title()
+    const rule = rulesOf(birthday()).replace(/\s+/g, '')
+    expect(rule).toMatch(/(^|[;{])appearance:none/)
+    expect(rule).toContain('-webkit-appearance:none')
+    expect(rule).toContain('min-width:0')
+    expect(rule).toContain('max-width:100%')
+    expect(rule).toContain('width:100%')
+    expect(rule).toContain('display:block')
+    expect(rule).toContain('min-height:54px')
+  })
+
+  it('the name fields do not get those date-only rules', async () => {
+    renderApp()
+    await title()
+    expect(rulesOf(first()).replace(/\s+/g, '')).not.toContain('appearance:none')
+    expect(rulesOf(last()).replace(/\s+/g, '')).not.toContain('appearance:none')
+  })
+
+  it('the date field is still a date field with the app\'s 15-year limit', async () => {
+    renderApp()
+    await title()
+    expect(birthday().type).toBe('date')
+    expect(birthday().max).toBe(latestBirthDate(new Date()))
+  })
+})

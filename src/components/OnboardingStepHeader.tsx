@@ -19,16 +19,22 @@ interface OnboardingStepHeaderProps {
    * is not a step of anything; the back arrow is then all there is.
    */
   hideProgress?: boolean
+  /**
+   * This step never has a back arrow (the first one), so no room is kept for it and the progress bar starts at the left
+   * edge of the content, in line with the title and the fields. Without this, a missing `onBack` only means the arrow is
+   * off for a moment (while something is saving), and its room is kept so the bar does not jump.
+   */
+  noArrow?: boolean
 }
 
 /**
  * The top row of an onboarding step: a back arrow, a progress bar (accent fill on a line-colour track) and
  * "1 of 3". Onboarding screens have no tab bar, so this is the only navigation on them.
  */
-export function OnboardingStepHeader({ step, total = ONBOARDING_STEP_COUNT, onBack, hideProgress = false }: OnboardingStepHeaderProps) {
+export function OnboardingStepHeader({ step, total = ONBOARDING_STEP_COUNT, onBack, hideProgress = false, noArrow = false }: OnboardingStepHeaderProps) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: '14px', mb: '28px' }}>
-      {onBack ? (
+      {noArrow ? null : onBack ? (
         <IconButton
           aria-label="Back"
           onClick={onBack}

@@ -68,6 +68,26 @@ const inputSx = (bad: boolean) => ({
 })
 
 /**
+ * Extra rules for the date box only. On phones (iPhone Safari above all) a date input draws its own native control, which
+ * has its own minimum width and ignores `width: 100%`, so it can run past the edge of the screen. Taking the browser's
+ * own drawing away (`appearance: none`), letting it shrink (`min-width: 0`), capping it at its container, and giving it a
+ * block layout with the same fixed height as the other fields keeps it exactly as wide as they are. The picker still
+ * opens when the field is tapped.
+ */
+const dateInputSx = {
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  display: 'block',
+  minWidth: 0,
+  maxWidth: '100%',
+  minHeight: tokens.size.control,
+  textAlign: 'left',
+  // Safari puts the date text in its own inner box; without this it centres the text and can add its own padding.
+  '&::-webkit-date-and-time-value': { textAlign: 'left', minHeight: '1.2em', margin: 0 },
+  '&::-webkit-datetime-edit': { padding: 0 },
+} as const
+
+/**
  * The "What should we call you?" form of onboarding: first name, last name and an optional date of birth, and a
  * Continue button pushed to the bottom of the screen.
  *
@@ -213,7 +233,7 @@ export function ProfileForm(props: ProfileFormProps) {
           aria-invalid={Boolean(errors.dateOfBirth)}
           aria-describedby="onboarding-birthday-help"
           max={latestBirthday}
-          sx={inputSx(Boolean(errors.dateOfBirth))}
+          sx={{ ...inputSx(Boolean(errors.dateOfBirth)), ...dateInputSx }}
         />
         {errors.dateOfBirth && <FieldError id="onboarding-birthday-error">{errors.dateOfBirth}</FieldError>}
         <Box id="onboarding-birthday-help" sx={{ color: tokens.color.textSecondary, fontSize: 13, mt: '6px' }}>

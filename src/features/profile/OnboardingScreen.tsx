@@ -25,8 +25,8 @@ export function OnboardingScreen({ profile, onSave }: OnboardingScreenProps) {
       maxWidth="sm"
       sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', px: 6, pt: '56px', pb: '28px' }}
     >
-      {/* The first step has nothing before it, so there is no back arrow. */}
-      <OnboardingStepHeader step={1} />
+      {/* The first step has nothing before it, so there is no back arrow and no room kept for one: the bar runs the full width. */}
+      <OnboardingStepHeader step={1} noArrow />
 
       <Typography
         variant="h1"
