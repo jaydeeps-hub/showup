@@ -183,7 +183,7 @@ describe('incomplete-profile routing', () => {
 // --- Completing onboarding -------------------------------------------------------------
 
 describe('completing onboarding', () => {
-  it('saves the profile and moves on to the app', async () => {
+  it('saves the profile and moves on to the next step', async () => {
     useFakeDatabase(profile())
     const user = userEvent.setup()
     renderApp()
@@ -193,7 +193,8 @@ describe('completing onboarding', () => {
     await user.type(screen.getByLabelText(/date of birth/i), '1990-05-17')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
-    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
+    // On to step 2, the gym (the weekly goal is step 3, then Home).
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
     expect(db.updateProfile).toHaveBeenCalledTimes(1)
     expect(db.updateProfile).toHaveBeenCalledWith(USER_ID, {
       firstName: 'Asha',
@@ -212,7 +213,7 @@ describe('completing onboarding', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Rao')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
-    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
     expect(db.updateProfile).toHaveBeenCalledWith(USER_ID, { firstName: 'Asha', lastName: 'Rao', dateOfBirth: null })
   })
 
@@ -224,11 +225,12 @@ describe('completing onboarding', () => {
     await user.type(await screen.findByLabelText(/first name/i), 'Asha')
     await user.type(screen.getByLabelText(/last name/i), 'Rao')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    await screen.findByRole('button', { name: /show up/i })
+    await screen.findByRole('heading', { name: 'Where do you work out?' })
 
     first.unmount() // a page refresh: everything remounts and reloads from the database
     renderApp()
 
+    // The names are saved and (in this test's fixed setup) a gym exists, so onboarding is over: straight to Home.
     expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
     expect(onboardingHeading()).toBeNull()
     expect(db.updateProfile).toHaveBeenCalledTimes(1) // not saved again, no duplicate
@@ -638,7 +640,7 @@ describe('database errors and retrying a save', () => {
     expect((screen.getByLabelText(/last name/i) as HTMLInputElement).value).toBe('Rao')
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
   })
 
   it('ignores a second press while a save is still in progress', async () => {

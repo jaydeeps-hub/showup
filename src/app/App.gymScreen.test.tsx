@@ -121,10 +121,13 @@ describe('the top of the screen in onboarding (no gym yet)', () => {
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull()
   })
 
-  it('has no back arrow, since the details are already saved and there is no screen to go back to', async () => {
+  it('has a back arrow, which goes back to the details page', async () => {
+    const user = userEvent.setup()
     renderApp()
     await title()
-    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('heading', { name: 'What should we call you?' })).toBeTruthy()
   })
 
   it('has no mascot', async () => {
@@ -355,8 +358,8 @@ describe('Save gym', () => {
     expect(await screen.findByText('Ironworks Fitness saved')).toBeTruthy()
     // The gym screen is still up while the message shows ...
     expect(screen.getByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
-    // ... and then the app continues.
-    expect(await screen.findByRole('button', { name: /^show up$/i }, { timeout: 4000 })).toBeTruthy()
+    // ... and then the app continues, to step 3, the weekly goal.
+    expect(await screen.findByRole('heading', { name: 'How often will you show up?' }, { timeout: 4000 })).toBeTruthy()
   })
 
   it('waits about 700 ms after saving before moving on, and not before', async () => {

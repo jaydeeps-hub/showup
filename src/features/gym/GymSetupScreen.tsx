@@ -79,8 +79,9 @@ export function GymSetupScreen({ onSave, onSaved, onDone, onBack, isOnboarding, 
       sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', px: 6, pt: '56px', pb: '28px', overflow: 'hidden' }}
     >
       {isOnboarding ? (
-        // Step 2 of 3. The details are already saved and there is no screen to go back to, so no arrow here.
-        <OnboardingStepHeader step={2} onBack={onBack} />
+        // Step 2 of 3. The arrow goes back to the names. It is not offered while a save is on its way or has just finished,
+        // because leaving then would drop the screen that owns the hand-off to the next step.
+        <OnboardingStepHeader step={2} onBack={isSaving || saved ? undefined : onBack} />
       ) : (
         <GymScreenBack onBack={onBack ?? onDone} disabled={isSaving || saved} />
       )}

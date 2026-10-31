@@ -14,13 +14,18 @@ interface OnboardingStepHeaderProps {
    * drawn (and the space it took is kept, so the bar and the count do not move).
    */
   onBack?: () => void
+  /**
+   * Leave out the progress bar and the count. The weekly goal screen does this when it is opened from Home, where it
+   * is not a step of anything; the back arrow is then all there is.
+   */
+  hideProgress?: boolean
 }
 
 /**
  * The top row of an onboarding step: a back arrow, a progress bar (accent fill on a line-colour track) and
  * "1 of 3". Onboarding screens have no tab bar, so this is the only navigation on them.
  */
-export function OnboardingStepHeader({ step, total = ONBOARDING_STEP_COUNT, onBack }: OnboardingStepHeaderProps) {
+export function OnboardingStepHeader({ step, total = ONBOARDING_STEP_COUNT, onBack, hideProgress = false }: OnboardingStepHeaderProps) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: '14px', mb: '28px' }}>
       {onBack ? (
@@ -35,14 +40,18 @@ export function OnboardingStepHeader({ step, total = ONBOARDING_STEP_COUNT, onBa
         <Box aria-hidden sx={{ width: 44, height: 44, flex: 'none' }} />
       )}
 
-      {/* Decorative: the "1 of 3" next to it says the same thing in words. */}
-      <Box aria-hidden sx={{ flex: 1, height: 4, borderRadius: '2px', backgroundColor: tokens.color.surface2, overflow: 'hidden' }}>
-        <Box data-testid="step-progress" sx={{ height: '100%', width: `${progressPercent(step, total)}%`, backgroundColor: tokens.color.accentPrimary }} />
-      </Box>
+      {!hideProgress && (
+        <>
+          {/* Decorative: the "1 of 3" next to it says the same thing in words. */}
+          <Box aria-hidden sx={{ flex: 1, height: 4, borderRadius: '2px', backgroundColor: tokens.color.surface2, overflow: 'hidden' }}>
+            <Box data-testid="step-progress" sx={{ height: '100%', width: `${progressPercent(step, total)}%`, backgroundColor: tokens.color.accentPrimary }} />
+          </Box>
 
-      <Box component="span" aria-label={`Step ${step} of ${total}`} sx={{ fontSize: 13, color: tokens.color.textSecondary }}>
-        {step} of {total}
-      </Box>
+          <Box component="span" aria-label={`Step ${step} of ${total}`} sx={{ fontSize: 13, color: tokens.color.textSecondary }}>
+            {step} of {total}
+          </Box>
+        </>
+      )}
     </Box>
   )
 }

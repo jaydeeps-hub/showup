@@ -46,9 +46,9 @@ Still open after 7d:
 5. **`AppTabBar` and `ShowupFeedback` still re-render on every timer tick**; they could move to the selector hooks the same way Home did.
 
 ## Phase 10 progress (onboarding rework)
-Design changes in `docs/design/showup-prototype.html` that Phase 10 has to build (recorded 2026-10-30; none is built yet):
-1. **Setting a goal is optional.** The Set Goal step of onboarding gets a Skip button and a pop-up that encourages the person to set a goal.
-2. **Home with no goal:** the "0 weeks in a row" card becomes a "Set a Weekly Goal" button of the same size. It opens a standalone Set Goal screen with a Back button and no Skip.
+Design changes in `docs/design/showup-prototype.html` that Phase 10 has to build (recorded 2026-10-30):
+1. **Setting a goal is optional.** The Set Goal step of onboarding gets a Skip button and a pop-up that encourages the person to set a goal. **Done.**
+2. **Home with no goal:** the "0 weeks in a row" card becomes a "Set a Weekly Goal" button of the same size. It opens a standalone Set Goal screen with a Back button and no Skip. **Done:** the standalone screen (back arrow only, no Skip, no progress bar) and the Home card, which is now a "Set a weekly goal" button of the same size whenever there is no goal.
 3. **No weekly progress bar above the calendar** for a person who has not set a goal.
 4. **The Showup logo** on the landing page and on Home uses `logo_white` from `mascot_images` (it is live; `get_mascot_content()` returns it).
 
@@ -60,7 +60,10 @@ Design changes in `docs/design/showup-prototype.html` that Phase 10 has to build
 | 10e Weekly goal screen | **Done** (UI only; not tried in a browser or on a phone) | The onboarding design: header (100%, "3 of 3"), mascot row from the `goal_N` row (80px), big number with the database caption, seven radio buttons, help text, Set goal (60px, pushed to the bottom). `set_weekly_goal` and the routing are unchanged. Shared `MascotRow` now also draws Home's mascot. `goalLabel` removed |
 | 10f Add gym screen | **Done** (UI only; not tried in a browser or on a phone) | The onboarding design: header (66%, "2 of 3"; from Profile a back arrow only), title, search box with a clear ✕, results as a radiogroup with a check, loading / error with Retry / no-results states, "Save gym" with the toast "<name> saved" and a 700 ms hand-off. Search and save logic unchanged. The dropdown became an inline list. No back arrow on the onboarding step (to confirm) |
 | 10g "Gyms near me" | **Done** (not tried in a browser or on a phone) | Toggle row, location asked only on the tap, nearby search (Places API (New)) and a biased typed search, distances in the app, 5-minute in-memory cache, on/off flag in `localStorage` (applied only when location is already allowed), `gym_search_radius_meters` / `gym_search_max_results` in the app config. `place_search_mode` untouched |
-| Skip and pop-up on the goal step, the goal as a forced third step, going on to the goal step after the gym, Home "Set a Weekly Goal" button, hidden progress bar, `logo_white`, "Gyms near me" | Not done | The rest of Phase 10 |
+| Onboarding flow: the weekly goal as step 3, and the Back arrow on steps 2 and 3 only | **Done** (not tried in a browser or on a phone) | `onboardingStep` in `App.tsx` and `utils/onboardingSteps.ts`: names → gym → goal → Home; Back from the goal returns to Add gym and from Add gym to the details (saved names filled in); no arrow on the details page (it used to sign out). Where it starts comes from stored data (no names: 1; no gym: 2; both: none). Fixes the goal screen being skipped. A second bug found on the way: the app's safety net moved a person off a lost gym screen only to show it again |
+| Skip button and encouraging sheet on the goal step | **Done** (not tried in a browser or on a phone) | "Skip for now" under Set goal (onboarding only) opens a bottom sheet, "Skip setting a goal?", with "Set a goal" and "Skip for now"; skipping saves nothing and goes to Home. New reusable `BottomSheet`. The goal screen also has an explicit `mode`: opened from Home it now has only a back arrow (no progress bar, no "3 of 3", no Skip) |
+| Home "Set a weekly goal" card in place of "weeks in a row" | **Done** (not tried in a browser or on a phone) | `KpiCards` / `SetGoalCard` in `HomeSummaryPanel.tsx`: same size, soft blue with a dashed border, a real button, shown only once the numbers have loaded and there is no goal. It replaces the old full-width "Set your weekly goal" button, and the "This week" block draws nothing without a goal |
+| "This week" progress bar above the calendar hidden without a goal (design change 3); `logo_white` on the landing page and Home (design change 4) | Not done | The week block under the cards is already empty without a goal, but the calendar's legend entry "Week goal hit" is still shown; check what the design means by "above the calendar" before calling this done |
 
 ## Phase 9 progress
 | Step | Status | Notes |

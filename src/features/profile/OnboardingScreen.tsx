@@ -10,25 +10,23 @@ import { ProfileForm } from './ProfileForm'
 interface OnboardingScreenProps {
   profile: Profile
   onSave: (edits: ProfileEdits) => Promise<SaveResult>
-  /** What the back arrow does. This is the first step, so there is no earlier step to go to. */
-  onBack: () => void
 }
 
 /**
- * Step 1 of 3 of onboarding, "What should we call you?". Shown while the profile has no first or last name. When
- * the save succeeds the profile is complete, and the app moves on by itself (to the gym step, then Home).
+ * Step 1 of 3 of onboarding, "What should we call you?". When the save succeeds the app moves on to the gym step.
  * Names Google already provided are filled in, so most people only check and continue.
  *
- * There is no tab bar on onboarding screens. The top row has the back arrow, the progress bar and "1 of 3".
+ * There is no tab bar on onboarding screens. The top row has the progress bar and "1 of 3", and no back arrow.
  */
-export function OnboardingScreen({ profile, onSave, onBack }: OnboardingScreenProps) {
+export function OnboardingScreen({ profile, onSave }: OnboardingScreenProps) {
   return (
     <Container
       component="main"
       maxWidth="sm"
       sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', px: 6, pt: '56px', pb: '28px' }}
     >
-      <OnboardingStepHeader step={1} onBack={onBack} />
+      {/* The first step has nothing before it, so there is no back arrow. */}
+      <OnboardingStepHeader step={1} />
 
       <Typography
         variant="h1"

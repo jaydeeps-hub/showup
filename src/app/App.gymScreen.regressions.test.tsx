@@ -186,7 +186,7 @@ describe('leaving the screen while a save is on its way (was: stranded on a gym 
     await screen.findByText('Ironworks Fitness saved')
     expect(lost.length).toBeGreaterThan(0) // the screen's own timer really was lost
     // Only the app's safety net is left to end the hold; it does so within its limit.
-    expect(await screen.findByRole('button', { name: /^show up$/i }, { timeout: 5000 })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'How often will you show up?' }, { timeout: 5000 })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Where do you work out?' })).toBeNull()
   })
 })
@@ -201,7 +201,8 @@ describe('"<name> saved" lasts long enough to read (was: gone after about half a
     await vi.waitFor(() => expect(saveButton().disabled).toBe(false))
     await user.click(saveButton())
 
-    expect(await screen.findByRole('button', { name: /^show up$/i }, { timeout: 4000 })).toBeTruthy()
+    // The gym screen has gone (on to the weekly goal), and the message is still there.
+    expect(await screen.findByRole('heading', { name: 'How often will you show up?' }, { timeout: 4000 })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Where do you work out?' })).toBeNull()
     expect(screen.getByText('Ironworks Fitness saved')).toBeTruthy()
   })

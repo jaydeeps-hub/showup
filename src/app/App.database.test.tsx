@@ -250,13 +250,13 @@ describe('saving a gym', () => {
     db.fetchActiveGym.mockResolvedValue({ status: 'ok', gym: null })
   })
 
-  it('writes the gym to the database and then shows the home screen', async () => {
+  it('writes the gym to the database and then moves on to the weekly goal', async () => {
     const user = userEvent.setup()
     renderApp()
     await chooseGym(user)
     await user.click(screen.getByRole('button', { name: /^save gym$/i }))
 
-    expect(await showUpButton()).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'How often will you show up?' }, { timeout: 4000 })).toBeTruthy()
     expect(db.saveActiveGym).toHaveBeenCalledTimes(1)
     expect(db.saveActiveGym).toHaveBeenCalledWith(chosenPlace)
   })
@@ -284,7 +284,7 @@ describe('saving a gym', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await showUpButton()).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'How often will you show up?' }, { timeout: 4000 })).toBeTruthy()
     expect(db.saveActiveGym).toHaveBeenCalledTimes(2)
   })
 })

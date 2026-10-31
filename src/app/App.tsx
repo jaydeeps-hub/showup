@@ -23,6 +23,7 @@ import { useShowup, type SignedInUser } from '../hooks/useShowup'
 import { ShowupProvider } from '../hooks/useShowupSession'
 import { getIdentity, signOut } from '../services/authService'
 import { needsQuickStart, quickStartEndingLabel } from '../utils/cms'
+import { firstOnboardingStep, nextOnboardingStep, previousOnboardingStep, type OnboardingStep } from '../utils/onboardingSteps'
 import { getFirstName, isProfileComplete } from '../utils/profileValidation'
 import { LoadingScreen } from './LoadingScreen'
 import { DataLoadErrorScreen } from './DataLoadErrorScreen'
@@ -44,9 +45,9 @@ export function App() {
 
 /**
  * Chooses which Showup screen to show, in this order:
- * loading profile → Quick Start (once, if the person has not finished it) → onboarding (profile incomplete) →
- * loading gym → set goal →
- * gym setup (no gym, or changing it) → the three tabs (Home, Pause, Profile) with the bottom tab bar.
+ * loading profile → Quick Start (once, if the person has not finished it) → onboarding, three steps (details, add gym,
+ * weekly goal) with a Back arrow on steps 2 and 3 → loading gym → set goal (opened from Home) →
+ * gym setup (changing it from Profile) → the three tabs (Home, Pause, Profile) with the bottom tab bar.
  * There is no router: with a few screens, a few if-statements are clearer.
  *
  * The timed Show Up (ShowupProvider) wraps ALL of it, not just the tabs: the timer keeps running and its
@@ -63,17 +64,44 @@ function SignedInApp({ session }: { session: Session }) {
   // True from the moment a gym is saved until its "<name> saved" message has been shown. The gym is already stored by
   // then, and without this the screen would disappear (no gym screen is needed once there is a gym) before it showed.
   const [gymSavedShowing, setGymSavedShowing] = useState(false)
-  // "<name> saved". It lives here, not in the gym screen, so it stays up after that screen has gone.
+  // "<name> saved" / "Goal set". It lives here, not in the gym or goal screen, so it stays up after that screen has gone.
   const [gymToast, setGymToast] = useState<ToastContent | null>(null)
   // The gym screen normally ends the hold-back itself, a moment after the save. If that screen goes away first (the
   // profile reloads, say), nothing would ever end it, and a new gym screen would be stranded on "2 of 3". So the hold
   // also ends by itself a little later than the screen's own pause.
+  const [isSettingGoal, setIsSettingGoal] = useState(false)
+
+  // ONBOARDING. Where it starts is worked out ONCE, when both the profile and the gym have loaded, from what is already
+  // stored (no names: step 1; names but no gym: step 2; both: not onboarding). After that the step that is showing is
+  // held here, so Back can return to a step whose answers are already saved (the names are saved by step 2, but step 1
+  // can be shown again). `undefined` means "not decided yet"; `null` means "not onboarding".
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null | undefined>(undefined)
+  if (onboardingStep === undefined && profile.status !== 'loading' && showup.dataStatus === 'ready') {
+    setOnboardingStep(
+      profile.status === 'ready'
+        ? firstOnboardingStep({ hasNames: isProfileComplete(profile.profile), hasGym: showup.gym !== null })
+        : null, // no profile to judge by (it failed to load): not onboarding, the app stays usable
+    )
+  }
+  /**
+   * The gym screen is finished: let go of the hold-back, leave Change gym, and (in onboarding) go on to step 3. It is
+   * what the screen's own pause calls, and also what the safety net below calls, so the two cannot disagree: if the
+   * safety net only released the hold, a person on step 2 would be shown the gym screen again.
+   */
+  function finishGymScreen() {
+    setGymSavedShowing(false)
+    setIsChangingGym(false)
+    setOnboardingStep((step) => (step === 2 ? nextOnboardingStep(2) : step))
+  }
+  // The gym screen normally ends the hold-back itself, a moment after the save. If that screen goes away first (the
+  // profile reloads, say), nothing would call it, so the same step is also taken a little later than the screen's pause.
   useEffect(() => {
     if (!gymSavedShowing) return
-    const timer = setTimeout(() => setGymSavedShowing(false), GYM_SAVED_HOLD_LIMIT_MS)
+    const timer = setTimeout(finishGymScreen, GYM_SAVED_HOLD_LIMIT_MS)
     return () => clearTimeout(timer)
+    // finishGymScreen only uses state setters, which never change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gymSavedShowing])
-  const [isSettingGoal, setIsSettingGoal] = useState(false)
   // Which tab is showing: Home, Pause or Profile.
   const [tab, setTab] = useState<AppTab>('home')
   const [signOutError, setSignOutError] = useState<string | null>(null)
@@ -154,15 +182,8 @@ function SignedInApp({ session }: { session: Session }) {
       )
     }
 
-    // New users (no first or last name yet) complete their profile first. Once it is saved the
-    // profile is complete, so this is skipped on every later visit and after a refresh.
-    if (profile.status === 'ready' && !isProfileComplete(profile.profile)) {
-      // The first step has nothing before it except the landing page, and for someone already signed in
-      // "back to the start" means signing out (the auth listener then shows the landing page).
-      return <OnboardingScreen profile={profile.profile} onSave={profile.save} onBack={() => void handleSignOut()} />
-    }
-
-    // Wait for the gym, so we never show "choose your gym" to someone who has one.
+    // Wait for the gym, so we never show "choose your gym" to someone who has one, and so where onboarding starts can be
+    // worked out from the profile AND the gym together.
     if (showup.dataStatus === 'loading') return <LoadingScreen />
     if (showup.dataStatus === 'error') {
       return (
@@ -174,28 +195,59 @@ function SignedInApp({ session }: { session: Session }) {
       )
     }
 
+    // ONBOARDING, step 1 of 3: the names. It has nothing before it, so no back arrow. Saving moves on to step 2.
+    if (profile.status === 'ready' && onboardingStep === 1) {
+      return (
+        <OnboardingScreen
+          profile={profile.profile}
+          onSave={async (edits) => {
+            const result = await profile.save(edits)
+            if (result.ok) setOnboardingStep(nextOnboardingStep(1))
+            return result
+          }}
+        />
+      )
+    }
+
+    // ONBOARDING, step 3 of 3: the weekly goal. Back returns to the gym; saving the goal moves on to Home.
+    if (onboardingStep === 3) {
+      return (
+        <GoalScreen
+          mode="onboarding"
+          onBack={() => setOnboardingStep(previousOnboardingStep(3))}
+          onSaved={(message) => setGymToast({ severity: 'success', message })}
+          onDone={() => setOnboardingStep(nextOnboardingStep(3))}
+          // Skipping saves nothing: the person goes to Home, which offers "Set your weekly goal" whenever there is none.
+          onSkip={() => setOnboardingStep(nextOnboardingStep(3))}
+        />
+      )
+    }
+
     // Full-screen steps without the tab bar. Each has its own Back or Cancel, and the tab you came
     // from is still selected when you return. Home loads fresh numbers when it comes back.
     if (isSettingGoal) return <GoalScreen onBack={() => setIsSettingGoal(false)} />
 
-    if (!showup.gym || isChangingGym || gymSavedShowing) {
+    if (onboardingStep === 2 || !showup.gym || isChangingGym || gymSavedShowing) {
       return (
         <GymSetupScreen
-          // The same screen is step 2 of onboarding (no gym yet) or "Change gym" from Profile (a gym already exists).
-          isOnboarding={!isChangingGym && (!showup.gym || gymSavedShowing)}
+          // The same screen is step 2 of onboarding or "Change gym" from Profile (a gym already exists).
+          isOnboarding={!isChangingGym && (onboardingStep === 2 || !showup.gym || gymSavedShowing)}
           onSave={async (place) => {
             const result = await showup.saveGym(place)
             if (result.ok) setGymSavedShowing(true)
             return result
           }}
           onSaved={(gymName) => setGymToast({ severity: 'success', message: `${gymName} saved` })}
-          // After "<name> saved": on to what comes next, or back to Profile if it was opened from there.
-          onDone={() => {
-            setGymSavedShowing(false)
-            setIsChangingGym(false)
-          }}
-          // The back arrow: out of "Change gym" back to Profile. First-time setup has no earlier screen here.
-          onBack={isChangingGym ? () => setIsChangingGym(false) : undefined}
+          // After "<name> saved": on to the weekly goal (step 3) in onboarding, or back to Profile if it was opened from there.
+          onDone={finishGymScreen}
+          // The back arrow: out of "Change gym" back to Profile, or in onboarding back to the names (step 1).
+          onBack={
+            isChangingGym
+              ? () => setIsChangingGym(false)
+              : onboardingStep === 2
+                ? () => setOnboardingStep(previousOnboardingStep(2))
+                : undefined
+          }
           // Only a loaded profile can widen the search; in every other case it stays restricted.
           searchMode={profile.status === 'ready' ? profile.profile.placeSearchMode : 'fitness_only'}
         />

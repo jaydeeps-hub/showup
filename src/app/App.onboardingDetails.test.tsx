@@ -97,10 +97,10 @@ afterEach(() => {
 })
 
 describe('the top row and the words', () => {
-  it('has a back arrow, a progress bar 33% full, and "1 of 3"', async () => {
+  it('has a progress bar 33% full and "1 of 3", and NO back arrow (it is the first step)', async () => {
     renderApp()
     await title()
-    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
     expect(screen.getByText('1 of 3')).toBeTruthy()
     expect(screen.getByTestId('step-progress').style.width || getComputedStyle(screen.getByTestId('step-progress')).width).toBe('33%')
   })
@@ -118,12 +118,11 @@ describe('the top row and the words', () => {
     expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull()
   })
 
-  it('Back leaves onboarding the only way a signed-in person can: signing out, which returns to the start', async () => {
-    const user = userEvent.setup()
+  it('has nothing to press that signs the person out (the old arrow here did)', async () => {
     renderApp()
     await title()
-    await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(auth.signOut).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /back|sign out/i })).toBeNull()
+    expect(auth.signOut).not.toHaveBeenCalled()
   })
 })
 
@@ -353,7 +352,8 @@ describe('Continue', () => {
     expect(first().value).toBe('Asha')
     expect(last().value).toBe('Rao')
     await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
+    // Saved this time: on to step 2, the gym.
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' })).toBeTruthy()
   })
 
   it('ignores a second press while saving', async () => {
@@ -368,7 +368,7 @@ describe('Continue', () => {
     const saving = (await screen.findByRole('button', { name: 'Saving…' })) as HTMLButtonElement
     expect(saving.disabled).toBe(true)
     finish({ status: 'saved', profile: profile({ firstName: 'Asha', lastName: 'Rao' }) })
-    await screen.findByRole('button', { name: /show up/i })
+    await screen.findByRole('heading', { name: 'Where do you work out?' })
     expect(db.updateProfile).toHaveBeenCalledTimes(1)
   })
 })

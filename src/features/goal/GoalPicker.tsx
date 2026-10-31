@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useState } from 'react'
+import { BottomSheet } from '../../components/BottomSheet'
 import { Loader } from '../../components/Loader'
 import { MascotRow } from '../../components/MascotRow'
 import { GOAL_MASCOT_HEIGHT } from '../../config/mascotLayout'
@@ -18,6 +19,13 @@ interface GoalPickerProps {
   goal: GoalState
   /** Saves the chosen number of days. The parent shows the result as a toast. */
   onSet: (days: number) => Promise<void>
+  /**
+   * Given in onboarding only: shows a "Skip for now" button under Set goal. Pressing it asks first (a sheet that
+   * encourages setting a goal), and only the sheet's own "Skip for now" calls this. Nothing is saved.
+   */
+  onSkip?: () => void
+  /** True once the goal has been saved and the screen is about to move on: nothing that leaves may be pressed. */
+  locked?: boolean
 }
 
 /**
@@ -30,14 +38,18 @@ interface GoalPickerProps {
  * number (`goal_1` ... `goal_7`), or the bundled copy of those rows. The caption on 7 ("Are you sure? Rest days are
  * important too.") is only a gentle nudge: every number, 7 included, can be selected and saved.
  */
-export function GoalPicker({ goal, onSet }: GoalPickerProps) {
+export function GoalPicker({ goal, onSet, onSkip, locked = false }: GoalPickerProps) {
   const [days, setDays] = useState(() => initialGoalDays(goal))
   const [isSaving, setIsSaving] = useState(false)
+  // The "Skip setting a goal?" sheet.
+  const [askingToSkip, setAskingToSkip] = useState(false)
+  // Leaving and saving must never overlap: a skip while a save is on its way (or done) would move on twice.
+  const busy = isSaving || locked
   const note = pendingGoalNote(goal)
   const mascot = useGoalMascot(days)
 
   async function handleSet() {
-    if (isSaving) return // ignore a second press while the first save is in progress
+    if (busy) return // ignore a second press while the first save is in progress
     setIsSaving(true)
     try {
       await onSet(days)
@@ -120,6 +132,52 @@ export function GoalPicker({ goal, onSet }: GoalPickerProps) {
       >
         {isSaving ? 'Saving…' : 'Set goal'}
       </Button>
+
+      {onSkip && (
+        <>
+          <Button
+            variant="text"
+            color="inherit"
+            fullWidth
+            disabled={busy}
+            onClick={() => setAskingToSkip(true)}
+            // The design's ghost button: no fill, 48px, a little under Set goal.
+            sx={{ mt: '6px', minHeight: 48, height: 48, fontWeight: 500, color: tokens.color.textPrimary }}
+          >
+            Skip for now
+          </Button>
+
+          <BottomSheet
+            open={askingToSkip}
+            // Escape, or a tap on the dark area: the same as "Set a goal", the person stays.
+            onClose={() => setAskingToSkip(false)}
+            title="Skip setting a goal?"
+            actions={
+              <>
+                <Button variant="contained" size="large" fullWidth onClick={() => setAskingToSkip(false)}>
+                  Set a goal
+                </Button>
+                <Button
+                  variant="text"
+                  color="inherit"
+                  fullWidth
+                  disabled={busy}
+                  onClick={() => {
+                    setAskingToSkip(false)
+                    onSkip()
+                  }}
+                  sx={{ minHeight: 48, height: 48, fontWeight: 500, color: tokens.color.textPrimary }}
+                >
+                  Skip for now
+                </Button>
+              </>
+            }
+          >
+            A weekly goal is optional, but it gives every visit a target and makes it easier to stay committed. You can set one
+            anytime from Home.
+          </BottomSheet>
+        </>
+      )}
     </Box>
   )
 }

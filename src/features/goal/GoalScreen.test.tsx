@@ -39,10 +39,14 @@ function loaded(messages: MascotMessage[], expressions = ['smile', 'lift', 'slee
 }
 
 const onBack = vi.fn()
-function renderScreen() {
+/**
+ * Most of these tests are about the screen itself, which looks the same in both modes apart from the top row and the Skip
+ * button, so they use the onboarding one. The standalone one (opened from Home) shows its own message after a save.
+ */
+function renderScreen(mode: 'onboarding' | 'standalone' = 'onboarding') {
   return render(
     <ThemeProvider theme={theme}>
-      <GoalScreen onBack={onBack} />
+      {mode === 'onboarding' ? <GoalScreen mode="onboarding" onBack={onBack} onSaved={() => {}} /> : <GoalScreen onBack={onBack} />}
     </ThemeProvider>,
   )
 }
@@ -298,7 +302,7 @@ describe('Set goal and the help text', () => {
 
   it('saves the selected number through set_weekly_goal and then tells the person', async () => {
     const user = userEvent.setup()
-    renderScreen()
+    renderScreen('standalone')
     await screen.findByRole('radiogroup')
     await user.click(radios()[3])
     await user.click(setGoalButton())
@@ -309,7 +313,7 @@ describe('Set goal and the help text', () => {
   it('shows an error toast when saving fails, and the choice stays', async () => {
     goalApi.setWeeklyGoal.mockResolvedValue({ status: 'error', message: 'Please sign in again to change your goal.' })
     const user = userEvent.setup()
-    renderScreen()
+    renderScreen('standalone')
     await screen.findByRole('radiogroup')
     await user.click(radios()[1])
     await user.click(setGoalButton())
