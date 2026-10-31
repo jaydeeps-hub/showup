@@ -173,6 +173,73 @@ describe('the fields', () => {
   })
 })
 
+describe('the 25-character limit on the names', () => {
+  it('stops typing a first name at 25 characters', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'a'.repeat(40))
+    expect(first().value).toBe('a'.repeat(25))
+  })
+
+  it('stops typing a last name at 25 characters', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(last(), 'b'.repeat(40))
+    expect(last().value).toBe('b'.repeat(25))
+  })
+
+  it('lets exactly 25 characters in, with the spaces counted', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    const name = `${'x'.repeat(12)} ${'y'.repeat(12)}` // 12 + space + 12 = 25
+    await user.type(first(), name)
+    expect(first().value).toBe(name)
+    await user.type(first(), 'z')
+    expect(first().value).toBe(name) // the 26th character is refused
+  })
+
+  it('cuts a long paste to 25 characters', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.click(first())
+    await user.paste('p'.repeat(80))
+    expect(first().value).toBe('p'.repeat(25))
+  })
+
+  it('does not stop a Hindi name at half: 25 letters with vowel signs fit (50 code points)', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.click(first())
+    await user.paste('कि'.repeat(25))
+    expect(first().value).toBe('कि'.repeat(25))
+    await user.paste('कि')
+    expect(first().value).toBe('कि'.repeat(25)) // the 26th is refused
+  })
+
+  it('refuses a 26th character typed in the middle without pushing the end out', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'a'.repeat(24) + 'Z')
+    await user.type(first(), 'q', { initialSelectionStart: 3, initialSelectionEnd: 3 })
+    expect(first().value).toBe('a'.repeat(24) + 'Z')
+  })
+
+  it('does not change the other name field or what Continue allows', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'a'.repeat(40))
+    expect(last().value).toBe('')
+    expect((screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement).disabled).toBe(true) // last name still empty
+  })
+})
+
 describe('checking the names', () => {
   it('on leaving an empty first name: a red border, the message, and role alert', async () => {
     const user = userEvent.setup()

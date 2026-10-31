@@ -3,12 +3,13 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { Loader } from '../../components/Loader'
-import { PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
+import { NAME_BACKSTOP_FACTOR, PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
 import { tokens } from '../../design-system/tokens'
 import type { ProfileEdits, SaveResult } from '../../types'
 import {
   hasNameText,
   latestBirthDate,
+  limitNameInput,
   NAME_REQUIRED_MESSAGE,
   validateProfileForm,
   type ProfileFormErrors,
@@ -115,7 +116,9 @@ export function ProfileForm(props: ProfileFormProps) {
   const birthdayInput = useRef<HTMLInputElement>(null)
 
   function setField(field: keyof ProfileFormValues, value: string) {
-    setValues((current) => ({ ...current, [field]: value }))
+    // A name field never holds more than PROFILE_NAME_MAX_LENGTH characters, typed or pasted.
+    const isName = field === 'firstName' || field === 'lastName'
+    setValues((current) => ({ ...current, [field]: isName ? limitNameInput(value, current[field]) : value }))
     // Clear the old complaint about this field as soon as the person edits it.
     setErrors((current) => ({ ...current, [field]: undefined }))
     setJustSaved(false)
@@ -160,7 +163,9 @@ export function ProfileForm(props: ProfileFormProps) {
   }
 
   const canContinue = hasNameText(values.firstName) && hasNameText(values.lastName)
-  const nameLimit = { maxLength: PROFILE_NAME_MAX_LENGTH + 20 }
+  // The browser's own limit is only a backstop for a huge paste. It counts code units, which are never fewer than the
+  // characters a person sees, so it cannot cut a name short; limitNameInput (in setField) enforces the real limit.
+  const nameLimit = { maxLength: PROFILE_NAME_MAX_LENGTH * NAME_BACKSTOP_FACTOR }
 
   return (
     <Box

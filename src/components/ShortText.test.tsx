@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ThemeProvider } from '@mui/material/styles'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { theme } from '../app/theme'
 import type { Profile } from '../types'
 
 /**
- * The 25-character rule for text a person typed: first and last name wherever they are shown. Typing is not limited
- * (the database allows 100), only what is displayed is cut. The REAL Profile screen is used; only its goal data is faked.
+ * The 25-character rule for the names a person typed. Two parts: what is SHOWN (a longer name is cut and ends with "...",
+ * wherever first and last name appear), and what can be TYPED in the Profile edit form (never more than 25). A name saved
+ * before the limit, up to the database's 100, still loads whole. The REAL Profile screen is used; only its goal data is faked.
  */
 
 vi.mock('../hooks/useGoalState', () => ({
@@ -87,6 +89,53 @@ describe('the Profile screen: first and last name', () => {
     const exactly = 'Abcdefghijklmnopqrstuvwxy' // 25
     renderProfile(profile({ firstName: exactly }))
     expect(screen.getByText(exactly, { selector: 'b span' })).toBeTruthy()
+  })
+
+  it('the edit form stops typing at 25 characters, in the first name and in the last name', async () => {
+    const user = userEvent.setup()
+    renderProfile(profile())
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const first = screen.getByLabelText('First name') as HTMLInputElement
+    const last = screen.getByLabelText('Last name') as HTMLInputElement
+    await user.clear(first)
+    await user.type(first, 'a'.repeat(40))
+    expect(first.value).toBe('a'.repeat(25))
+    await user.clear(last)
+    await user.type(last, 'b'.repeat(40))
+    expect(last.value).toBe('b'.repeat(25))
+  })
+
+  it('the edit form cuts a long paste to 25 and does not stop a Hindi name at half', async () => {
+    const user = userEvent.setup()
+    renderProfile(profile())
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const first = screen.getByLabelText('First name') as HTMLInputElement
+    await user.clear(first)
+    await user.paste('p'.repeat(80))
+    expect(first.value).toBe('p'.repeat(25))
+    await user.clear(first)
+    await user.paste('कि'.repeat(25))
+    expect(first.value).toBe('कि'.repeat(25))
+  })
+
+  it('a name saved before the limit (longer than 25) can be shortened a letter at a time but not made longer, and is not saved as it is', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(
+      <ThemeProvider theme={theme}>
+        <ManageProfileScreen profile={profile({ firstName: 'x'.repeat(40) })} email="a@example.com" gym={null} onSave={onSave} onChangeSearchMode={vi.fn()} onChangeGym={vi.fn()} onSignOut={vi.fn()} />
+      </ThemeProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const first = screen.getByLabelText('First name') as HTMLInputElement
+    expect(first.value).toBe('x'.repeat(40)) // shown whole, not cut
+    await user.type(first, '{Backspace}')
+    expect(first.value).toBe('x'.repeat(39)) // one letter off, not snapped to 25
+    await user.type(first, 'y')
+    expect(first.value).toBe('x'.repeat(39)) // longer is refused
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    expect(await screen.findByText('Use 25 characters or fewer.')).toBeTruthy()
+    expect(onSave).not.toHaveBeenCalled()
   })
 
   it('does not cut what the edit form starts with: the typing fields hold the whole saved names', () => {

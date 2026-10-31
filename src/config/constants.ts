@@ -49,8 +49,19 @@ export const ALLOWED_GYM_PLACE_TYPES: readonly string[] = [
   'ice_skating_rink',
 ]
 
-/** Longest first or last name accepted. Matches the database check on `profiles`. */
-export const PROFILE_NAME_MAX_LENGTH = 100
+/**
+ * Longest first or last name a person can type or save, in characters as they see them (spaces count). The same number
+ * as the display rule, so a name typed here is never cut when shown. The database check on `profiles` allows 100 and is
+ * left as it is, so names saved before this limit still load and show.
+ */
+export const PROFILE_NAME_MAX_LENGTH = 25
+
+/**
+ * The browser's own `maxLength` on a name field is only a backstop against a huge paste. It counts code units (a Hindi
+ * letter with its vowel sign is 2, an emoji up to 11), so it is set to this many times the limit; the real limit, in
+ * characters as a person sees them, is enforced when the text changes.
+ */
+export const NAME_BACKSTOP_FACTOR = 12
 
 /**
  * Youngest age accepted. A birthday must be at least this many years ago: the date picker stops at

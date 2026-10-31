@@ -1,4 +1,5 @@
 import { EARLIEST_DATE_OF_BIRTH, MINIMUM_AGE_YEARS, PROFILE_NAME_MAX_LENGTH } from '../config/constants'
+import { countCharacters, firstCharacters } from './truncateText'
 import type { Profile, ProfileEdits } from '../types'
 
 /** What the form holds while the user types: plain strings straight from the inputs. */
@@ -53,8 +54,23 @@ function isRealCalendarDate(value: string): boolean {
 function validateName(value: string, label: string): string | null {
   const name = value.trim()
   if (name === '') return `Enter your ${label}.`
-  if (name.length > PROFILE_NAME_MAX_LENGTH) return `Use ${PROFILE_NAME_MAX_LENGTH} characters or fewer.`
+  if (countCharacters(name) > PROFILE_NAME_MAX_LENGTH) return `Use ${PROFILE_NAME_MAX_LENGTH} characters or fewer.`
   return null
+}
+
+/**
+ * What a name field should hold after the person types or pastes: `next` if it fits, otherwise cut to the limit.
+ * Typing into a field that is already full changes nothing (the new letter is refused, as a browser's own limit would),
+ * so the letters already there are not pushed out. A name saved before the limit existed may be longer than it: that can
+ * be shortened bit by bit (it never grows), and saving it is refused until it fits. Counts characters as a person sees
+ * them, which the browser's `maxLength` cannot do (it would stop a Hindi name at about half the letters).
+ */
+export function limitNameInput(next: string, previous: string): string {
+  const length = countCharacters(next)
+  if (length <= PROFILE_NAME_MAX_LENGTH) return next
+  const before = countCharacters(previous)
+  if (length <= before) return next // shortening or replacing: allowed, even if it is still over the limit
+  return before >= PROFILE_NAME_MAX_LENGTH ? previous : firstCharacters(next, PROFILE_NAME_MAX_LENGTH)
 }
 
 function validateDateOfBirth(value: string, today: Date): string | null {

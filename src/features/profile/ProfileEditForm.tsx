@@ -4,10 +4,11 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
+import { NAME_BACKSTOP_FACTOR, PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
 import type { ProfileEdits, SaveResult } from '../../types'
 import {
   latestBirthDate,
+  limitNameInput,
   validateProfileForm,
   type ProfileFormErrors,
   type ProfileFormValues,
@@ -83,7 +84,9 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
   }, [])
 
   function setField(field: keyof ProfileFormValues, value: string) {
-    setValues((current) => ({ ...current, [field]: value }))
+    // A name field never holds more than PROFILE_NAME_MAX_LENGTH characters, typed or pasted.
+    const isName = field === 'firstName' || field === 'lastName'
+    setValues((current) => ({ ...current, [field]: isName ? limitNameInput(value, current[field]) : value }))
     // Clear the old complaint about this field as soon as the user edits it.
     setErrors((current) => ({ ...current, [field]: undefined }))
   }
@@ -123,7 +126,7 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
           inputRef={firstNameInput}
           slotProps={{
             htmlInput: {
-              maxLength: PROFILE_NAME_MAX_LENGTH + 20,
+              maxLength: PROFILE_NAME_MAX_LENGTH * NAME_BACKSTOP_FACTOR,
               'aria-describedby': describedBy('firstName', 'profile-first-name'),
             },
           }}
@@ -141,7 +144,7 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
           fullWidth
           slotProps={{
             htmlInput: {
-              maxLength: PROFILE_NAME_MAX_LENGTH + 20,
+              maxLength: PROFILE_NAME_MAX_LENGTH * NAME_BACKSTOP_FACTOR,
               'aria-describedby': describedBy('lastName', 'profile-last-name'),
             },
           }}

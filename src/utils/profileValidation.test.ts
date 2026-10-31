@@ -4,9 +4,11 @@ import {
   getDisplayName,
   isProfileComplete,
   latestBirthDate,
+  limitNameInput,
   toDateInputValue,
   validateProfileForm,
 } from './profileValidation'
+import { PROFILE_NAME_MAX_LENGTH } from '../config/constants'
 
 // Fixed "today" so the tests give the same answer on any day.
 const TODAY = new Date(2026, 9, 17) // 17 October 2026 (months are 0-based)
@@ -43,10 +45,26 @@ describe('validateProfileForm', () => {
     })
   })
 
-  it('rejects names longer than 100 characters', () => {
-    const result = validateProfileForm({ ...valid, firstName: 'x'.repeat(101) }, TODAY)
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.errors.firstName).toMatch(/100 characters/)
+  it('rejects names longer than 25 characters, first and last, and accepts exactly 25', () => {
+    expect(PROFILE_NAME_MAX_LENGTH).toBe(25)
+    const first = validateProfileForm({ ...valid, firstName: 'x'.repeat(26) }, TODAY)
+    expect(first.ok).toBe(false)
+    if (!first.ok) expect(first.errors).toEqual({ firstName: 'Use 25 characters or fewer.' })
+    const last = validateProfileForm({ ...valid, lastName: 'x'.repeat(26) }, TODAY)
+    expect(last.ok).toBe(false)
+    if (!last.ok) expect(last.errors).toEqual({ lastName: 'Use 25 characters or fewer.' })
+    expect(validateProfileForm({ ...valid, firstName: 'x'.repeat(25), lastName: 'y'.repeat(25) }, TODAY).ok).toBe(true)
+  })
+
+  it('counts spaces, but not the spaces around the name (they are trimmed before saving)', () => {
+    expect(validateProfileForm({ ...valid, firstName: `  ${'x'.repeat(25)}  ` }, TODAY).ok).toBe(true)
+    expect(validateProfileForm({ ...valid, firstName: `${'x'.repeat(12)} ${'y'.repeat(12)}` }, TODAY).ok).toBe(true) // 12 + space + 12 = 25
+    expect(validateProfileForm({ ...valid, firstName: `${'x'.repeat(12)} ${'y'.repeat(13)}` }, TODAY).ok).toBe(false) // 12 + space + 13 = 26: the space counts
+  })
+
+  it('counts a letter with its vowel sign as one character, the same as the display rule', () => {
+    expect(validateProfileForm({ ...valid, firstName: 'कि'.repeat(25) }, TODAY).ok).toBe(true) // 50 code points, 25 characters
+    expect(validateProfileForm({ ...valid, firstName: 'कि'.repeat(26) }, TODAY).ok).toBe(false)
   })
 
   it('treats the birthday as optional and saves it as null', () => {
@@ -92,6 +110,48 @@ describe('validateProfileForm', () => {
   it('never includes is_admin in what it returns', () => {
     const result = validateProfileForm({ ...valid, isAdmin: true } as typeof valid, TODAY)
     expect(result.ok && Object.keys(result.edits).sort()).toEqual(['dateOfBirth', 'firstName', 'lastName'])
+  })
+})
+
+describe('limitNameInput (what a name field holds after typing or pasting)', () => {
+  const full = 'a'.repeat(25)
+
+  it('lets text up to 25 characters through unchanged', () => {
+    expect(limitNameInput('Asha', '')).toBe('Asha')
+    expect(limitNameInput(full, full.slice(0, 24))).toBe(full)
+  })
+
+  it('refuses a 26th character: a full field stays exactly as it was', () => {
+    expect(limitNameInput(`${full}b`, full)).toBe(full)
+    expect(limitNameInput(`b${full}`, full)).toBe(full) // typed at the start: still refused, nothing pushed out
+  })
+
+  it('cuts a long paste into an empty or short field to 25 characters', () => {
+    expect(limitNameInput('x'.repeat(60), '')).toBe('x'.repeat(25))
+    expect(limitNameInput(`ab${'x'.repeat(60)}`, 'ab')).toBe(`ab${'x'.repeat(23)}`)
+  })
+
+  it('counts a letter with its vowel sign as one, so a Hindi name is not stopped at half', () => {
+    const hindi = 'कि'.repeat(25) // 50 code points, 25 characters
+    expect(limitNameInput(hindi, 'कि'.repeat(24))).toBe(hindi)
+    expect(limitNameInput(`${hindi}कि`, hindi)).toBe(hindi)
+    expect(Array.from(limitNameInput('कि'.repeat(40), '')).length).toBe(50) // 25 whole characters, none split
+  })
+
+  it('lets a Hindi name of 25 characters be edited in place: the text is returned as typed, not rebuilt', () => {
+    // 24 letters with a vowel sign, then a plain consonant: 25 characters, 49 code units. Typing "क" in front of it makes 26.
+    const name = 'कि'.repeat(24) + 'क'
+    expect(limitNameInput(name, 'कि'.repeat(24))).toBe(name) // 25 characters: the 49 code units must not count as "too long"
+    expect(limitNameInput(`${name}क`, name)).toBe(name) // 26 characters: refused
+    // Replacing a selection with text of the same length is allowed even when the field is full.
+    const swapped = 'कि'.repeat(23) + 'का' + 'क'
+    expect(limitNameInput(swapped, name)).toBe(swapped)
+  })
+
+  it('lets a name saved longer than 25 be shortened bit by bit, but never made longer', () => {
+    const old = 'x'.repeat(40)
+    expect(limitNameInput('x'.repeat(39), old)).toBe('x'.repeat(39)) // Backspace: allowed, not snapped to 25
+    expect(limitNameInput('x'.repeat(41), old)).toBe(old) // one more: refused
   })
 })
 

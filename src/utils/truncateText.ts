@@ -11,6 +11,17 @@ function charactersOf(text: string): string[] {
   return segmenter ? Array.from(segmenter.segment(text), (part) => part.segment) : Array.from(text)
 }
 
+/** How many characters a person sees in `text` (spaces count). The same count the display rule and the typing limit use. */
+export function countCharacters(text: string): number {
+  return charactersOf(text).length
+}
+
+/** The first `max` characters of `text`, with no dots added. Text of `max` characters or fewer is returned as it is. */
+export function firstCharacters(text: string, max: number): string {
+  const characters = charactersOf(text)
+  return characters.length <= max ? text : characters.slice(0, Math.max(0, max)).join('')
+}
+
 /**
  * Shortens `text` for display. A text of `max` characters or fewer is returned as it is. A longer one is cut to `max`
  * characters and `...` is added, so the person can tell the real name is longer. Spaces count as characters.
