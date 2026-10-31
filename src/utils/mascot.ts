@@ -229,3 +229,18 @@ export function imageFor(content: Pick<MascotContent, 'images'>, expression: str
   if (!image || image.url === '') return null
   return { url: withCacheBuster(image.url, image.v), width: image.width, height: image.height, alt: image.alt }
 }
+
+/** The key of the brand logo in `mascot_images`. */
+export const LOGO_KEY = 'logo_white'
+
+/**
+ * The brand logo (`mascot_images` key `logo_white`), or null when there is none. Unlike `imageFor`, it NEVER falls
+ * back to another picture: a smiling mascot where the logo belongs would be wrong, so with no logo the caller draws
+ * its own shape instead. An empty address counts as no logo. The address gets the cache-busting suffix, so a logo that
+ * was replaced in the table is fetched again.
+ */
+export function logoFrom(content: Pick<MascotContent, 'images'>): MascotPicture | null {
+  const image = content.images[LOGO_KEY]
+  if (!image || image.url === '') return null
+  return { url: withCacheBuster(image.url, image.v), width: image.width, height: image.height, alt: image.alt }
+}

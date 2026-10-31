@@ -4,7 +4,11 @@ import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
 import { tokens } from '../design-system/tokens'
+import { BrandMarkImage } from './BrandMarkImage'
 import { TAB_BAR_CLEARANCE } from './BottomNav'
+
+/** The size of the mark before the "Showup" name in the header, in pixels. */
+const BRAND_MARK_SIZE = 28
 
 interface ScreenLayoutProps {
   /** Optional content shown on the right of the brand header. */
@@ -38,20 +42,26 @@ export function ScreenLayout({ headerAction, showBrand = true, hasTabBar = false
           sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, minHeight: 40, mb: 8 }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box
-              aria-hidden
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: `${tokens.radius.small}px`,
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                display: 'grid',
-                placeItems: 'center',
-              }}
-            >
-              <CheckRounded sx={{ fontSize: 18 }} />
-            </Box>
+            {/* The brand logo from the database; if there is none, the blue square with a tick it used to be. */}
+            <BrandMarkImage
+              size={BRAND_MARK_SIZE}
+              fallback={
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: BRAND_MARK_SIZE,
+                    height: BRAND_MARK_SIZE,
+                    borderRadius: `${tokens.radius.small}px`,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    display: 'grid',
+                    placeItems: 'center',
+                  }}
+                >
+                  <CheckRounded sx={{ fontSize: 18 }} />
+                </Box>
+              }
+            />
             <Typography component="p" variant="h4">
               Showup
             </Typography>

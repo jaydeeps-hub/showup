@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
+import { BrandMarkImage } from '../../components/BrandMarkImage'
 import { landing } from './landingTheme'
 
 /**
@@ -33,21 +34,29 @@ export function BrandO() {
   )
 }
 
-/** The solid blue dot that sits before the wordmark. */
+/** The size of the mark before the wordmark, in pixels. */
+export const BRAND_MARK_SIZE = 28
+
+/** The solid blue dot. It is what the logo falls back to when there is no logo to show. */
 export function BrandDot() {
   return (
     <Box
       aria-hidden
-      sx={{ width: 28, height: 28, flexShrink: 0, borderRadius: '50%', backgroundColor: landing.color.primary }}
+      sx={{ width: BRAND_MARK_SIZE, height: BRAND_MARK_SIZE, flexShrink: 0, borderRadius: '50%', backgroundColor: landing.color.primary }}
     />
   )
+}
+
+/** What sits before the wordmark: the brand logo from the database, or the blue dot if there is none. */
+export function BrandMark() {
+  return <BrandMarkImage size={BRAND_MARK_SIZE} fallback={<BrandDot />} />
 }
 
 /** The dot and the "Showup" wordmark (with the drawn "o"), as at the top of the landing page and the Quick Start. */
 export function BrandLogo() {
   return (
     <Box component="header" sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-      <BrandDot />
+      <BrandMark />
       <Typography
         component="p"
         sx={{
