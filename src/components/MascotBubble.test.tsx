@@ -636,6 +636,120 @@ describe('Home with the mascot', () => {
   })
 })
 
+describe('Home: the gym name under the Show up button', () => {
+  function renderHomeWith(name: string, firstName = 'Asha') {
+    return render(
+      <ThemeProvider theme={theme}>
+        <ShowupProvider gymId="gym-1" userId="user-1">
+          <HomeScreen firstName={firstName} gym={{ ...gym, name }} />
+        </ShowupProvider>
+      </ThemeProvider>,
+    )
+  }
+  const rulesOf = (node: Element) => {
+    const css = Array.from(document.querySelectorAll('style')).map((style) => style.textContent ?? '').join('\n')
+    return Array.from(node.classList).filter((n) => n.startsWith('css-')).map((n) => css.match(new RegExp(`\\.${n}\\{[^}]*\\}`))?.[0] ?? '').join(' ')
+  }
+  const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('is a plain line right under the Show up button: after the button, before the calendar', async () => {
+    renderHome()
+    const name = await screen.findByText('Iron Gym')
+    const button = document.querySelector('button[aria-label="Show up"], button[aria-label^="Show up"]') ?? screen.getByRole('button', { name: /show up/i })
+    expect(follows(button, name)).toBe(true)
+    expect(follows(name, screen.getByRole('button', { name: 'Previous month' }))).toBe(true)
+  })
+
+  it('is no longer a card at the top of the screen: nothing above the summary cards carries it', async () => {
+    renderHome()
+    const name = await screen.findByText('Iron Gym')
+    expect(follows(screen.getByText('Total showups'), name)).toBe(true) // after the cards, not before them
+    expect(screen.queryByText(/Your gym/)).toBeNull()
+    expect(screen.queryByText('1 Main Road')).toBeNull() // the address is not part of this line
+  })
+
+  it('is centred and semi-bold, with no card or border around it', async () => {
+    renderHome()
+    const line = (await screen.findByText('Iron Gym')).closest('p') as HTMLElement
+    const rule = rulesOf(line)
+    expect(rule).toContain('text-align:center')
+    expect(rule).toContain('font-weight:600')
+    expect(rule).not.toMatch(/border/)
+    expect(rule).not.toMatch(/background/)
+  })
+
+  it('shows a name of 25 characters or fewer whole', async () => {
+    renderHomeWith('Anytime Fitness Bandra We') // exactly 25
+    expect(await screen.findByText('Anytime Fitness Bandra We')).toBeTruthy()
+    expect(screen.queryByText(/\.\.\./)).toBeNull()
+  })
+
+  it('cuts a longer name to 25 characters and adds "..."', async () => {
+    renderHomeWith('Anytime Fitness Bandra West Mumbai')
+    expect(await screen.findByText('Anytime Fitness Bandra We...')).toBeTruthy()
+    expect(screen.queryByText('Anytime Fitness Bandra West Mumbai', { selector: 'span[aria-hidden="true"]' })).toBeNull()
+  })
+
+  it('keeps the full name as the tooltip', async () => {
+    renderHomeWith('Anytime Fitness Bandra West Mumbai')
+    const line = (await screen.findByText('Anytime Fitness Bandra We...')).closest('p') as HTMLElement
+    expect(line.getAttribute('title')).toBe('Anytime Fitness Bandra West Mumbai')
+  })
+
+  it('gives a screen reader the full name once, and hides the cut text from it', async () => {
+    renderHomeWith('Anytime Fitness Bandra West Mumbai')
+    const shown = await screen.findByText('Anytime Fitness Bandra We...')
+    expect(shown.getAttribute('aria-hidden')).toBe('true')
+    const line = shown.closest('p') as HTMLElement
+    const readable = Array.from(line.children).filter((child) => child.getAttribute('aria-hidden') !== 'true')
+    expect(readable.map((child) => child.textContent)).toEqual(['Anytime Fitness Bandra West Mumbai'])
+  })
+
+  it('adds nothing for a screen reader when the name was not cut (it is read once, as it is)', async () => {
+    renderHome()
+    const line = (await screen.findByText('Iron Gym')).closest('p') as HTMLElement
+    expect(line.children).toHaveLength(1)
+    expect(line.children[0].getAttribute('aria-hidden')).toBeNull()
+  })
+
+  it('does not run a long name with no spaces off the edge of the screen', async () => {
+    renderHomeWith('A'.repeat(60))
+    const line = (await screen.findByText(`${'A'.repeat(25)}...`)).closest('p') as HTMLElement
+    expect(rulesOf(line)).toContain('overflow-wrap:anywhere')
+    expect(rulesOf(line)).toContain('max-width:100%')
+  })
+
+  it('the greeting follows the same rule: a first name of 25 characters or fewer is whole', async () => {
+    renderHomeWith('Iron Gym', 'Asha')
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(heading.textContent).toBe('Asha')
+    expect(heading.querySelector('[aria-hidden]')).toBeNull()
+  })
+
+  it('the greeting cuts a longer first name to 25 characters and "...", with the whole name as tooltip and for screen readers', async () => {
+    const first = 'Bartholomew-Maximilian Alexander'
+    renderHomeWith('Iron Gym', first)
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(heading.getAttribute('title')).toBe(first)
+    expect(heading.querySelector('span[aria-hidden="true"]')?.textContent).toBe('Bartholomew-Maximilian Al...')
+    expect(Array.from(heading.querySelectorAll('span')).filter((s) => s.getAttribute('aria-hidden') !== 'true').map((s) => s.textContent)).toEqual([first])
+  })
+
+  it('the greeting wraps instead of running off a small screen', async () => {
+    renderHomeWith('Iron Gym', 'A'.repeat(40))
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(rulesOf(heading)).toContain('overflow-wrap:anywhere')
+    expect(rulesOf(heading)).not.toContain('white-space:nowrap')
+  })
+
+  it('does not move the Show up button or the numbers above it', async () => {
+    renderHome()
+    await screen.findByText('Iron Gym')
+    expect(screen.getByText('Total showups')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /show up/i })).toBeTruthy()
+  })
+})
+
 /** This week's Monday on the device clock, in the form Home computes it, for the pause test. */
 function mondayOfToday(): string {
   const now = new Date()

@@ -13,12 +13,14 @@ import { useState, type ReactNode } from 'react'
 import { GymSummary } from '../../components/GymSummary'
 import { Loader } from '../../components/Loader'
 import { ScreenLayout } from '../../components/ScreenLayout'
+import { ShortText } from '../../components/ShortText'
 import { Toast, type ToastContent } from '../../components/Toast'
 import { home } from '../../design-system/homeTokens'
 import { useGoalState } from '../../hooks/useGoalState'
 import type { Gym, PlaceSearchMode, Profile, ProfileEdits, SaveResult } from '../../types'
 import { daysText, DEFAULT_GOAL_DAYS, initialGoalDays, pendingGoalNote } from '../../utils/goal'
 import { formatBirthDate, getDisplayName, getInitials, profileToFormValues } from '../../utils/profileValidation'
+import { truncateText } from '../../utils/truncateText'
 import { GoalStepper } from '../goal/GoalStepper'
 import { ACTION_BAR_HEIGHT } from './ProfileActionBar'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -59,8 +61,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <Box component="span" sx={{ color: c.muted, fontSize: 14 }}>
         {label}
       </Box>
-      <Box component="b" sx={{ fontWeight: 500, textAlign: 'right', overflowWrap: 'anywhere' }}>
-        {value}
+      <Box
+        component="b"
+        title={truncateText(value) !== value ? value : undefined}
+        sx={{ fontWeight: 500, textAlign: 'right', overflowWrap: 'anywhere' }}
+      >
+        <ShortText text={value} />
       </Box>
     </Box>
   )
@@ -134,8 +140,8 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
       <Stack spacing={6}>
         <Stack sx={{ alignItems: 'center', textAlign: 'center' }} spacing={3}>
           <ProfileAvatar initials={getInitials(profile)} />
-          <Typography variant="h1" component="h1" sx={{ m: 0 }}>
-            {fullName}
+          <Typography variant="h1" component="h1" title={fullName} sx={{ m: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
+            <ShortText text={fullName} />
           </Typography>
         </Stack>
 

@@ -308,6 +308,20 @@ describe('the states of the list', () => {
     expect(saveGymButton().disabled).toBe(true)
   })
 
+  it('no results: a long search is cut to 25 characters in the message, but the whole text is still searched', async () => {
+    maps.searchPlaces.mockResolvedValue([])
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    const typed = 'zzzz yyyy xxxx wwww vvvv uuuu tttt' // 34 characters
+    await user.type(box(), typed)
+
+    expect(await screen.findByText('No gyms found for “zzzz yyyy xxxx wwww vvvv...”', {}, { timeout: 3000 })).toBeTruthy()
+    expect(screen.queryByText(new RegExp(typed))).toBeNull() // the full text is not repeated in the message
+    expect((box() as HTMLInputElement).value).toBe(typed) // the box itself is never cut
+    expect(maps.searchPlaces.mock.calls.some((call) => call[0] === typed)).toBe(true) // Google gets all of it
+  })
+
   it('no results: does not put markup typed into the box on the page', async () => {
     maps.searchPlaces.mockResolvedValue([])
     const user = userEvent.setup()

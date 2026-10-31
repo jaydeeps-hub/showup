@@ -79,7 +79,7 @@ The old demo login (`TemporaryUserScreen`) was replaced by Google sign-in. Sign-
 ### Home screen
 
 1. **Which file controls it?** `src/features/attendance/HomeScreen.tsx`
-2. **What does it do?** Lays out the gym card, the SHOW UP button, the counter and the Sign out link. The saved name at the top opens the Profile page. Shows feedback after each press.
+2. **What does it do?** Lays out the SHOW UP button with the gym's name as a line under it (at most 25 characters, then `...`; the greeting and the Profile names follow the same display rule through `ShortText`), the counter and the Sign out link. The saved name at the top opens the Profile page. Shows feedback after each press.
 3. **Depends on:** `components/ShowUpButton.tsx`, `ShowUpCounter.tsx`, `GymSummary.tsx`, `FeedbackMessage.tsx`, `config/messages.ts`.
 4. **To change it, start at:** the screen for layout; the individual component for the button's size or the counter's label.
 5. **Test after changing:** check at phone width (DevTools device toolbar, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>) and desktop width; the button is disabled with "Checking location…" while verifying.

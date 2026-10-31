@@ -2,16 +2,17 @@ import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { useEffect, useState } from 'react'
-import { GymSummary } from '../../components/GymSummary'
 import { MascotBoundary } from '../../components/MascotBoundary'
 import { MascotBubble } from '../../components/MascotBubble'
 import { ScreenLayout } from '../../components/ScreenLayout'
+import { ShortText } from '../../components/ShortText'
 import { ConnectedShowUpButton } from '../../components/ShowUpButton'
 import { useShowupSelector } from '../../hooks/showupSessionContext'
 import { useHomeSummary } from '../../hooks/useHomeSummary'
 import type { Gym } from '../../types'
 import { localTodayIso } from '../../utils/calendarDates'
 import { Calendar } from '../calendar/Calendar'
+import { GymNameLine } from './GymNameLine'
 import { HomeSummaryTop, PassesLeftStat } from './HomeSummaryPanel'
 
 interface HomeScreenProps {
@@ -59,12 +60,10 @@ export function HomeScreen(props: HomeScreenProps) {
           {/* A brand-new user has no showups yet; until the numbers load we cannot tell, so use the usual line. */}
           {summary.status === 'ready' && summary.summary.totalShowups === 0 ? 'Welcome' : 'Welcome back'}
         </Typography>
-        <Typography variant="h1" component="h1" noWrap title={firstName} sx={{ m: 0 }}>
-          {firstName}
+        <Typography variant="h1" component="h1" title={firstName} sx={{ m: 0, overflowWrap: 'anywhere' }}>
+          <ShortText text={firstName} />
         </Typography>
       </Box>
-
-      <GymSummary label={`Your gym · ${gym.label}`} name={gym.name} address={gym.formattedAddress} />
 
       <HomeSummaryTop
         state={summary}
@@ -77,8 +76,10 @@ export function HomeScreen(props: HomeScreenProps) {
         }
       />
 
-      <Stack sx={{ alignItems: 'center', py: 8 }}>
+      <Stack sx={{ alignItems: 'center', pt: 8, pb: 8 }}>
         <ConnectedShowUpButton />
+        {/* The gym's name sits right under the button, as a plain line (not a card at the top). */}
+        <GymNameLine name={gym.name} />
       </Stack>
 
       <Calendar refreshKey={refreshKey} today={today} />

@@ -21,6 +21,7 @@ import {
 import { isPlaceAllowed } from '../../services/gymValidation'
 import type { PlaceSearchMode, SelectedPlace } from '../../types'
 import { formatDistance } from '../../utils/distance'
+import { truncateText } from '../../utils/truncateText'
 
 type MapsStatus = 'not-configured' | 'loading' | 'ready' | 'load-failed'
 
@@ -256,7 +257,7 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
           </Box>
         ) : rows.length === 0 ? (
           <MessageState
-            title={showingNearby ? 'No gyms found near you' : `No gyms found for “${query.replace(/[<>]/g, '')}”`}
+            title={showingNearby ? 'No gyms found near you' : `No gyms found for “${truncateText(query.replace(/[<>]/g, ''))}”`}
             body={showingNearby ? 'Try searching by name or area.' : EMPTY_BODY}
           />
         ) : (
