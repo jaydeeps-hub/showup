@@ -9,6 +9,7 @@ import type { ProfileEdits, SaveResult } from '../../types'
 import {
   latestBirthDate,
   limitNameInput,
+  nameCharactersError,
   validateProfileForm,
   type ProfileFormErrors,
   type ProfileFormValues,
@@ -86,9 +87,17 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
   function setField(field: keyof ProfileFormValues, value: string) {
     // A name field never holds more than PROFILE_NAME_MAX_LENGTH characters, typed or pasted.
     const isName = field === 'firstName' || field === 'lastName'
-    setValues((current) => ({ ...current, [field]: isName ? limitNameInput(value, current[field]) : value }))
-    // Clear the old complaint about this field as soon as the user edits it.
-    setErrors((current) => ({ ...current, [field]: undefined }))
+    const next = isName ? limitNameInput(value, values[field]) : value
+    setValues((current) => ({ ...current, [field]: next }))
+    // Clear the old complaint about this field as soon as the user edits it. A character that is not allowed in a name
+    // is flagged straight away, while typing.
+    setErrors((current) => ({ ...current, [field]: isName ? nameCharactersError(next) ?? undefined : undefined }))
+  }
+
+  /** On leaving a name field: flag a character that is not allowed. (An empty first name is flagged on Save.) */
+  function checkName(field: 'firstName' | 'lastName') {
+    const message = nameCharactersError(values[field])
+    if (message) setErrors((current) => ({ ...current, [field]: message }))
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -119,6 +128,7 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
           id="profile-first-name"
           value={values.firstName}
           onChange={(event) => setField('firstName', event.target.value)}
+          onBlur={() => checkName('firstName')}
           error={Boolean(errors.firstName)}
           autoComplete="given-name"
           disabled={isSaving}
@@ -133,11 +143,12 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
         />
       </Field>
 
-      <Field id="profile-last-name" label="Last name" error={errors.lastName}>
+      <Field id="profile-last-name" label="Last name" hint="Optional" error={errors.lastName}>
         <TextField
           id="profile-last-name"
           value={values.lastName}
           onChange={(event) => setField('lastName', event.target.value)}
+          onBlur={() => checkName('lastName')}
           error={Boolean(errors.lastName)}
           autoComplete="family-name"
           disabled={isSaving}

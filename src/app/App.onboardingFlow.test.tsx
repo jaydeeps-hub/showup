@@ -124,7 +124,7 @@ const homeButton = () => screen.findByRole('button', { name: /^show up$/i }, { t
 async function fillDetails(user: ReturnType<typeof userEvent.setup>) {
   await detailsTitle()
   await user.type(screen.getByLabelText('First name'), 'Asha')
-  await user.type(screen.getByLabelText('Last name'), 'Rao')
+  await user.type(screen.getByLabelText(/^last name/i), 'Rao')
   await user.click(screen.getByRole('button', { name: 'Continue' }))
 }
 async function pickGym(user: ReturnType<typeof userEvent.setup>) {
@@ -256,7 +256,7 @@ describe('the Back arrow (bug 2): on Add gym and Set goal, not on "What should w
 
     await detailsTitle()
     expect((screen.getByLabelText('First name') as HTMLInputElement).value).toBe('Asha')
-    expect((screen.getByLabelText('Last name') as HTMLInputElement).value).toBe('Rao')
+    expect((screen.getByLabelText(/^last name/i) as HTMLInputElement).value).toBe('Rao')
     expect(back()).toBeNull() // and still no arrow here
   })
 

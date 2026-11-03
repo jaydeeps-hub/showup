@@ -268,7 +268,7 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
           ) : (
             <Box>
               <DetailRow label="First name" value={profile.firstName ?? ''} />
-              <DetailRow label="Last name" value={profile.lastName ?? ''} />
+              <DetailRow label="Last name" value={(profile.lastName ?? '').trim() || 'Not set'} />
               <DetailRow label="Date of birth" value={formatBirthDate(profile.dateOfBirth) ?? 'Not set'} />
               <DetailRow
                 label="Weekly goal"

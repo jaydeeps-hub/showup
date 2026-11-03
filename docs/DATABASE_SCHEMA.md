@@ -29,7 +29,7 @@ One row per Auth user.
 |---|---|---|
 | `id` | uuid, primary key | Same value as `auth.users.id`; `ON DELETE CASCADE` |
 | `first_name` | text, null | Trimmed, non-blank, max 100 characters. Pre-filled from Google when available |
-| `last_name` | text, null | Same rules |
+| `last_name` | text, null | Same rules. Optional in the app since 2026-11-03: a person who leaves it out is saved as `null` (never `''`, which the check refuses). The database was not changed |
 | `date_of_birth` | date, null | Not before 1900-01-01 |
 | `is_admin` | boolean, **not null**, default `false` | Not writable by app users (see below) |
 | `place_search_mode` | text, **not null**, default `'fitness_only'` | `'fitness_only'` or `'any_place'` (check constraint). Readable by the user, **not writable** by app users; changed only through `set_place_search_mode()` |

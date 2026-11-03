@@ -81,7 +81,7 @@ function renderApp() {
 
 const title = () => screen.findByRole('heading', { name: 'What should we call you?' })
 const first = () => screen.getByLabelText('First name') as HTMLInputElement
-const last = () => screen.getByLabelText('Last name') as HTMLInputElement
+const last = () => screen.getByLabelText(/^last name/i) as HTMLInputElement // the label also holds the "Optional" tag
 const birthday = () => screen.getByLabelText(/date of birth/i) as HTMLInputElement
 const continueButton = () => screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement
 
@@ -164,12 +164,12 @@ describe('the fields', () => {
     expect(Number(birthday().max.slice(0, 4))).toBe(year - 15)
   })
 
-  it('fills in names Google already gave', async () => {
-    useFakeDatabase(profile({ firstName: 'Asha' }))
+  it('fills in a name Google already gave (here only the last name, so the screen is still needed)', async () => {
+    useFakeDatabase(profile({ firstName: null, lastName: 'Rao' }))
     renderApp()
     await title()
-    expect(first().value).toBe('Asha')
-    expect(last().value).toBe('')
+    expect(first().value).toBe('')
+    expect(last().value).toBe('Rao')
   })
 })
 
@@ -236,7 +236,141 @@ describe('the 25-character limit on the names', () => {
     await title()
     await user.type(first(), 'a'.repeat(40))
     expect(last().value).toBe('')
-    expect((screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement).disabled).toBe(true) // last name still empty
+    expect((screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement).disabled).toBe(false) // the last name is optional
+  })
+})
+
+describe('the last name is optional', () => {
+  it('has an "Optional" tag in its label, like the date of birth, and the first name has none', async () => {
+    renderApp()
+    await title()
+    const labelOf = (field: HTMLElement) => document.querySelector(`label[for="${field.id}"]`) as HTMLElement
+    expect(labelOf(last()).textContent).toBe('Last nameOptional')
+    expect(labelOf(birthday()).textContent).toContain('Optional')
+    expect(labelOf(first()).textContent).toBe('First name')
+  })
+
+  it('is not marked as required for the browser or a screen reader', async () => {
+    renderApp()
+    await title()
+    expect(last().required).toBe(false)
+    expect(first().required).toBe(true)
+  })
+
+  it('Continue works with a first name alone, and saves the last name as null (the database refuses an empty string)', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha')
+    expect(continueButton().disabled).toBe(false)
+    await user.click(continueButton())
+    expect(db.updateProfile).toHaveBeenCalledTimes(1)
+    expect(db.updateProfile).toHaveBeenCalledWith('user-1', { firstName: 'Asha', lastName: null, dateOfBirth: null })
+  })
+
+  it('a last name of spaces is saved as null too', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha')
+    await user.type(last(), '   ')
+    await user.click(continueButton())
+    expect(db.updateProfile).toHaveBeenCalledWith('user-1', { firstName: 'Asha', lastName: null, dateOfBirth: null })
+  })
+
+  it('leaving the empty last name shows no message and no red border', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.click(last())
+    await user.tab()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(last().getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('a person with a first name and no last name is not sent back to this screen', async () => {
+    useFakeDatabase(profile({ firstName: 'Asha', lastName: null }))
+    renderApp()
+    // This file's fake already has a saved gym, so a complete profile goes straight to Home.
+    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'What should we call you?' })).toBeNull()
+  })
+})
+
+describe('special characters in the names', () => {
+  const MESSAGE = 'Special characters are not allowed.'
+
+  it('shows the simple message at once when a digit is typed in the first name, with a red border and role alert', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha1')
+    const message = await screen.findByRole('alert')
+    expect(message.textContent).toBe(MESSAGE)
+    expect(first().getAttribute('aria-invalid')).toBe('true')
+    expect(first().getAttribute('aria-describedby')).toBe(message.id)
+    expect(getComputedStyle(first()).borderColor.replace(/\s/g, '')).toBe('rgb(240,112,122)')
+  })
+
+  it('shows it for the last name too, and only under the last name', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha')
+    await user.type(last(), 'Rao!')
+    expect((await screen.findByRole('alert')).textContent).toBe(MESSAGE)
+    expect(last().getAttribute('aria-invalid')).toBe('true')
+    expect(first().getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('shows it for an emoji, for a symbol and for a decorative letter', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    for (const bad of [String.fromCodePoint(0x1f600), '★', '@', String.fromCodePoint(0x1d4d0)]) {
+      await user.clear(first())
+      await user.click(first())
+      await user.paste(`Asha${bad}`)
+      expect((await screen.findByRole('alert')).textContent).toBe(MESSAGE)
+    }
+  })
+
+  it('clears the message as soon as the bad character is deleted', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha1')
+    expect((await screen.findByRole('alert')).textContent).toBe(MESSAGE)
+    await user.type(first(), '{Backspace}')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(first().getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('does not save a name with a special character, and does not call the database', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha1')
+    await user.type(last(), 'Rao')
+    await user.click(continueButton())
+    expect(db.updateProfile).not.toHaveBeenCalled()
+    expect((await screen.findByRole('alert')).textContent).toBe(MESSAGE)
+  })
+
+  it('does not stop a real name: an apostrophe, a hyphen, spaces, accents and a Hindi name all save', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), "Mary-Jane O'Brien")
+    await user.click(last())
+    await user.paste('श्रीनिवासन्')
+    expect(screen.queryByRole('alert')).toBeNull()
+    await user.click(continueButton())
+    expect(db.updateProfile).toHaveBeenCalledWith('user-1', {
+      firstName: "Mary-Jane O'Brien",
+      lastName: 'श्रीनिवासन्',
+      dateOfBirth: null,
+    })
   })
 })
 
@@ -253,17 +387,6 @@ describe('checking the names', () => {
     expect(first().getAttribute('aria-invalid')).toBe('true')
     expect(getComputedStyle(first()).borderColor.replace(/\s/g, '')).toBe('rgb(240,112,122)')
     expect(first().getAttribute('aria-describedby')).toBe(message.id)
-  })
-
-  it('on leaving an empty last name: the message "Enter your last name"', async () => {
-    const user = userEvent.setup()
-    renderApp()
-    await title()
-    await user.click(last())
-    await user.tab()
-    expect((await screen.findByRole('alert')).textContent).toBe('Enter your last name')
-    expect(last().getAttribute('aria-invalid')).toBe('true')
-    expect(first().getAttribute('aria-invalid')).toBe('false') // only the field that was left
   })
 
   it('a name of spaces counts as empty', async () => {
@@ -301,14 +424,14 @@ describe('checking the names', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('both messages can show at once', async () => {
+  it('a message under each name can show at once', async () => {
     const user = userEvent.setup()
     renderApp()
     await title()
     await user.click(first())
-    await user.tab()
-    await user.tab()
-    expect((await screen.findAllByRole('alert')).map((node) => node.textContent)).toEqual(['Enter your first name', 'Enter your last name'])
+    await user.tab() // leaves the empty first name
+    await user.type(last(), 'Rao1')
+    expect((await screen.findAllByRole('alert')).map((node) => node.textContent)).toEqual(['Enter your first name', 'Special characters are not allowed.'])
   })
 })
 
@@ -345,15 +468,15 @@ describe('Enter moves on', () => {
 })
 
 describe('Continue', () => {
-  it('is off until both names have text, and then saves exactly as before', async () => {
+  it('is off until the first name has text, and then saves exactly as before', async () => {
     const user = userEvent.setup()
     renderApp()
     await title()
 
     expect(continueButton().disabled).toBe(true)
-    await user.type(first(), 'Asha')
-    expect(continueButton().disabled).toBe(true)
     await user.type(last(), 'Rao')
+    expect(continueButton().disabled).toBe(true) // a last name alone is not enough
+    await user.type(first(), 'Asha')
     expect(continueButton().disabled).toBe(false)
 
     await user.type(birthday(), '1990-05-17')
@@ -362,7 +485,7 @@ describe('Continue', () => {
     expect(db.updateProfile).toHaveBeenCalledWith('user-1', { firstName: 'Asha', lastName: 'Rao', dateOfBirth: '1990-05-17' })
   })
 
-  it('goes off again if a name is cleared', async () => {
+  it('goes off again if the first name is cleared, but not if the last name is', async () => {
     const user = userEvent.setup()
     renderApp()
     await title()
@@ -370,6 +493,8 @@ describe('Continue', () => {
     await user.type(last(), 'Rao')
     expect(continueButton().disabled).toBe(false)
     await user.clear(last())
+    expect(continueButton().disabled).toBe(false)
+    await user.clear(first())
     expect(continueButton().disabled).toBe(true)
   })
 
@@ -448,10 +573,17 @@ describe('the step routing is unchanged', () => {
     expect(screen.queryByRole('heading', { name: 'What should we call you?' })).toBeNull()
   })
 
-  it('a person with only one name still sees it', async () => {
-    useFakeDatabase(profile({ firstName: 'Asha' }))
+  it('a person with no first name still sees it, even if they have a last name', async () => {
+    useFakeDatabase(profile({ firstName: null, lastName: 'Rao' }))
     renderApp()
     expect(await title()).toBeTruthy()
+  })
+
+  it('a person with a first name and no last name does not see it (the last name is optional)', async () => {
+    useFakeDatabase(profile({ firstName: 'Asha', lastName: null }))
+    renderApp()
+    expect(await screen.findByRole('button', { name: /show up/i })).toBeTruthy() // this file's fake already has a gym: Home
+    expect(screen.queryByRole('heading', { name: 'What should we call you?' })).toBeNull()
   })
 })
 

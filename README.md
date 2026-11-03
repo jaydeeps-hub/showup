@@ -11,7 +11,7 @@ This is an MVP (minimum viable product). It exists to test the core interaction,
 ## Features in v0.1.0
 
 - **Gym search is restricted to fitness places.** Regular users can only save a gym, fitness centre or similar sports facility. Administrators get a setting in Manage Profile to switch between **Fitness places only** and **Any place**; it is stored in Supabase and enforced by the database.
-- **Profile onboarding.** On first sign-in, people who don't yet have a first and last name are asked "Let's get to know you." (first name, last name, optional birthday). It appears once; after the profile is saved it is skipped, including after a refresh.
+- **Profile onboarding.** On first sign-in, people who don't yet have a first name are asked "What should we call you?" (first name, optional last name, optional birthday). It appears once; after the profile is saved it is skipped, including after a refresh.
 - **Manage Profile.** Tap your name at the top of the home screen to open it. It shows your first name, last name and birthday as plain text; press **Edit** to change them. It also shows your Google email, your gym with a **Change gym** button, and **Sign out**.
 - **Sign in with Google** through Supabase. The session is restored when you reload, and you can sign out from your Profile page. Your gym and every Showup are stored in Supabase (the `gyms` and `showups` tables), so they follow you to any device.
 - **Gym search with Google Maps.** Uses Places API (New) autocomplete to find a real gym, then saves its name, address and coordinates as **Gym 1**.
@@ -155,15 +155,15 @@ After Google sign-in, the app loads your row from `public.profiles` (created aut
 | Your profile | What you see |
 |---|---|
 | Still loading | A loading screen (so you never see the app flash before onboarding) |
-| Missing first or last name | **"Let's get to know you."**: first name, last name, optional date of birth |
-| Has first and last name | The normal app (gym setup, then the home screen) |
+| Missing first name | **"What should we call you?"**: first name, optional last name, optional date of birth |
+| Has a first name (last name is optional) | The normal app (gym setup, then the home screen) |
 | Could not be loaded / does not exist | The app still works, with a yellow notice explaining what to check |
 
 Google usually supplies your first and last name, so most people will see those pre-filled, or skip onboarding altogether. Everyone can add a birthday later in **Manage Profile**.
 
 **Your name on the home screen** is the first and last name saved in your profile (not the name on your Google account), and tapping it opens the Profile page. There is no separate Profile or Change gym link on the home screen any more.
 
-**Manage Profile** (home screen → tap your name): your details are shown as text. Press **Edit** to make the first name, last name and date of birth editable, then **Save changes** (you return to the read-only view) or **Cancel** (changes are discarded). **Change gym** is on this page, and **Back** returns to the home screen. Your Google email is shown but can't be changed here, and **Sign out** is at the bottom. The form rules are the same everywhere: names are required (up to 25 characters, spaces included; a longer name saved earlier can still be shortened), and a birthday is optional but must be a real date **at least 15 years ago** (the date picker stops at exactly 15 years before today, and typing a later date is rejected too) and not before 1900.
+**Manage Profile** (home screen → tap your name): your details are shown as text. Press **Edit** to make the first name, last name and date of birth editable, then **Save changes** (you return to the read-only view) or **Cancel** (changes are discarded). **Change gym** is on this page, and **Back** returns to the home screen. Your Google email is shown but can't be changed here, and **Sign out** is at the bottom. The form rules are the same everywhere: the first name is required and the last name is optional, like the birthday. A name holds up to 25 characters (spaces included; a longer name saved earlier can still be shortened) and only letters of any language, spaces, an apostrophe, a hyphen and a full stop: digits, emoji, symbols and decorative letters are refused with "Special characters are not allowed.", and a birthday is optional but must be a real date **at least 15 years ago** (the date picker stops at exactly 15 years before today, and typing a later date is rejected too) and not before 1900.
 
 If a save fails (for example your connection drops), the page shows an error and **keeps everything you typed**; press **Try again** to retry. There is no admin setting anywhere in the interface, and the app never sends `is_admin`; the database also refuses to let app users change it.
 

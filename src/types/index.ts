@@ -33,7 +33,8 @@ export interface SelectedPlace {
  */
 export interface ProfileEdits {
   firstName: string
-  lastName: string
+  /** Null when the user leaves their last name out (the column is nullable; an empty string would break its check). */
+  lastName: string | null
   /** `YYYY-MM-DD`, or null when the user leaves their birthday out. */
   dateOfBirth: string | null
 }

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   formatBirthDate,
   getDisplayName,
+  hasOnlyNameCharacters,
   isProfileComplete,
   latestBirthDate,
   limitNameInput,
+  NAME_CHARACTERS_MESSAGE,
+  nameCharactersError,
   toDateInputValue,
   validateProfileForm,
 } from './profileValidation'
@@ -16,18 +19,20 @@ const TODAY = new Date(2026, 9, 17) // 17 October 2026 (months are 0-based)
 const valid = { firstName: 'Asha', lastName: 'Rao', dateOfBirth: '1990-05-17' }
 
 describe('isProfileComplete (decides whether to show onboarding)', () => {
-  it('is incomplete when the profile has no names', () => {
-    expect(isProfileComplete({ firstName: null, lastName: null })).toBe(false)
+  it('is incomplete when the profile has no first name', () => {
+    expect(isProfileComplete({ firstName: null })).toBe(false)
   })
-  it('is incomplete when only one name is present', () => {
-    expect(isProfileComplete({ firstName: 'Asha', lastName: null })).toBe(false)
-    expect(isProfileComplete({ firstName: null, lastName: 'Rao' })).toBe(false)
+  it('treats a blank first name as missing', () => {
+    expect(isProfileComplete({ firstName: '  ' })).toBe(false)
   })
-  it('treats blank names as missing', () => {
-    expect(isProfileComplete({ firstName: '  ', lastName: 'Rao' })).toBe(false)
+  it('is complete with a first name alone: the last name and the birthday are optional', () => {
+    expect(isProfileComplete({ firstName: 'Asha' })).toBe(true)
   })
-  it('is complete with both names, with or without a birthday', () => {
-    expect(isProfileComplete({ firstName: 'Asha', lastName: 'Rao' })).toBe(true)
+  it('does not look at the last name at all: a last name without a first name is still incomplete', () => {
+    // The type only takes a first name, so this is checked through a wider object the way the app's Profile is passed.
+    const profile = { firstName: null, lastName: 'Rao' }
+    expect(isProfileComplete(profile)).toBe(false)
+    expect(isProfileComplete({ ...profile, firstName: 'Asha' })).toBe(true)
   })
 })
 
@@ -37,11 +42,29 @@ describe('validateProfileForm', () => {
     expect(result).toEqual({ ok: true, edits: { firstName: 'Asha', lastName: 'Rao', dateOfBirth: '1990-05-17' } })
   })
 
-  it('requires a first and a last name', () => {
+  it('requires a first name, and only a first name', () => {
     const result = validateProfileForm({ ...valid, firstName: '   ', lastName: '' }, TODAY)
-    expect(result).toEqual({
-      ok: false,
-      errors: { firstName: 'Enter your first name.', lastName: 'Enter your last name.' },
+    expect(result).toEqual({ ok: false, errors: { firstName: 'Enter your first name.' } }) // no complaint about the last name
+  })
+
+  it('treats the last name as optional: empty or spaces is accepted and saved as null (never an empty string)', () => {
+    for (const lastName of ['', '   ', '\t']) {
+      const result = validateProfileForm({ ...valid, lastName }, TODAY)
+      expect(result).toEqual({ ok: true, edits: { firstName: 'Asha', lastName: null, dateOfBirth: '1990-05-17' } })
+    }
+  })
+
+  it('still saves a last name when one is given, trimmed', () => {
+    expect(validateProfileForm({ ...valid, lastName: '  Rao ' }, TODAY)).toEqual({
+      ok: true,
+      edits: { firstName: 'Asha', lastName: 'Rao', dateOfBirth: '1990-05-17' },
+    })
+  })
+
+  it('treats the birthday and the last name the same way: both optional, both saved as null when left out', () => {
+    expect(validateProfileForm({ firstName: 'Asha', lastName: '', dateOfBirth: '' }, TODAY)).toEqual({
+      ok: true,
+      edits: { firstName: 'Asha', lastName: null, dateOfBirth: null },
     })
   })
 
@@ -110,6 +133,118 @@ describe('validateProfileForm', () => {
   it('never includes is_admin in what it returns', () => {
     const result = validateProfileForm({ ...valid, isAdmin: true } as typeof valid, TODAY)
     expect(result.ok && Object.keys(result.edits).sort()).toEqual(['dateOfBirth', 'firstName', 'lastName'])
+  })
+})
+
+/** Written with escapes on purpose: an invisible mark or a look-alike letter cannot hide in the source. */
+const cp = (...codes: number[]) => String.fromCodePoint(...codes)
+
+const REAL_NAMES: Record<string, string[]> = {
+  'plain Latin': ['Asha', 'Jay', 'Mehta', 'Ng'],
+  'apostrophe, hyphen, full stop, spaces': ["O'Brien", 'O’Brien', 'd’Artagnan', 'Mary-Jane', 'Al-Rashid', 'J.R.', 'St. John', 'de la Cruz', 'Mary Ann'],
+  'accented Latin': ['José', 'Zoë', 'Müller', 'Łukasz', 'Nguyễn', 'Đặng', 'Ñandú', 'İsmail', 'Åsa', 'Søren', 'Æthelred'],
+  'a letter plus a separate accent': ['é', 'José'],
+  'Hindi': ['आशा', 'कृष्णा', 'श्रीनिवासन्'],
+  'Kannada, Tamil, Malayalam': ['ಕೃಷ್ಣ', 'தமிழ்', 'മലയാളം', 'ക്ഷ'],
+  'Gujarati, Punjabi, Bengali, Telugu, Odia': ['ગુજરાતી', 'ਪੰਜਾਬੀ', 'বাংলা', 'తెలుగు', 'ଓଡ଼ିଆ'],
+  'Arabic, Persian, Hebrew': ['محمد', 'فاطمة', 'پریا', 'יוסף'],
+  'Greek and Cyrillic': ['Αλέξανδρος', 'Иван'],
+  'Chinese, Japanese, Korean, Thai': ['田中', '李小龍', 'さくら', 'カタカナ', '김민준', 'ภูมิ'],
+  'a zero-width joiner between letters (Persian, Indic)': ['a‌b'],
+}
+
+const REFUSED: Record<string, string[]> = {
+  'numbers': ['Asha1', '123', 'A1', '1990'],
+  'number-like symbols': ['²', '½', '⁵', '①'],
+  'emoji': [cp(0x1f600), `Asha${cp(0x1f600)}`, cp(0x1f3cb, 0xfe0f), '❤', '☺', 'a️', 'a⃣', '1️⃣'],
+  'decorative symbols': ['♥', '★', '☆', '✓', '©', '™', '♪', '→', '•'],
+  'special characters': ['@', '#', '$', '%', '&', '*', '_', '+', '=', '/', '\\', '|', '<', '>', '(', ')', '[', ']', '{', '}', ',', ';', ':', '!', '?', '"', '`', '~', '^', '—', '–', '…'],
+  'decorative look-alike letters': [
+    cp(0x1d4d0, 0x1d4fc, 0x1d4f1, 0x1d4ea), // bold script
+    cp(0x1d552, 0x1d564, 0x1d559, 0x1d552), // double-struck
+    cp(0x1d400, 0x1d42c, 0x1d421, 0x1d41a), // bold
+    'Ａｓｈａ', // full-width
+    'ﬁna', // a ligature
+    'ⓐⓑⓒ', // circled
+    cp(0x1f150), // a negative-circled letter
+  ],
+  // Zalgo text piles many marks on one letter. (A few marks spread over several letters is allowed: Indic scripts do that.)
+  'stacked marks ("zalgo")': ['S̷̸̲̈́҉͆a', 'á̂̃̄̅̆̇', `Asha${'̶'.repeat(20)}`],
+  'invisible and control characters': ['​', '‍', '́', 'Asha\u0000', 'Asha‮'],
+  'nothing real in it': ['', ' ', '   ', '-', '.', '--', "'"],
+}
+
+describe('hasOnlyNameCharacters (letters, spaces, apostrophe, hyphen, full stop)', () => {
+  for (const [group, names] of Object.entries(REAL_NAMES)) {
+    it(`accepts real names: ${group}`, () => {
+      const rejected = names.filter((name) => !hasOnlyNameCharacters(name))
+      expect(rejected.map((name) => [...name].map((c) => c.codePointAt(0)!.toString(16)))).toEqual([])
+    })
+  }
+
+  for (const [group, values] of Object.entries(REFUSED)) {
+    it(`refuses ${group}`, () => {
+      const accepted = values.filter((value) => hasOnlyNameCharacters(value))
+      expect(accepted.map((value) => [...value].map((c) => c.codePointAt(0)!.toString(16)))).toEqual([])
+    })
+  }
+
+  it('refuses one bad character anywhere in an otherwise good name', () => {
+    for (const bad of ['Asha1', '1Asha', 'As1ha', 'Asha!', '!Asha', `Asha ${cp(0x1f600)}`, 'Asha @ Rao']) expect(hasOnlyNameCharacters(bad)).toBe(false)
+  })
+
+  it('allows up to five marks on one letter (Indic scripts stack several), and no more', () => {
+    expect(hasOnlyNameCharacters(`a${'́'.repeat(5)}`)).toBe(true)
+    expect(hasOnlyNameCharacters(`a${'́'.repeat(6)}`)).toBe(false)
+  })
+})
+
+describe('nameCharactersError', () => {
+  it('gives the simple message for a bad name', () => {
+    expect(NAME_CHARACTERS_MESSAGE).toBe('Special characters are not allowed.')
+    expect(nameCharactersError('Asha1')).toBe('Special characters are not allowed.')
+    expect(nameCharactersError(`Asha${cp(0x1f600)}`)).toBe('Special characters are not allowed.')
+  })
+
+  it('gives nothing for a good name, and nothing for an empty one (an empty name is a different rule)', () => {
+    expect(nameCharactersError('Asha')).toBeNull()
+    expect(nameCharactersError('')).toBeNull()
+    expect(nameCharactersError('   ')).toBeNull()
+  })
+
+  it('ignores the spaces around a name', () => {
+    expect(nameCharactersError('  Asha  ')).toBeNull()
+  })
+})
+
+describe('validateProfileForm: characters in the names', () => {
+  it('refuses a first name and a last name with a special character, each with the simple message', () => {
+    expect(validateProfileForm({ ...valid, firstName: 'Asha1' }, TODAY)).toEqual({ ok: false, errors: { firstName: 'Special characters are not allowed.' } })
+    expect(validateProfileForm({ ...valid, lastName: `Rao${cp(0x1f600)}` }, TODAY)).toEqual({ ok: false, errors: { lastName: 'Special characters are not allowed.' } })
+    expect(validateProfileForm({ ...valid, firstName: '@', lastName: '#' }, TODAY)).toEqual({
+      ok: false,
+      errors: { firstName: 'Special characters are not allowed.', lastName: 'Special characters are not allowed.' },
+    })
+  })
+
+  it('checks the characters before the length, so a long name with a digit gets the character message', () => {
+    expect(validateProfileForm({ ...valid, firstName: `${'x'.repeat(30)}1` }, TODAY)).toEqual({
+      ok: false,
+      errors: { firstName: 'Special characters are not allowed.' },
+    })
+  })
+
+  it('does not say a name is empty because it is full of symbols: an all-symbol first name gets the characters message', () => {
+    expect(validateProfileForm({ ...valid, firstName: '!!!' }, TODAY)).toEqual({ ok: false, errors: { firstName: 'Special characters are not allowed.' } })
+  })
+
+  it('accepts real names from many scripts in both fields', () => {
+    for (const names of Object.values(REAL_NAMES)) {
+      for (const name of names) {
+        if ([...name].length > 25) continue
+        expect(validateProfileForm({ ...valid, firstName: name, lastName: name }, TODAY).ok).toBe(true)
+      }
+    }
   })
 })
 

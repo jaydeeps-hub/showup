@@ -11,6 +11,7 @@ import {
   latestBirthDate,
   limitNameInput,
   NAME_REQUIRED_MESSAGE,
+  nameCharactersError,
   validateProfileForm,
   type ProfileFormErrors,
   type ProfileFormValues,
@@ -118,15 +119,18 @@ export function ProfileForm(props: ProfileFormProps) {
   function setField(field: keyof ProfileFormValues, value: string) {
     // A name field never holds more than PROFILE_NAME_MAX_LENGTH characters, typed or pasted.
     const isName = field === 'firstName' || field === 'lastName'
-    setValues((current) => ({ ...current, [field]: isName ? limitNameInput(value, current[field]) : value }))
-    // Clear the old complaint about this field as soon as the person edits it.
-    setErrors((current) => ({ ...current, [field]: undefined }))
+    const next = isName ? limitNameInput(value, values[field]) : value
+    setValues((current) => ({ ...current, [field]: next }))
+    // Clear the old complaint about this field as soon as the person edits it. A character that is not allowed in a
+    // name is flagged straight away, while typing, so the person sees why it is wrong at the moment they type it.
+    setErrors((current) => ({ ...current, [field]: isName ? nameCharactersError(next) ?? undefined : undefined }))
     setJustSaved(false)
   }
 
-  /** On leaving a name field: flag it if it is empty. */
+  /** On leaving a name field: flag it if it has a character that is not allowed, or (first name only) if it is empty. */
   function checkName(field: 'firstName' | 'lastName') {
-    if (!hasNameText(values[field])) setErrors((current) => ({ ...current, [field]: NAME_REQUIRED_MESSAGE[field] }))
+    const message = nameCharactersError(values[field]) ?? (field === 'firstName' && !hasNameText(values.firstName) ? NAME_REQUIRED_MESSAGE.firstName : null)
+    if (message) setErrors((current) => ({ ...current, [field]: message }))
   }
 
   /** Enter moves on to the next field instead of submitting. */
@@ -140,7 +144,7 @@ export function ProfileForm(props: ProfileFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSaving) return // ignore a second press while the first save is in flight
-    if (!hasNameText(values.firstName) || !hasNameText(values.lastName)) return // Continue is off in this case
+    if (!hasNameText(values.firstName)) return // Continue is off in this case
 
     setSaveError(null)
     setJustSaved(false)
@@ -162,7 +166,8 @@ export function ProfileForm(props: ProfileFormProps) {
     }
   }
 
-  const canContinue = hasNameText(values.firstName) && hasNameText(values.lastName)
+  // Only the first name is needed. A name with a character that is not allowed is stopped by the message, not by a dead button.
+  const canContinue = hasNameText(values.firstName)
   // The browser's own limit is only a backstop for a huge paste. It counts code units, which are never fewer than the
   // characters a person sees, so it cannot cut a name short; limitNameInput (in setField) enforces the real limit.
   const nameLimit = { maxLength: PROFILE_NAME_MAX_LENGTH * NAME_BACKSTOP_FACTOR }
@@ -199,7 +204,9 @@ export function ProfileForm(props: ProfileFormProps) {
       </Box>
 
       <Box sx={{ mt: '20px' }}>
-        <FieldLabel htmlFor="onboarding-last-name">Last name</FieldLabel>
+        <FieldLabel htmlFor="onboarding-last-name" tag="Optional">
+          Last name
+        </FieldLabel>
         <Box
           component="input"
           id="onboarding-last-name"
@@ -213,7 +220,6 @@ export function ProfileForm(props: ProfileFormProps) {
           enterKeyHint="next"
           placeholder="Mehta"
           disabled={isSaving}
-          required
           aria-invalid={Boolean(errors.lastName)}
           aria-describedby="onboarding-last-name-error"
           maxLength={nameLimit.maxLength}

@@ -51,9 +51,65 @@ function isRealCalendarDate(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-function validateName(value: string, label: string): string | null {
+/** What the inline message says when a name has a character that is not allowed in a name. */
+export const NAME_CHARACTERS_MESSAGE = 'Special characters are not allowed.'
+
+/** The punctuation a name may hold: an apostrophe (straight or the curly one phones type), a hyphen and a full stop. */
+const NAME_PUNCTUATION = new Set(["'", '’', '-', '.'])
+/** Joiners that real names in Indian and Persian scripts use between letters (for example in Malayalam). */
+const NAME_JOINERS = new Set(['‌', '‍'])
+/** Marks that only exist to turn the letter before them into an emoji or a boxed symbol. */
+const EMOJI_MARKS = new Set(['︎', '️', '⃣'])
+/** The most marks one letter may carry in a row. An Indian script stacks up to about four; more is "zalgo" decoration. */
+const MAX_MARKS_IN_A_ROW = 5
+
+/**
+ * A letter that is really decoration: a fancy copy of a plain Latin letter such as 𝓐, 𝕒, Ａ or ﬁ. Unicode counts these as
+ * letters, but they fold to ordinary letters (NFKC), which is how they are told apart from a letter of another script.
+ */
+function isDecorativeLetter(character: string): boolean {
+  const folded = character.normalize('NFKC')
+  return folded !== character && /^[A-Za-z]+$/.test(folded)
+}
+
+/**
+ * True when every character of `value` may be in a name: letters of any script (with their marks, so "कि" and "é" are
+ * fine), spaces, an apostrophe, a hyphen and a full stop, and at least one real letter. Digits, emoji, symbols, decorative
+ * letters and other special characters are refused.
+ */
+export function hasOnlyNameCharacters(value: string): boolean {
+  let previous = ''
+  let marksInARow = 0
+  let hasLetter = false
+  for (const character of value) {
+    const isLetter = /\p{L}/u.test(character)
+    const isMark = /\p{M}/u.test(character)
+    const afterLetter = previous !== '' && /[\p{L}\p{M}]/u.test(previous)
+    let allowed: boolean
+    if (isLetter) allowed = !isDecorativeLetter(character)
+    else if (isMark) allowed = !EMOJI_MARKS.has(character) && afterLetter
+    else if (NAME_JOINERS.has(character)) allowed = afterLetter
+    else allowed = /\p{Zs}/u.test(character) || NAME_PUNCTUATION.has(character)
+    if (!allowed) return false
+    hasLetter ||= isLetter
+    marksInARow = isMark ? marksInARow + 1 : 0
+    if (marksInARow > MAX_MARKS_IN_A_ROW) return false
+    previous = character
+  }
+  return hasLetter
+}
+
+/** The message for a name that has a character that is not allowed, or null. An empty name has none (that is another rule). */
+export function nameCharactersError(value: string): string | null {
   const name = value.trim()
-  if (name === '') return `Enter your ${label}.`
+  return name === '' || hasOnlyNameCharacters(name) ? null : NAME_CHARACTERS_MESSAGE
+}
+
+function validateName(value: string, label: string, required: boolean): string | null {
+  const name = value.trim()
+  if (name === '') return required ? `Enter your ${label}.` : null
+  const characters = nameCharactersError(name)
+  if (characters) return characters
   if (countCharacters(name) > PROFILE_NAME_MAX_LENGTH) return `Use ${PROFILE_NAME_MAX_LENGTH} characters or fewer.`
   return null
 }
@@ -84,13 +140,15 @@ function validateDateOfBirth(value: string, today: Date): string | null {
 
 /**
  * Checks the form and, if it is fine, returns the cleaned values to save.
- * Names are required. The birthday is optional, but if given it must be a real date
- * at least 15 years ago. `today` is a parameter so tests can fix the date.
+ * The first name is required. The last name and the birthday are optional: an empty last name is saved as null (the
+ * database refuses an empty string). A name that is given may only hold letters, spaces, an apostrophe, a hyphen and a
+ * full stop, and at most 25 characters. A birthday that is given must be a real date at least 15 years ago.
+ * `today` is a parameter so tests can fix the date.
  */
 export function validateProfileForm(values: ProfileFormValues, today: Date = new Date()): ProfileValidation {
   const errors: ProfileFormErrors = {}
-  const firstNameError = validateName(values.firstName, 'first name')
-  const lastNameError = validateName(values.lastName, 'last name')
+  const firstNameError = validateName(values.firstName, 'first name', true)
+  const lastNameError = validateName(values.lastName, 'last name', false)
   const dateError = validateDateOfBirth(values.dateOfBirth, today)
   if (firstNameError) errors.firstName = firstNameError
   if (lastNameError) errors.lastName = lastNameError
@@ -101,18 +159,18 @@ export function validateProfileForm(values: ProfileFormValues, today: Date = new
     ok: true,
     edits: {
       firstName: values.firstName.trim(),
-      lastName: values.lastName.trim(),
+      lastName: values.lastName.trim() === '' ? null : values.lastName.trim(),
       dateOfBirth: values.dateOfBirth === '' ? null : values.dateOfBirth,
     },
   }
 }
 
 /**
- * A profile is complete once it has a first and last name. The birthday is optional,
- * so it does not count. Incomplete profiles are sent to onboarding.
+ * A profile is complete once it has a first name. The last name and the birthday are optional, so they do not count.
+ * Incomplete profiles are sent to onboarding.
  */
-export function isProfileComplete(profile: Pick<Profile, 'firstName' | 'lastName'>): boolean {
-  return (profile.firstName ?? '').trim() !== '' && (profile.lastName ?? '').trim() !== ''
+export function isProfileComplete(profile: Pick<Profile, 'firstName'>): boolean {
+  return (profile.firstName ?? '').trim() !== ''
 }
 
 export function profileToFormValues(profile: Pick<Profile, 'firstName' | 'lastName' | 'dateOfBirth'>): ProfileFormValues {

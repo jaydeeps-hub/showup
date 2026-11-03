@@ -9,7 +9,7 @@ export type OnboardingStep = 1 | 2 | 3
 
 /** What the app knows about the person when it decides where onboarding starts. */
 export interface OnboardingFacts {
-  /** The profile has both a first and a last name. */
+  /** The profile has a first name (the last name and the birthday are optional). */
   hasNames: boolean
   /** The person has an active gym. */
   hasGym: boolean

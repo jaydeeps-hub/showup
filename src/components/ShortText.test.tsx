@@ -96,7 +96,7 @@ describe('the Profile screen: first and last name', () => {
     renderProfile(profile())
     fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
     const first = screen.getByLabelText('First name') as HTMLInputElement
-    const last = screen.getByLabelText('Last name') as HTMLInputElement
+    const last = screen.getByLabelText(/^last name/i) as HTMLInputElement
     await user.clear(first)
     await user.type(first, 'a'.repeat(40))
     expect(first.value).toBe('a'.repeat(25))
@@ -138,10 +138,112 @@ describe('the Profile screen: first and last name', () => {
     expect(onSave).not.toHaveBeenCalled()
   })
 
+  it('a person with no last name: the read view says "Not set" like the birthday, and the heading and avatar use the first name only', () => {
+    renderProfile(profile({ lastName: null }))
+    expect(screen.getByText('Not set', { selector: 'b span' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Asha')
+    expect(screen.getByText('A', { selector: 'span, div' })).toBeTruthy() // one initial, not "A" plus an empty one
+  })
+
+  it('the edit form: the last name has an "Optional" hint like the birthday, the first name has none', () => {
+    renderProfile(profile())
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const labelOf = (field: HTMLElement) => document.querySelector(`label[for="${field.id}"]`) as HTMLElement
+    expect(labelOf(screen.getByLabelText(/^last name/i)).textContent).toBe('Last nameOptional')
+    expect(labelOf(screen.getByLabelText(/date of birth/i)).textContent).toContain('Optional')
+    expect(labelOf(screen.getByLabelText('First name')).textContent).toBe('First name')
+  })
+
+  it('the edit form saves with the last name cleared: no complaint, and the last name goes as null', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ ok: true })
+    render(
+      <ThemeProvider theme={theme}>
+        <ManageProfileScreen profile={profile()} email="a@example.com" gym={null} onSave={onSave} onChangeSearchMode={vi.fn()} onChangeGym={vi.fn()} onSignOut={vi.fn()} />
+      </ThemeProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    await user.clear(screen.getByLabelText(/^last name/i))
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    expect(onSave).toHaveBeenCalledWith({ firstName: 'Asha', lastName: null, dateOfBirth: '1990-05-17' })
+    expect(screen.queryByText('Enter your last name.')).toBeNull()
+  })
+
+  it('the edit form still needs a first name', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(
+      <ThemeProvider theme={theme}>
+        <ManageProfileScreen profile={profile()} email="a@example.com" gym={null} onSave={onSave} onChangeSearchMode={vi.fn()} onChangeGym={vi.fn()} onSignOut={vi.fn()} />
+      </ThemeProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    await user.clear(screen.getByLabelText('First name'))
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    expect(await screen.findByText('Enter your first name.')).toBeTruthy()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('the edit form shows "Special characters are not allowed." at once for a digit, an emoji or a symbol, in either name', async () => {
+    const user = userEvent.setup()
+    renderProfile(profile())
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const first = screen.getByLabelText('First name') as HTMLInputElement
+    const last = screen.getByLabelText(/^last name/i) as HTMLInputElement
+
+    await user.type(first, '1')
+    expect((await screen.findByRole('alert')).textContent).toBe('Special characters are not allowed.')
+    expect(first.getAttribute('aria-describedby')).toBe((screen.getByRole('alert') as HTMLElement).id)
+    await user.type(first, '{Backspace}')
+    expect(screen.queryByRole('alert')).toBeNull() // gone as soon as the character is deleted
+
+    await user.click(last)
+    await user.paste(String.fromCodePoint(0x1f600))
+    expect((await screen.findByRole('alert')).textContent).toBe('Special characters are not allowed.')
+    expect(last.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('the edit form does not save a name with a special character', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(
+      <ThemeProvider theme={theme}>
+        <ManageProfileScreen profile={profile()} email="a@example.com" gym={null} onSave={onSave} onChangeSearchMode={vi.fn()} onChangeGym={vi.fn()} onSignOut={vi.fn()} />
+      </ThemeProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    await user.type(screen.getByLabelText('First name'), '@')
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    expect(await screen.findByText('Special characters are not allowed.')).toBeTruthy()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('the edit form accepts real names: an apostrophe, a hyphen and a Hindi name', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ ok: true })
+    render(
+      <ThemeProvider theme={theme}>
+        <ManageProfileScreen profile={profile()} email="a@example.com" gym={null} onSave={onSave} onChangeSearchMode={vi.fn()} onChangeGym={vi.fn()} onSignOut={vi.fn()} />
+      </ThemeProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const first = screen.getByLabelText('First name')
+    await user.clear(first)
+    await user.type(first, "Mary-Jane O'Brien")
+    const last = screen.getByLabelText(/^last name/i)
+    await user.clear(last)
+    await user.paste('श्रीनिवासन्')
+    expect(screen.queryByRole('alert')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    expect(onSave).toHaveBeenCalledWith({ firstName: "Mary-Jane O'Brien", lastName: 'श्रीनिवासन्', dateOfBirth: '1990-05-17' })
+  })
+
   it('does not cut what the edit form starts with: the typing fields hold the whole saved names', () => {
     renderProfile(profile({ firstName: LONG_FIRST, lastName: LONG_LAST }))
     fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
     expect((screen.getByLabelText('First name') as HTMLInputElement).value).toBe(LONG_FIRST)
-    expect((screen.getByLabelText('Last name') as HTMLInputElement).value).toBe(LONG_LAST)
+    expect((screen.getByLabelText(/^last name/i) as HTMLInputElement).value).toBe(LONG_LAST)
   })
 })

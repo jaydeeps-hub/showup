@@ -134,18 +134,18 @@ describe('incomplete-profile routing', () => {
     expect(onboardingHeading()).toBeNull()
   })
 
-  it('shows onboarding when only one name is present', async () => {
-    useFakeDatabase(profile({ firstName: 'Asha' }))
+  it('shows onboarding when there is no first name, even with a last name (the last name is optional)', async () => {
+    useFakeDatabase(profile({ firstName: null, lastName: 'Rao' }))
     renderApp()
     expect(await screen.findByRole('heading', { name: 'What should we call you?' })).toBeTruthy()
   })
 
-  it('pre-fills names that Google already provided', async () => {
-    useFakeDatabase(profile({ firstName: 'Asha' }))
+  it('pre-fills a name that Google already provided', async () => {
+    useFakeDatabase(profile({ firstName: null, lastName: 'Rao' }))
     renderApp()
 
-    expect((await screen.findByLabelText(/first name/i) as HTMLInputElement).value).toBe('Asha')
-    expect((screen.getByLabelText(/last name/i) as HTMLInputElement).value).toBe('')
+    expect((await screen.findByLabelText(/first name/i) as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText(/last name/i) as HTMLInputElement).value).toBe('Rao')
   })
 
   it('skips onboarding and shows the app when the profile is complete', async () => {
@@ -236,29 +236,29 @@ describe('completing onboarding', () => {
     expect(db.updateProfile).toHaveBeenCalledTimes(1) // not saved again, no duplicate
   })
 
-  it('keeps Continue off, and does not call the database, until both names have text', async () => {
+  it('keeps Continue off, and does not call the database, until the first name has text', async () => {
     useFakeDatabase(profile())
     const user = userEvent.setup()
     renderApp()
 
     const cont = (await screen.findByRole('button', { name: 'Continue' })) as HTMLButtonElement
     expect(cont.disabled).toBe(true)
-    await user.type(screen.getByLabelText(/first name/i), 'Asha')
-    expect(cont.disabled).toBe(true)
-    await user.type(screen.getByLabelText(/last name/i), '   ')
+    await user.type(screen.getByLabelText(/^last name/i), 'Rao')
+    expect(cont.disabled).toBe(true) // a last name alone is not enough
+    await user.type(screen.getByLabelText(/first name/i), '   ')
     expect(cont.disabled).toBe(true) // spaces alone are not a name
-    await user.type(screen.getByLabelText(/last name/i), 'Rao')
-    expect(cont.disabled).toBe(false)
+    await user.type(screen.getByLabelText(/first name/i), 'Asha')
+    expect(cont.disabled).toBe(false) // the first name is enough: the last name is optional
 
     expect(db.updateProfile).not.toHaveBeenCalled()
     expect(onboardingHeading()).toBeTruthy()
   })
 
-  it('explains the birthday is optional and can be added later', async () => {
+  it('explains the birthday is optional and can be added later (the last name is optional too)', async () => {
     useFakeDatabase(profile())
     renderApp()
     expect(await screen.findByText('You can add this later.')).toBeTruthy()
-    expect(screen.getByText('Optional')).toBeTruthy()
+    expect(screen.getAllByText('Optional')).toHaveLength(2) // the last name and the birthday
   })
 
   it('rejects a birthday that is less than 15 years ago and does not save', async () => {
