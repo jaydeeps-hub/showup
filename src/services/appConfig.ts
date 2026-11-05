@@ -22,7 +22,15 @@ export interface AppConfig {
   gymSearchRadiusMeters: number
   /** The most gyms "Gyms near me" lists. Google allows 1 to 20. */
   gymSearchMaxResults: number
+  /**
+   * The app's address that the Squad invite shares (`config.invite_url`): an https origin only, such as
+   * `https://showup-pied.vercel.app`, with no path and no trailing slash. It is the plain app link, never a per-person one.
+   */
+  inviteUrl: string
 }
+
+/** Shared when `config.invite_url` is missing or not a usable https address. */
+export const DEFAULT_INVITE_URL = 'https://showup-pied.vercel.app'
 
 /** The most Google accepts for a nearby search's radius, and for its number of results. */
 export const MAX_GYM_SEARCH_RADIUS_METERS = 50_000
@@ -37,6 +45,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   mascotAlmostSeconds: 180,
   gymSearchRadiusMeters: 5000,
   gymSearchMaxResults: 20,
+  inviteUrl: DEFAULT_INVITE_URL,
 }
 
 /** How long a fetched config is reused before it is fetched again. */
@@ -62,6 +71,22 @@ function parseMonth(value: unknown, fallback: string): string {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(text) ? text : fallback
 }
 
+/**
+ * The origin of an https address (`https://host`, or `https://host:port`), with no path, query, fragment or trailing
+ * slash, or `fallback`. Anything else falls back: missing, empty, not text, not a URL, or not https (an http link
+ * would be shared to other people, so it is not accepted).
+ */
+export function parseHttpsOrigin(value: unknown, fallback: string): string {
+  if (typeof value !== 'string' || value.trim() === '') return fallback
+  try {
+    const url = new URL(value.trim())
+    // A real public host has a dot in it; this also refuses odd forms like `https:///path`, which URL reads as host "path".
+    return url.protocol === 'https:' && url.hostname.includes('.') ? url.origin : fallback
+  } catch {
+    return fallback
+  }
+}
+
 /** Turns whatever the database returned into a complete, valid AppConfig. Never throws. */
 export function parseAppConfig(raw: unknown): AppConfig {
   const source = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
@@ -75,6 +100,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
     mascotAlmostSeconds: parseWholeNumber(source.mascot_almost_seconds, d.mascotAlmostSeconds, 0),
     gymSearchRadiusMeters: parseWholeNumberInRange(source.gym_search_radius_meters, d.gymSearchRadiusMeters, 1, MAX_GYM_SEARCH_RADIUS_METERS),
     gymSearchMaxResults: parseWholeNumberInRange(source.gym_search_max_results, d.gymSearchMaxResults, 1, MAX_GYM_SEARCH_RESULTS),
+    inviteUrl: parseHttpsOrigin(source.invite_url, d.inviteUrl),
   }
 }
 

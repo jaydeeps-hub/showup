@@ -511,8 +511,8 @@ AS $function$
       where i.is_active and i.image_url <> ''), '{}'::json),
     'messages', coalesce((
       select json_agg(json_build_object(
-               'id', m.id, 'key', m.key, 'locale', m.locale, 'priority', m.priority,
-               'expression', m.expression, 'message', m.message)
+               'id', m.id, 'key', m.key, 'screen', m.screen, 'locale', m.locale, 'priority', m.priority,
+               'expression', m.expression, 'message', m.message, 'label', m.label)
              order by m.priority, m.id)
       from public.mascot_messages m
       where m.is_active
@@ -620,6 +620,40 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.is_username_available(p_username text)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  uid uuid := auth.uid();
+  v text := lower(btrim(coalesce(p_username, '')));
+  prob text;
+  own text;
+begin
+  if uid is null then raise exception 'not_signed_in'; end if;
+
+  prob := public.username_problem(v);
+  if prob is not null then
+    return json_build_object('username', v, 'available', false, 'reason', prob, 'suggestion', null);
+  end if;
+
+  select username into own from public.profiles where id = uid;
+  if own is not null and own = v then
+    return json_build_object('username', v, 'available', true, 'reason', 'own', 'suggestion', null);
+  end if;
+
+  if public.username_taken(v) then
+    return json_build_object('username', v, 'available', false, 'reason', 'taken',
+                             'suggestion', public.username_suggestion(v));
+  end if;
+
+  return json_build_object('username', v, 'available', true, 'reason', null, 'suggestion', null);
+end
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.local_today(p_user uuid)
  RETURNS date
  LANGUAGE sql
@@ -650,6 +684,28 @@ CREATE OR REPLACE FUNCTION public.passes_used_in_month(p_user uuid, p_month date
 AS $function$
   select count(*)::int from public.week_pauses
   where user_id = p_user and used_month = date_trunc('month', p_month)::date
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.profiles_guard_username()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+begin
+  -- the app's own roles. set_username() runs as the function owner, so it is not affected.
+  if current_user in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      if new.username is not null or new.username_changed_at is not null then
+        raise exception 'username_locked: use set_username()';
+      end if;
+    elsif new.username is distinct from old.username
+       or new.username_changed_at is distinct from old.username_changed_at then
+      raise exception 'username_locked: use set_username()';
+    end if;
+  end if;
+  return new;
+end
 $function$
 ;
 
@@ -795,6 +851,57 @@ begin
   new.updated_at = now();
   return new;
 end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.set_username(p_username text)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  uid uuid := auth.uid();
+  v text := lower(btrim(coalesce(p_username, '')));
+  prob text;
+  cur text;
+  changed timestamptz;
+  cool int;
+  days_left int;
+begin
+  if uid is null then raise exception 'not_signed_in'; end if;
+
+  prob := public.username_problem(v);
+  if prob is not null then raise exception 'invalid_username: %', prob; end if;
+
+  select username, username_changed_at into cur, changed
+    from public.profiles where id = uid for update;
+  if not found then raise exception 'profile_not_found'; end if;
+
+  if cur = v then
+    return json_build_object('username', v, 'changed', false);
+  end if;
+
+  -- later changes can be rate-limited (0 = no limit). The first time a username is set is never limited.
+  cool := greatest(public.cfg_int('config.username_change_cooldown_days', 0), 0);
+  if cur is not null and changed is not null and cool > 0
+     and now() < changed + (cool * interval '1 day') then
+    days_left := ceil(extract(epoch from (changed + (cool * interval '1 day') - now())) / 86400)::int;
+    raise exception 'username_cooldown: % day(s) left', days_left;
+  end if;
+
+  if public.username_taken(v) then raise exception 'username_taken'; end if;
+
+  begin
+    update public.profiles
+       set username = v, username_changed_at = now(), updated_at = now()
+     where id = uid;
+  exception when unique_violation then
+    raise exception 'username_taken';   -- someone else grabbed it a moment ago
+  end;
+
+  return json_build_object('username', v, 'changed', true);
+end
 $function$
 ;
 
@@ -1018,6 +1125,53 @@ end
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.username_problem(p_username text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO 'public'
+AS $function$
+  select case
+    when p_username is null or p_username = ''        then 'empty'
+    when length(p_username) < 3                       then 'too_short'
+    when length(p_username) > 20                      then 'too_long'
+    when p_username !~ '^[a-z][a-z0-9_]*$'            then 'invalid_format'
+  end
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.username_suggestion(p_username text)
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  suffix text;
+  cand text;
+begin
+  foreach suffix in array array['22', '23', '24', '25', '26', '27', '28', '29', '99', '11', '10', '21'] loop
+    cand := left(p_username, 20 - 1 - length(suffix)) || '_' || suffix;
+    if public.username_problem(cand) is null and not public.username_taken(cand) then
+      return cand;
+    end if;
+  end loop;
+  return null;
+end
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.username_taken(p_username text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select exists (select 1 from public.profiles where username = p_username)
+      or exists (select 1 from public.reserved_usernames where name = p_username)
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.week_start_of(p_day date)
  RETURNS date
  LANGUAGE sql
@@ -1080,6 +1234,7 @@ get_pause_state  authenticated  EXECUTE
 get_showup_state  authenticated  EXECUTE
 goal_for_week  anon  EXECUTE
 goal_for_week  authenticated  EXECUTE
+is_username_available  authenticated  EXECUTE
 mascot_touch_updated_at  anon  EXECUTE
 mascot_touch_updated_at  authenticated  EXECUTE
 record_showup  authenticated  EXECUTE
@@ -1091,6 +1246,7 @@ set_showup_local_date  anon  EXECUTE
 set_showup_local_date  authenticated  EXECUTE
 set_updated_at  anon  EXECUTE
 set_updated_at  authenticated  EXECUTE
+set_username  authenticated  EXECUTE
 set_weekly_goal  authenticated  EXECUTE
 start_showup  authenticated  EXECUTE
 use_pause  authenticated  EXECUTE
@@ -1101,6 +1257,7 @@ CREATE TRIGGER cms_touch BEFORE UPDATE ON public.cms FOR EACH ROW EXECUTE FUNCTI
 CREATE TRIGGER gyms_set_updated_at BEFORE UPDATE ON public.gyms FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER mascot_images_touch BEFORE UPDATE ON public.mascot_images FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
 CREATE TRIGGER mascot_messages_touch BEFORE UPDATE ON public.mascot_messages FOR EACH ROW EXECUTE FUNCTION mascot_touch_updated_at();
+CREATE TRIGGER profiles_guard_username BEFORE INSERT OR UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION profiles_guard_username();
 CREATE TRIGGER profiles_set_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER showups_set_local_date BEFORE INSERT ON public.showups FOR EACH ROW EXECUTE FUNCTION set_showup_local_date();
 
@@ -1147,7 +1304,10 @@ CREATE INDEX gyms_user_id_created_at_idx ON public.gyms USING btree (user_id, cr
 CREATE UNIQUE INDEX mascot_images_pkey ON public.mascot_images USING btree (key);
 CREATE INDEX mascot_messages_lookup ON public.mascot_messages USING btree (locale, is_active, priority);
 CREATE UNIQUE INDEX mascot_messages_pkey ON public.mascot_messages USING btree (id);
+CREATE INDEX mascot_messages_screen_lookup ON public.mascot_messages USING btree (screen, locale, is_active, priority);
 CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
+CREATE UNIQUE INDEX profiles_username_key ON public.profiles USING btree (username);
+CREATE UNIQUE INDEX reserved_usernames_pkey ON public.reserved_usernames USING btree (name);
 CREATE UNIQUE INDEX showup_checks_pkey ON public.showup_checks USING btree (id);
 CREATE UNIQUE INDEX showup_checks_session_id_due_at_seconds_key ON public.showup_checks USING btree (session_id, due_at_seconds);
 CREATE UNIQUE INDEX showup_sessions_one_running ON public.showup_sessions USING btree (user_id) WHERE (status = 'running'::text);
@@ -1213,6 +1373,8 @@ mascot_messages.shown_when  text  null=YES  default=-
 mascot_messages.is_active  boolean  null=NO  default=true
 mascot_messages.created_at  timestamp with time zone  null=NO  default=now()
 mascot_messages.updated_at  timestamp with time zone  null=NO  default=now()
+mascot_messages.screen  text  null=NO  default='home'::text
+mascot_messages.label  text  null=YES  default=-
 profiles.id  uuid  null=NO  default=-
 profiles.first_name  text  null=YES  default=-
 profiles.last_name  text  null=YES  default=-
@@ -1223,6 +1385,10 @@ profiles.updated_at  timestamp with time zone  null=NO  default=now()
 profiles.place_search_mode  text  null=NO  default='fitness_only'::text
 profiles.timezone  text  null=NO  default='Asia/Kolkata'::text
 profiles.quickstart_completed_at  timestamp with time zone  null=YES  default=-
+profiles.username  text  null=YES  default=-
+profiles.username_changed_at  timestamp with time zone  null=YES  default=-
+reserved_usernames.name  text  null=NO  default=-
+reserved_usernames.note  text  null=YES  default=-
 showup_checks.id  uuid  null=NO  default=gen_random_uuid()
 showup_checks.session_id  uuid  null=NO  default=-
 showup_checks.user_id  uuid  null=NO  default=-

@@ -332,3 +332,51 @@ export interface PauseDetails extends PauseState {
   /** The day passes come back, or null if the server did not say. */
   nextRefill: string | null
 }
+
+/**
+ * Someone the Squad page shows (Phase 12a). Always has a username (the database only lists people with one, and every
+ * squad action takes a username). The names can be missing.
+ */
+export interface SquadPerson {
+  username: string
+  firstName: string | null
+  lastName: string | null
+}
+
+/**
+ * How the signed-in person is linked to someone found in a search:
+ * `none` (nothing yet), `requested` (you asked them), `incoming` (they asked you), `squad` (squad-mates).
+ */
+export type SquadRelation = 'none' | 'requested' | 'incoming' | 'squad'
+
+/** One person found by `search_people`. Strangers come with NO stats. */
+export interface SearchResult extends SquadPerson {
+  relation: SquadRelation
+}
+
+/** A squad-mate, with their stats (only squad-mates have stats). */
+export interface SquadMember extends SquadPerson {
+  /** When they joined the squad (an ISO timestamp), or null if the database has none. Not a calendar date. */
+  since: string | null
+  totalShowups: number
+  weeksInARow: number
+}
+
+/** A pending request, either one someone sent you or one you sent. */
+export interface SquadRequest extends SquadPerson {
+  /** When the request was sent (an ISO timestamp). Not a calendar date. */
+  requestedAt: string
+}
+
+/** Everything the Squad page shows, from `get_squad`. */
+export interface SquadState {
+  squadCount: number
+  maxSize: number
+  /** Requests waiting for YOUR answer: the Squad tab's badge. */
+  incomingCount: number
+  squad: SquadMember[]
+  /** They asked you. */
+  incoming: SquadRequest[]
+  /** You asked them. */
+  outgoing: SquadRequest[]
+}

@@ -60,7 +60,12 @@ export function MascotRow({ picture, content, text, height = MASCOT_HEIGHT, marg
  * The row's height is fixed by the parent, and the width/height attributes reserve the shape, so
  * nothing jumps while it loads.
  */
-function MascotPictureImage({ picture, content, height }: { picture: MascotPicture; content: MascotContent; height: number }) {
+/**
+ * A mascot picture with the usual fallbacks: if it fails to load it tries the `smile` picture, and if that fails too it
+ * draws nothing. Decorative (empty alt, hidden from screen readers). Shared by the speech-bubble row and by screens that
+ * show the mascot on its own (the empty Squad page).
+ */
+export function MascotPictureImage({ picture, content, height }: { picture: MascotPicture; content: MascotContent; height: number }) {
   const [useFallback, setUseFallback] = useState(false)
   const [failed, setFailed] = useState(false)
 

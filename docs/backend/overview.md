@@ -23,6 +23,9 @@ The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 table
 ### `reserved_usernames` (names nobody can pick, Phase 11a) — applied manually
 `name` text, primary key, with a check that it is already lowercase and trimmed and at least 3 characters; `note` text. Seeded with 70 names (`admin`, `support`, `showup`, `squad`, `profile`, `settings`, `login`, `api`, `null`, `gym` and so on, each with the note "seeded in Phase 11a"); add rows any time. RLS is on and `anon` and `authenticated` have **no** rights on it at all, so the app cannot read the list: `set_username()` and `is_username_available()` consult it and report a reserved name exactly like a taken one ("taken"). A reserved name can still be set by hand in the SQL editor (for an official account), because the list is only enforced inside `set_username()`. Source: `docs/backend/phase11a_username.sql`.
 
+### `squad_links` (one row per pair of people, Phase 12a) — applied manually
+`id` uuid, `requester_id` and `addressee_id` (both `auth.users(id)`, `on delete cascade`; a check that they differ), `status` (`pending`, `accepted` or `declined`; default `pending`), `created_at` (when the latest request was sent), `responded_at` (when it was accepted or declined). **One row per pair, whichever of them asked first**: the unique index `squad_links_one_per_pair` is on `(least(requester_id, addressee_id), greatest(requester_id, addressee_id))`. Indexes `squad_links_addressee (addressee_id, status)` and `squad_links_requester (requester_id, status)`. RLS is on and **every right is revoked from `anon` and `authenticated`**: the app never reads it directly (it needs other people's names, which `profiles`' row level security hides). Everything goes through the functions below. Source: `docs/backend/phase12a_squad.sql`.
+
 ### `gyms`
 `id`, `user_id` (default `auth.uid()`), `name`, `google_place_id`, `address`, `latitude`, `longitude` (used by `record_showup` for distance), `is_active` (at most one active gym per user, enforced by the partial unique index `gyms_one_active_per_user_idx`), `created_at`, `updated_at`. Changing gym deactivates the old row and inserts a new one.
 
@@ -205,6 +208,67 @@ Sets `username`, `username_changed_at = now()` and `updated_at`.
 ### The setting `config.username_change_cooldown_days`
 Inserted as `0` (no limit, fine while testing) only if the key did not exist, into `config` (or `cms` if the Phase 9a rename had not happened), with a remark suggesting 30 before launch. **Current value: unverified.**
 
+## Squad RPCs (Phase 12a)
+
+Source: `docs/backend/phase12a_squad.sql`, applied manually on 2026-11-06 (per the owner). **The live snapshot does not contain any of it yet** (checked: none of the table, the index or the ten functions appears in `live-schema-snapshot.sql`), so everything here is from the SQL file and is **unverified** against the live database. All six are `SECURITY DEFINER`, use `auth.uid()`, and are executable by **`authenticated` only**. **The other person is always given by USERNAME, never by a user id.** Every one raises `not_signed_in` without a signed-in user. A leading `@` and surrounding spaces are ignored, and the name is lowercased (`squad_clean_username`).
+
+| Function | Input | Returns | Errors (the message starts with the code) |
+|---|---|---|---|
+| `search_people` | `p_query text` | `{ query, results: [ { username, first_name, last_name, relation } ] }` | `not_signed_in` |
+| `send_squad_request` | `p_username text` | `{ status: 'requested' \| 'squad' }` | `not_signed_in`, `username_required: set a username first`, `user_not_found`, `cannot_add_self`, `already_in_squad`, `already_requested`, `squad_full`, `their_squad_full`, `request_cooldown: N day(s) left`, `too_many_requests` |
+| `respond_squad_request` | `p_username text, p_accept boolean` | `{ status: 'squad' \| 'declined' }` | `not_signed_in`, `invalid_answer` (a null answer), `no_request`, `squad_full`, `their_squad_full` |
+| `cancel_squad_request` | `p_username text` | boolean | `not_signed_in` |
+| `remove_from_squad` | `p_username text` | boolean | `not_signed_in` |
+| `get_squad` | none | see below | `not_signed_in` |
+
+### `search_people(p_query text)` → json
+`STABLE`. Cleans the query (a leading `@` dropped, trimmed, lowercased, runs of spaces made one, at most 50 characters). **Fewer than 2 characters returns `results: []`** without searching. Matches usernames, first names, last names and "first last", with `%` and `_` matched literally (`_` is common in usernames). **Never returns the caller, or anyone without a username.** Order: an exact username, then usernames that start with the query, then usernames that contain it, then name matches, then by username. At most `config.squad_search_max_results` (clamped to 1 to 50). `relation` is `none`, `requested` (you asked them), `incoming` (they asked you) or `squad`. **No stats for strangers.** `first_name` and `last_name` may be null.
+
+### `send_squad_request(p_username text)` → json
+Needs a username of your own first (`username_required`). The two people's requests are serialised with an advisory lock on the pair. Then:
+- already squad-mates → `already_in_squad`; you already asked → `already_requested`;
+- **they asked you first → asking back ACCEPTS** (after checking both squads have room: `squad_full` for yours, `their_squad_full` for theirs) and returns `{ status: 'squad' }`;
+- **declined earlier:** the person who asked must wait `config.squad_request_cooldown_days` from the decline (`request_cooldown: N day(s) left`, N at least 1); the person who declined may ask at any time;
+- otherwise `squad_full` if your squad is full, `too_many_requests` if you already have `config.squad_max_size` requests waiting, else the request is made (a declined row is reused and reset) and `{ status: 'requested' }` is returned.
+
+### `respond_squad_request(p_username text, p_accept boolean)` → json
+Answers a request `p_username` sent YOU. `no_request` if there is none pending to you (including an unknown username). Accepting checks both squads have room (`squad_full`, `their_squad_full`) and returns `{ status: 'squad' }`; declining sets `declined` (the request disappears for both, and starts the asker's cooldown) and returns `{ status: 'declined' }`. `invalid_answer` for a null `p_accept`.
+
+### `cancel_squad_request(p_username text)` → boolean
+Takes back a request YOU sent: deletes the pending row. `true` if one was cancelled, `false` if there was none.
+
+### `remove_from_squad(p_username text)` → boolean
+Leaves someone's squad (both stop seeing each other): deletes the accepted row. `true` if removed, `false` if you were not squad-mates or the username is unknown.
+
+### `get_squad()` → json
+```
+{ squad_count, max_size, incoming_count,
+  squad:    [ { username, first_name, last_name, since, total_showups, weeks_in_a_row } ],
+  incoming: [ { username, first_name, last_name, requested_at } ],   -- they asked you
+  outgoing: [ { username, first_name, last_name, requested_at } ] }  -- you asked them
+```
+**Stats only for squad-mates.** `total_showups` is every `showups` row of theirs; `weeks_in_a_row` uses the same rule as `get_home_summary` (the last frozen week's value, plus 1 once this week's goal is met; it closes their finished weeks first). The squad is ordered by weeks in a row, then total showups, then username; the requests by newest first. `since` and `requested_at` are **timestamps**, not calendar dates. `max_size` is `config.squad_max_size` (at least 1). Empty lists are `[]`, never null.
+
+### Internal helpers (not callable from the app)
+| Function | Returns | Purpose |
+|---|---|---|
+| `squad_clean_username(p text)` | text | `'@Jay '` → `'jay'`. `IMMUTABLE` |
+| `squad_link_between(a uuid, b uuid)` | `squad_links` row | The link between two people, in either direction. `SECURITY DEFINER` |
+| `squad_size(p_user uuid)` | int | How many squad-mates someone has (accepted links). `SECURITY DEFINER` |
+| `squad_weeks_in_a_row(p_user uuid)` | int | Weeks in a row right now, as `get_home_summary` works it out. Calls `close_weeks` first. `SECURITY DEFINER` |
+All four have `EXECUTE` revoked from `public`, `anon` and `authenticated`.
+
+### Settings (`config` rows, inserted only if the key had never been set)
+| Key | Inserted | Used by |
+|---|---|---|
+| `config.invite_url` | `https://showup-pied.vercel.app` | The app's invite sheet (read through `get_app_config`) |
+| `config.squad_max_size` | `50` | The most squad-mates, and the most requests waiting; returned by `get_squad` as `max_size` |
+| `config.squad_request_cooldown_days` | `7` | How long the person who asked waits after a decline |
+| `config.squad_search_max_results` | `20` | The most `search_people` results (clamped to 1 to 50) |
+**Current values: unverified** (the snapshot has no data).
+
+Companion files: `phase12a_check.sql` (a self-check that creates three throwaway people, exercises the functions and ends with an error on purpose so nothing is saved) and `phase12a_undo.sql` (drops everything Phase 12a added and **deletes every squad link**). The app side is in [../frontend/screens-and-rpcs.md](../frontend/screens-and-rpcs.md).
+
 ## Mascot RPC (Phase 7)
 
 Source: `docs/backend/phase7a_mascot_tables.sql` (Phase 7), redefined by `docs/backend/10a_onboarding_mascot.sql` (Phase 10a, adds `screen` and `label`). The live snapshot file has not been regenerated since Phase 9a, so it does not show the Phase 10a changes yet.
@@ -263,4 +327,5 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `goal_history`, `week_pauses`, `weekly_results` | read own rows (`user_id = auth.uid()`); no write policy, so only the SQL functions write |
 | `config` (was `cms`) | `Enable read access for all users` and `config read` (renamed from `cms read`; both select, `using true`, role `public`); `cms: public can read landing page content` (select, `anon`/`authenticated`, only `lpage_banner` and `tnc`); `config admin write` (renamed from `cms admin write`; all, admins only). Based on the pre-rename snapshot; the policy names after the rename are from `phase9a_cms_and_config.sql`, and the live policy list has not been re-read |
 | `cms` (new) | `public read` (select, `anon` and `authenticated`, `using true`); no write grant |
+| `squad_links` (Phase 12a) | RLS on, **no** policy, and every right revoked from `anon` and `authenticated`: the app cannot read or write it. Only the squad functions use it |
 | `reserved_usernames` (Phase 11a) | RLS on, **no** policy, and every right revoked from `anon` and `authenticated`: the app cannot read or write it. Only the username functions use it |

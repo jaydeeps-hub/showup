@@ -4,7 +4,8 @@ import { tokens } from '../design-system/tokens'
 import { ABOVE_TAB_BAR } from './BottomNav'
 
 export interface ToastContent {
-  severity: 'success' | 'error'
+  /** `warning` is for an action that undid something on purpose ("Request rejected", "Request cancelled"). */
+  severity: 'success' | 'error' | 'warning'
   message: string
 }
 
@@ -20,7 +21,8 @@ export const TOAST_DURATION_MS = 2600
 
 /**
  * The one toast used everywhere in the app: a short message that goes away by itself. Success is
- * green with dark text and errors are red with dark text (the colours come from the theme). It has
+ * green with dark text, errors are red with dark text, and a warning is the app's dark amber with amber text (the
+ * colours come from the theme). It has
  * an icon as well as the colour, so the meaning is never carried by colour alone.
  */
 export function Toast({ toast, onClose, aboveTabBar = false }: ToastProps) {

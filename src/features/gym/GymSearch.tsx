@@ -1,11 +1,11 @@
 import CheckRounded from '@mui/icons-material/CheckRounded'
-import SearchRounded from '@mui/icons-material/SearchRounded'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useEffect, useRef, useState } from 'react'
 import { Loader } from '../../components/Loader'
 import { NearMeToggle } from '../../components/NearMeToggle'
+import { SearchBox } from '../../components/SearchBox'
 import { NEAR_ME_SEARCH_DEBOUNCE_MS, PLACE_SEARCH_DEBOUNCE_MS, PLACE_SEARCH_MIN_CHARACTERS } from '../../config/constants'
 import { tokens } from '../../design-system/tokens'
 import { useNearMe } from '../../hooks/useNearMe'
@@ -241,6 +241,8 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
         onChange={handleInput}
         disabled={isLoadingDetails}
         onClear={() => handleInput('')}
+        label="Search gyms"
+        placeholder="Search by gym name or area"
       />
 
       <NearMeToggle on={nearMe.on} status={nearMe.status} onChange={handleNearMeToggle} disabled={isLoadingDetails} />
@@ -294,75 +296,6 @@ export function GymSearch({ onPlaceSelected, searchMode = 'fitness_only' }: GymS
 }
 
 /** The search box: an icon on the left and, once something is typed, a ✕ on the right that clears it. */
-function SearchBox({ value, onChange, onClear, disabled }: { value: string; onChange: (value: string) => void; onClear: () => void; disabled: boolean }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  return (
-    <Box sx={{ position: 'relative', flex: 'none' }}>
-      <SearchRounded aria-hidden sx={{ position: 'absolute', left: 16, top: 17, fontSize: 20, color: tokens.color.textSecondary, pointerEvents: 'none' }} />
-      <Box
-        component="input"
-        ref={inputRef}
-        type="search"
-        role="searchbox"
-        aria-label="Search gyms"
-        enterKeyHint="search"
-        autoComplete="off"
-        placeholder="Search by gym name or area"
-        value={value}
-        disabled={disabled}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-        sx={{
-          width: '100%',
-          height: tokens.size.control,
-          boxSizing: 'border-box',
-          borderRadius: `${tokens.radius.control}px`,
-          backgroundColor: tokens.color.surface1,
-          border: `1.5px solid ${tokens.color.border}`,
-          color: tokens.color.textPrimary,
-          font: `400 16px ${tokens.font.body}`,
-          pl: '46px',
-          pr: '46px',
-          transition: 'border-color 0.15s',
-          '&::placeholder': { color: tokens.color.textSubtle, opacity: 1 },
-          // The browser's own clear button would sit on top of ours.
-          '&::-webkit-search-cancel-button': { display: 'none' },
-          '&:focus': { outline: 'none', borderColor: tokens.color.accentPrimary, boxShadow: '0 0 0 3px rgba(43, 80, 217, 0.28)' },
-          '&:disabled': { backgroundColor: tokens.color.surface2 },
-          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-        }}
-      />
-      {value !== '' && (
-        <Box
-          component="button"
-          type="button"
-          disabled={disabled}
-          aria-label="Clear search"
-          onClick={() => {
-            onClear()
-            inputRef.current?.focus()
-          }}
-          sx={{
-            position: 'absolute',
-            right: 6,
-            top: 5,
-            width: 44,
-            height: 44,
-            border: 0,
-            background: 'none',
-            color: tokens.color.textSecondary,
-            fontSize: 18,
-            cursor: 'pointer',
-            borderRadius: `${tokens.radius.small}px`,
-            '&:focus-visible': { outline: `2px solid ${tokens.color.focusRing}` },
-          }}
-        >
-          ✕
-        </Box>
-      )}
-    </Box>
-  )
-}
-
 /** One result: the name and address, the distance when sorted by distance, and a check on the chosen one. */
 function ResultRow({
   suggestion,

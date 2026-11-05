@@ -117,7 +117,25 @@ vi.mock('../services/mapsService', () => ({
   })),
 }))
 
+// The squad, for the tab's badge (the bar refreshes it when the app opens). Empty unless a test says otherwise.
+const squadApi = vi.hoisted(() => ({ getSquad: vi.fn(), searchPeople: vi.fn(), sendSquadRequest: vi.fn(), respondSquadRequest: vi.fn(), cancelSquadRequest: vi.fn(), removeFromSquad: vi.fn() }))
+vi.mock('../services/squadService', () => squadApi)
+
+// Home, counted: the real Home screen, wrapped so a test can tell how often it renders.
+const homeRenders = vi.hoisted(() => ({ count: 0 }))
+vi.mock('../features/attendance/HomeScreen', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../features/attendance/HomeScreen')>()
+  return {
+    ...real,
+    HomeScreen: (props: Parameters<typeof real.HomeScreen>[0]) => {
+      homeRenders.count += 1
+      return real.HomeScreen(props)
+    },
+  }
+})
+
 const { App } = await import('./App')
+const { squadBadgeStore, resetSquadBadgeStore } = await import('../services/squadBadgeStore')
 
 // --- Helpers -----------------------------------------------------------------------------
 
@@ -180,6 +198,9 @@ beforeEach(() => {
   show.checkShowup.mockResolvedValue(ok(answer('running', { check_passed: true })))
   show.cancelShowup.mockResolvedValue(ok(true))
   device.getPosition.mockResolvedValue(NEAR)
+  resetSquadBadgeStore()
+  homeRenders.count = 0
+  squadApi.getSquad.mockResolvedValue({ status: 'ok', squad: { squadCount: 0, maxSize: 50, incomingCount: 0, squad: [], incoming: [], outgoing: [] } })
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => {
@@ -464,6 +485,148 @@ describe('showing up', () => {
 
     expect(await screen.findByText(/checked 1 of 3 times/i)).toBeTruthy()
     expect(show.startShowup).toHaveBeenCalledTimes(1) // not restarted
+  })
+})
+
+describe('the tab bar (Phase 12, task 2)', () => {
+  /** The tab buttons in the bar, in the order they are drawn. */
+  const tabNames = () =>
+    Array.from(screen.getByRole('navigation', { name: 'Main' }).querySelectorAll('button')).map((button) => button.textContent)
+  const tab = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}$`, 'i') }) as HTMLButtonElement
+
+  it('has four tabs in the design order: Pause, Home, Squad, Profile', async () => {
+    renderApp()
+    await showUpButton()
+    expect(tabNames()).toEqual(['Pause', 'Home', 'Squad', 'Profile'])
+  })
+
+  it('opens the Squad page, marks the tab as the current page, and goes back to Home', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await showUpButton()
+    await user.click(tab('Squad'))
+    expect(await screen.findByRole('heading', { name: 'My squad' })).toBeTruthy()
+    expect(tab('Squad').getAttribute('aria-current')).toBe('page')
+    expect(tab('Home').getAttribute('aria-current')).toBeNull()
+    await user.click(tab('Home'))
+    expect(await showUpButton()).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'My squad' })).toBeNull()
+  })
+
+  it('reaches every tab from Squad and back', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await showUpButton()
+    await user.click(tab('Squad'))
+    await screen.findByRole('heading', { name: 'My squad' })
+    await user.click(tab('Pause'))
+    expect(tab('Pause').getAttribute('aria-current')).toBe('page')
+    await user.click(tab('Squad'))
+    expect(await screen.findByRole('heading', { name: 'My squad' })).toBeTruthy()
+    await user.click(tab('Profile'))
+    expect(tab('Profile').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('locks Squad with Pause and Profile while Show Up reads the location, and frees them again', async () => {
+    let finish!: (position: typeof NEAR) => void
+    device.getPosition.mockImplementation(() => new Promise((resolve) => (finish = resolve)))
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(await showUpButton())
+
+    // Still reading the location: the three other tabs cannot be pressed; Home (where the reading shows) can.
+    await vi.waitFor(() => expect(tab('Squad').disabled).toBe(true))
+    expect(tab('Pause').disabled).toBe(true)
+    expect(tab('Profile').disabled).toBe(true)
+    expect(tab('Home').disabled).toBe(false)
+
+    await act(async () => finish(NEAR))
+    await screen.findByText(/checked 1 of 3 times/i)
+    // The timer is running now: every tab is free again (the timer keeps going on any tab).
+    expect(tab('Squad').disabled).toBe(false)
+    expect(tab('Pause').disabled).toBe(false)
+    expect(tab('Profile').disabled).toBe(false)
+  })
+})
+
+describe('the Squad tab badge (Phase 12, task 5)', () => {
+  const squadTab = () => screen.getByRole('button', { name: /^squad/i }) as HTMLButtonElement
+  const badge = () => screen.queryByTestId('squad-badge')
+  const withIncoming = (count: number) => ({
+    status: 'ok' as const,
+    squad: { squadCount: 0, maxSize: 50, incomingCount: count, squad: [], incoming: [], outgoing: [] },
+  })
+
+  it('is hidden at 0, and the tab is just "Squad"', async () => {
+    renderApp()
+    await showUpButton()
+    await vi.waitFor(() => expect(squadApi.getSquad).toHaveBeenCalled())
+    expect(badge()).toBeNull()
+    expect(squadTab().getAttribute('aria-label')).toBeNull()
+    expect(squadTab().textContent).toBe('Squad')
+  })
+
+  it.each([
+    [1, '1', 'Squad, 1 request'],
+    [2, '2', 'Squad, 2 requests'],
+    [9, '9', 'Squad, 9 requests'],
+    [10, '9+', 'Squad, 10 requests'],
+    [42, '9+', 'Squad, 42 requests'],
+  ])('%i requests shows "%s", and the tab is called "%s"', async (count, text, label) => {
+    squadApi.getSquad.mockResolvedValue(withIncoming(count))
+    renderApp()
+    await showUpButton()
+    await vi.waitFor(() => expect(badge()?.textContent).toBe(text))
+    expect(squadTab().getAttribute('aria-label')).toBe(label)
+    expect(badge()!.getAttribute('aria-hidden')).toBe('true') // the number is read as part of the label instead
+  })
+
+  it('is refreshed when the app opens', async () => {
+    squadApi.getSquad.mockResolvedValue(withIncoming(2))
+    renderApp()
+    await showUpButton()
+    await vi.waitFor(() => expect(badge()?.textContent).toBe('2'))
+    expect(squadApi.getSquad).toHaveBeenCalledTimes(1)
+  })
+
+  it('is refreshed when the page becomes visible again', async () => {
+    renderApp()
+    await showUpButton()
+    await vi.waitFor(() => expect(squadApi.getSquad).toHaveBeenCalledTimes(1))
+    squadApi.getSquad.mockResolvedValue(withIncoming(3))
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await vi.waitFor(() => expect(badge()?.textContent).toBe('3'))
+  })
+
+  it('keeps the last good count when a refresh fails', async () => {
+    squadApi.getSquad.mockResolvedValueOnce(withIncoming(2))
+    renderApp()
+    await showUpButton()
+    await vi.waitFor(() => expect(badge()?.textContent).toBe('2'))
+    squadApi.getSquad.mockResolvedValue({ status: 'error', message: 'x', code: null })
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await act(async () => {})
+    expect(badge()?.textContent).toBe('2')
+  })
+
+  it('a new count does NOT re-render Home, even while a Show Up timer runs', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(await showUpButton())
+    await screen.findByText(/checked 1 of 3 times/i)
+    await act(async () => {}) // let everything settle
+    const before = homeRenders.count
+
+    await act(async () => squadBadgeStore.set(4))
+    expect(badge()?.textContent).toBe('4') // the bar did update
+    await act(async () => squadBadgeStore.set(7))
+    expect(badge()?.textContent).toBe('7')
+    expect(homeRenders.count).toBe(before) // Home did not render again
   })
 })
 

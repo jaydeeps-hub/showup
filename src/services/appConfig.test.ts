@@ -20,6 +20,7 @@ describe('parseAppConfig', () => {
         mascot_almost_seconds: '240',
         gym_search_radius_meters: '3000',
         gym_search_max_results: '12',
+        invite_url: 'https://showup.app',
       }),
     ).toEqual({
       maxGymDistanceMeters: 150,
@@ -29,6 +30,7 @@ describe('parseAppConfig', () => {
       mascotAlmostSeconds: 240,
       gymSearchRadiusMeters: 3000,
       gymSearchMaxResults: 12,
+      inviteUrl: 'https://showup.app',
     })
   })
 

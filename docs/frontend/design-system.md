@@ -17,6 +17,7 @@ Derived from the code. Single source: [src/design-system/tokens.ts](../../src/de
 | `success` / `onSuccess` | `#3DBE8B` / `#06231A` | Success toast and "ok" segments |
 | `error` / `onError` | `#F0707A` / `#2A0A0D` | Errors, error toast |
 | Warning | `#241B10` fill, `#4A3516` border, `#E8C48A` text | Warning alerts |
+| Squad chips (`squadTokens.ts`) | showups: `#17234F` fill, `#2A3C7A` border, `#B8C4EE` text, white number; weeks: `#172033` fill, `#2E3A55` border, `#A7AFBD` text, `#F4F4F6` number | The stat chips on a squad-mate's row |
 | Home-only (`homeTokens.ts`) | `#2A3C7A` accent border, `#5C626E` future day, `#C3CCE8` KPI label, `#143A2D` ok-soft | Home, calendar, profile avatar border |
 
 ## Fonts
@@ -27,15 +28,15 @@ Radius: 14 controls, inputs, buttons and rows; 12 small controls; 18 large cards
 
 ## Shared components
 - **Loader** ([src/components/Loader.tsx](../../src/components/Loader.tsx)): the landing page's ring-and-wedge "o" (shapes shared with `BrandMark.tsx`), spinning, static under `prefers-reduced-motion`. It is the only loader: used for connecting Google, gym search (Maps loading, "Searching…", place details), the location check, every "Saving…" button, the Terms popup and every page/data loading state. `color="currentColor"` inside buttons.
-- **Toast** ([src/components/Toast.tsx](../../src/components/Toast.tsx)): the only toast. Success is green with dark text; error is red with dark text; icon plus colour; centered; auto-hides after 2600 ms; sits above the tab bar when `aboveTabBar`. Every Show Up message (success and problems) is shown in it by `ShowupFeedback`; there are no Show Up dialogs any more.
-- **Bottom tab bar** ([src/components/BottomNav.tsx](../../src/components/BottomNav.tsx)): three tabs in this order, **Pause, Home, Profile**. 78px plus the bottom safe area, surface background with a top border; active tab `#8FA6FF`, others muted. Shown on Home, Pause and Profile only. Pause and Profile are disabled while a location check runs; Profile is disabled if the profile did not load. `ScreenLayout hasTabBar` adds bottom padding.
+- **Toast** ([src/components/Toast.tsx](../../src/components/Toast.tsx)): the only toast. Success is green with dark text; error is red with dark text; **warning** (since Phase 12, for "Request rejected" and "Request cancelled") is the app's dark amber with amber text; icon plus colour; centered; auto-hides after 2600 ms; sits above the tab bar when `aboveTabBar`. Every Show Up message (success and problems) is shown in it by `ShowupFeedback`; there are no Show Up dialogs any more.
+- **Bottom tab bar** ([src/components/BottomNav.tsx](../../src/components/BottomNav.tsx)): four tabs in this order, **Pause, Home, Squad, Profile** (Squad since Phase 12, task 2). 78px plus the bottom safe area, surface background with a top border; active tab `#8FA6FF`, others muted. Shown on Pause, Home, Squad and Profile only. The Squad tab can carry a **badge** (the design's `.bdg`: an 18px accent pill, white bold 11px, just right of the icon's middle; hidden at 0, "9+" above 9; the tab's label then says "Squad, N requests"). Pause, Squad and Profile are disabled while a location check runs; Profile is disabled if the profile did not load. `ScreenLayout hasTabBar` adds bottom padding.
 - **Screen layout** ([ScreenLayout.tsx](../../src/components/ScreenLayout.tsx)): narrow centred column; optional brand header (`showBrand`); `hasTabBar` and `bottomSpace` padding.
 - **Profile pieces:** `ProfileAvatar` (initials now; a mascot head later), `ProfileEditForm`, and `ProfileActionBar` (Cancel + Save changes, pinned above the tab bar while editing).
 
 ## Where the app intentionally differs from the prototype
 - **Loader:** the app uses its own landing-page loader (ring and wedge), not the prototype's spinning "o" in the logo.
 - **Google email row** stays on Profile (disabled field with a help line); the prototype has none.
-- **Tab order** is Pause, Home, Profile (prototype: Home, Pause, Profile; the prototype file was updated to match).
+- **Tab order** is Pause, Home, Squad, Profile, the same as the prototype's `#nav` (the prototype's earlier Home, Pause, Profile order was updated to match the app).
 - **Sign out** is on the Profile tab; Home has no sign-out button or location disclaimer.
 - **Profile read view** shows the Google email and the gym card with "Change gym" below the rows; the prototype lists the gym as a row.
 - **Profile avatar** shows initials; the prototype shows a mascot head.

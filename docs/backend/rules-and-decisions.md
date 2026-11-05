@@ -39,12 +39,23 @@ Short, factual. Function names refer to [overview.md](overview.md).
 ## Weeks before the first goal
 - `week_summary` returns `goal_days = null` and status `in_progress` for weeks before a user's first goal (the live branch has no goal to compare with). **The client must show no marker for them.** The app does this: the calendar draws a goal-column marker only when `goalDays !== null`.
 
+## Squad (Phase 12a)
+- **A squad is a two-way link between two people**, made by a request and an acceptance. One `squad_links` row per pair, whichever of them asked first. Status: `pending` → `accepted`, or `declined`.
+- **Asking someone who already asked you makes you squad-mates at once** (no second step).
+- **Declined:** the request disappears for both. The person who ASKED can ask again only after `config.squad_request_cooldown_days` (default 7); the person who DECLINED may ask at any time.
+- **Limits:** at most `config.squad_max_size` (default 50) squad-mates, checked for both people when a link is accepted; and at most the same number of requests you sent that are still waiting.
+- **You need a username to send a request.** Anyone can search, but `search_people` never returns people without a username, so someone with none cannot be found either.
+- **Strangers get no stats.** `search_people` returns only usernames and names; `get_squad` returns `total_showups` and `weeks_in_a_row` only for squad-mates.
+- **The other person is always named by username, never by a user id**, in every function the app calls. The app never reads `squad_links` directly.
+- Taking back a request deletes it; leaving a squad deletes the link for both.
+
 ## Config keys
 - Stored as `config` rows (now config (renamed in Phase 9)) with `content_type` `config.max_gym_distance_meters`, `config.calendar_start_month`, `config.pause_passes_per_month`, `config.pause_max_weeks_ahead`, plus the Phase 6 keys below. (`config.min_stay_minutes` was in the original plan; it is no longer used anywhere.)
 - **Newest row per key wins** (by `created_at`, then `id`). **To change a value, insert a new row**; do not edit the old one.
 - Server defaults when a key is missing or not a number: distance 100, passes 3, weeks ahead 1; `calendar_start_month` falls back to the current month.
 - The app reads them with `get_app_config()`, **caches them for about an hour**, and has hard-coded defaults (100, `2026-06`, 3, 1) if the call fails. Nothing in the app currently reads those values (the server applies them). Note the app's default start month (`2026-06`) differs from the server's fallback (current month); the server decides what the calendar actually allows.
 - `min_stay_minutes` was removed from the app in 6c. A `config.min_stay_minutes` row (it still exists in `config`), is ignored by everything; the timed Show Up uses `config.showup_duration_seconds` (default 900).
+- Squad keys (Phase 12a): **`config.invite_url`** (`https://showup-pied.vercel.app`; the app accepts only an https address and keeps its origin, else falls back to that value), **`config.squad_max_size`** (50; the most squad-mates and the most requests waiting; the server uses at least 1), **`config.squad_request_cooldown_days`** (7; the asker's wait after a decline; at least 0) and **`config.squad_search_max_results`** (20; clamped to 1 to 50). The app reads only `invite_url`; the server applies the other three, and `get_squad` returns `max_size`.
 - Timed Show Up keys (Phase 6): `config.showup_duration_seconds` (1 to 10800, default 900), `config.showup_check_interval_seconds` (default 300; 0 means no checks after the first), `config.showup_max_missed_checks` (default 0) and `config.max_location_accuracy_meters` (default 0, meaning off). They are copied into the session when it starts, so changing them never alters a running session.
 
 ## Erratum in the calendar backend design

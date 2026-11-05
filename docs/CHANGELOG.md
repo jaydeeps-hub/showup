@@ -4,6 +4,44 @@ Built from `git log` on 2026-10-22, newest first, grouped by backend (migrations
 
 **Not in git:** the SQL run by hand in Supabase has no commit and no date. See [backend/manual-sql-log.md](backend/manual-sql-log.md).
 
+## 2026-11-06 (not yet committed): Phase 12, task 5, the squad, its requests and the tab badge (Phase 12 done)
+
+### Frontend
+- **The Squad page with the search box empty** now shows the squad from `get_squad`: the header "N friends" ("1 friend") from `squadCount`; **"Squad requests · N"** with a card per request and **Accept** (blue, toast "@x joined your squad") and **Reject** (toast "Request rejected", warning style); **"Your squad"** in the server's order with **"<total> showups"** and **"<n> weeks in a row"** chips, each only when above 0; **"Sent requests"** with **Cancel** (toast "Request cancelled", warning style). With requests but no squad-mates: "No one in your squad yet. Accept a request or search for people." With nothing: task 2's empty state. The shared Loader while it loads, and "Couldn’t load your squad" with Retry if it fails.
+- **Every squad action refreshes the page and the badge** (here, and Request or Accept in the search, which now also passes the squad's size limit, so "Your squad is full (max N)." shows the number). Buttons are disabled while their call runs, and the one pressed shows the loader.
+- **The Squad tab badge**: the requests waiting for you (hidden at 0, "9+" above 9), with the tab labelled "Squad, N requests". Refreshed when the app opens, when the page becomes visible again, and after every action; a failed refresh keeps the last number. It lives in its own store (`services/squadBadgeStore.ts`, `hooks/useSquadBadge.ts`), so a new count re-renders only the tab bar and **never App or Home**, even while a Show Up timer runs. The tab bar now reads the Show Up phase through `useShowupSelector`, so it no longer re-renders on every timer tick.
+- **`Toast` has a `warning` severity** (the app's dark amber). **Squad chip colours** in `design-system/squadTokens.ts`. `PersonIdentity` split out of `PersonRow` for the request cards.
+- **No Remove from squad yet**: `remove_from_squad` stays unused.
+- Tests: `SquadOverview.test.tsx` (32, new); 10 badge tests in `App.database.test.tsx`; `SquadScreen.test.tsx` and `SquadSearch.test.tsx` now fake an empty squad (the page loads one since this task), and their empty-state tests wait for it.
+
+## 2026-11-06 (not yet committed): Phase 12, task 4, search on the Squad page
+
+### Frontend
+- **The people search** under the Squad header: the design's search box ("Search by username or name", no autocomplete or autocapitalise, `enterkeyhint=search`, a ✕ that empties the box and puts the cursor back). A leading "@" is fine. One character (or just "@") sends nothing and the page stays as it was.
+- **The states:** "Finding people…" while searching; **"People on Showup"** with a row per person (the smile mascot as the avatar, "@username" in bold, the name under it cut with `ShortText`, and no stats); **"No one found for “q”"** with "Check the username, or invite them to join Showup." and an Invite friends button that opens the invite sheet; and **"Couldn’t search right now"** with Retry.
+- **The right side of a row** by relation: none → **Request**; requested → "Requested" (muted); incoming → **Accept**; squad → "In squad" (muted). Request calls `send_squad_request` and Accept `respond_squad_request(username, true)`; on success the row changes in place with the toast "Request sent to @x" or "@x joined your squad"; an error leaves the row and shows the task 3 text. A button is disabled (with the loader) while its call runs, and the other rows' buttons wait too, so nothing is sent twice.
+- **Shared `components/SearchBox.tsx`**: the gym search's box, moved out so both searches use it (the gym search is unchanged: its 100 tests still pass). New: `features/squad/PeopleSearchResults.tsx`, `features/squad/PersonRow.tsx`. `usePeopleSearch` now also returns the cleaned `query` and a `retry`.
+- Tests: `SquadSearch.test.tsx` (32, new); `usePeopleSearch.test.tsx` 19 → 21 (the query and retry; the old checks now compare only the state part).
+
+## 2026-11-06 (not yet committed): Phase 12, task 3, the Squad data layer
+
+### Backend
+- Phase 12a SQL (`docs/backend/phase12a_squad.sql`) applied manually in Supabase today, not in migrations, per the owner: the `squad_links` table (one row per pair, unreadable by the app), three indexes, four internal helpers, six RPCs (`search_people`, `send_squad_request`, `respond_squad_request`, `cancel_squad_request`, `remove_from_squad`, `get_squad`; `authenticated` only, the other person always by username) and four `config` rows (`invite_url`, `squad_max_size` 50, `squad_request_cooldown_days` 7, `squad_search_max_results` 20). Logged as items 44 to 48 in `backend/manual-sql-log.md`; described in `backend/overview.md` ("Squad RPCs (Phase 12a)") and `backend/rules-and-decisions.md` ("Squad", the keys). **Not in the live snapshot yet** (checked; unverified). `phase12a_check.sql` (a self-check that rolls back) and `phase12a_undo.sql` sit beside it.
+
+### Frontend
+- **The Squad data layer, with no visible change.** `services/squadService.ts`: `searchPeople`, `sendSquadRequest`, `respondSquadRequest`, `cancelSquadRequest`, `removeFromSquad`, `getSquad`, each checking its reply strictly (a malformed reply, or one bad item in a list, is an error and never an empty squad), and `describeSquadError` with a user-facing text for every error code ("Your squad is full (max N)." takes the limit from the caller, and leaves the number out when it is unknown). Types `SquadPerson`, `SearchResult`, `SquadMember`, `SquadRequest`, `SquadState`. `hooks/usePeopleSearch.ts`: no request under 2 characters, a 450 ms pause, answers for an older query dropped. `hooks/useSquad.ts`: loads when the tab opens and when the page becomes visible again, keeps the squad on screen during a refresh and when a refresh fails (`refreshError`), and gives `incomingCount` for the badge.
+- Tests: `squadService.test.ts` (81), `usePeopleSearch.test.tsx` (19), `useSquad.test.tsx` (15).
+
+## 2026-11-06 (not yet committed): Phase 12, task 2, the Squad tab, the empty page and the invite sheet
+
+### Frontend
+- **Four tabs**, in the design's order **Pause, Home, Squad, Profile**, with the design's two-people icon for Squad (`AppTab` gains `'squad'`). Squad follows the same rules as the others and is **locked with Pause and Profile while Show Up reads the location**. No badge yet.
+- **The Squad page**, the design's empty state: the shared brand header and logo, "My squad" with "0 friends", a blue **Invite** button, a spot kept for the search box (task 4), the `wave` mascot at 96px (decorative; falls back to `smile`, then to nothing), "Your squad is empty", "Invite friends, or search for people who are already on Showup." and **Invite friends**. It makes **no database calls** yet.
+- **The invite sheet** (the shared `BottomSheet`), sharing **only the plain app link**: the link in a one-line box with **Copy** ("Copied", toast "Link copied"; on failure "Copy the link from the box"), **Share invite** (`navigator.share`; a cancelled share is not an error; with no share sheet the whole message is copied, toast "Invite message copied"), **Send on WhatsApp** (`wa.me`, new tab, `noopener`) and **Close**. Both Invite buttons open it.
+- **Setting:** `inviteUrl` in `appConfig.ts`, read from `get_app_config()`'s `invite_url`. Only an https address is accepted, kept as its origin (no path, no trailing slash); anything else falls back to `https://showup-pied.vercel.app`.
+- `MascotPictureImage` (the mascot picture with its fallbacks) is now exported from `MascotRow.tsx`, so the empty Squad page reuses it. New: `features/squad/SquadScreen.tsx`, `InviteSheet.tsx`, `utils/invite.ts`, `utils/squad.ts`.
+- Tests: `SquadScreen.test.tsx` (27), `invite.test.ts` (15), `appConfig.invite.test.ts` (25), 4 tab tests in `App.database.test.tsx`; the "reads every setting" test in `appConfig.test.ts` now includes `invite_url`. **No existing test counted three tabs**, so none had to change for the fourth.
+
 ## 2026-11-05 (not yet committed): Phase 11d, the username on Profile
 
 ### Frontend

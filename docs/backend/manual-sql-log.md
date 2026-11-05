@@ -98,6 +98,18 @@ Applied manually from `docs/backend/phase11a_username.sql`. All **applied manual
 
 **Deploy order:** the app now reads `username` and `username_changed_at` with the profile. On a database where this SQL was NOT applied, those columns do not exist, so the profile would fail to load. Apply this SQL before deploying the app version that reads them.
 
+## Phase 12a (Squad), 2026-11-06
+
+Applied manually from `docs/backend/phase12a_squad.sql` on 2026-11-06 (per the owner). All **applied manually, not in migrations**. Safe to run twice; it changes no existing table, function or row. **Unverified against the live database**: the snapshot (`live-schema-snapshot.sql`, also updated today) contains none of the objects below. Two companion files sit beside it: `phase12a_check.sql` (a self-check that rolls itself back) and `phase12a_undo.sql` (removes everything below, **including every squad link**).
+
+| # | Object | Notes |
+|---|---|---|
+| 44 | Table `squad_links` | `id` uuid; `requester_id`, `addressee_id` (`auth.users(id)` on delete cascade, must differ); `status` `pending` / `accepted` / `declined` (default `pending`); `created_at`; `responded_at`. RLS on; all rights revoked from `anon` and `authenticated` |
+| 45 | Indexes `squad_links_one_per_pair` (unique, on the pair in either order), `squad_links_addressee (addressee_id, status)`, `squad_links_requester (requester_id, status)` | One row per pair of people |
+| 46 | Four `config` rows: `config.invite_url` = `https://showup-pied.vercel.app`, `config.squad_max_size` = `50`, `config.squad_request_cooldown_days` = `7`, `config.squad_search_max_results` = `20` | Each inserted only if the key had never been set. **Current values: unverified** |
+| 47 | Internal functions `squad_clean_username(text)`, `squad_link_between(uuid, uuid)`, `squad_size(uuid)`, `squad_weeks_in_a_row(uuid)` | Not executable by `public`, `anon` or `authenticated` |
+| 48 | Functions `search_people(text)`, `send_squad_request(text)`, `respond_squad_request(text, boolean)`, `cancel_squad_request(text)`, `remove_from_squad(text)`, `get_squad()` | `SECURITY DEFINER`, `authenticated` only. See [overview.md](overview.md#squad-rpcs-phase-12a) |
+
 ## Also in the live database but in no migration (origin unverified)
 
 - Function `rls_auto_enable()` (an event trigger function that turns on row level security for new tables in `public`). It appears in the snapshot with `EXECUTE` for `anon` and `authenticated`. It may be a Supabase default or may have been added by hand; this cannot be told from the repo.

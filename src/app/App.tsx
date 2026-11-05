@@ -11,9 +11,12 @@ import { GoalScreen } from '../features/goal/GoalScreen'
 import { GymSetupScreen, GYM_SAVED_PAUSE_MS } from '../features/gym/GymSetupScreen'
 import { QuickStartScreen } from '../features/quickstart/QuickStartScreen'
 import { PauseScreen } from '../features/pause/PauseScreen'
+import { SquadScreen } from '../features/squad/SquadScreen'
 import { ManageProfileScreen } from '../features/profile/ManageProfileScreen'
 import { OnboardingScreen } from '../features/profile/OnboardingScreen'
-import { useShowupSession } from '../hooks/showupSessionContext'
+import { useShowupSelector } from '../hooks/showupSessionContext'
+import { useSquadBadgeCount, useSquadBadgeRefresh } from '../hooks/useSquadBadge'
+import { badgeText, squadTabLabel } from '../services/squadBadgeStore'
 import { useAuth } from '../hooks/useAuth'
 import { useQuickStartItems } from '../hooks/useCmsContent'
 import { useProfile } from '../hooks/useProfile'
@@ -260,7 +263,7 @@ function SignedInApp({ session }: { session: Session }) {
       return <QuickStartScreen items={quickStartItems} lastLabel="Done" onFinish={() => setQuickStartFromProfile(false)} />
     }
 
-    // The three tabs. The Profile tab needs a loaded profile; without one, Home is shown instead.
+    // The four tabs: Pause, Home, Squad, Profile. The Profile tab needs a loaded profile; without one, Home is shown instead.
     const profileReady = profile.status === 'ready'
     const activeTab: AppTab = tab === 'profile' && !profileReady ? 'home' : tab
 
@@ -275,6 +278,7 @@ function SignedInApp({ session }: { session: Session }) {
           />
         )}
         {activeTab === 'pause' && <PauseScreen />}
+        {activeTab === 'squad' && <SquadScreen />}
         {activeTab === 'profile' && profile.status === 'ready' && (
           <ManageProfileScreen
             profile={profile.profile}
@@ -295,13 +299,20 @@ function SignedInApp({ session }: { session: Session }) {
 }
 
 /**
- * The bottom tab bar. It reads the Show Up engine (so it must sit inside the ShowupProvider) to decide
- * which tabs to lock: Pause and Profile are locked only while the location is being read to START a
+ * The bottom tab bar, with the Squad badge. It reads the Show Up engine's phase (so it must sit inside the
+ * ShowupProvider) to decide which tabs to lock: Pause, Squad and Profile are locked only while the location is being read to START a
  * Show Up, a few seconds at most. Once the timer is running they are free, because the timer and its
  * checks keep going on any tab.
  */
 function AppTabBar({ active, onSelect, profileReady }: { active: AppTab; onSelect: (tab: AppTab) => void; profileReady: boolean }) {
-  const { state } = useShowupSession()
-  const locked: AppTab[] = state === 'checking' ? ['pause', 'profile'] : !profileReady ? ['profile'] : []
-  return <BottomNav active={active} onSelect={onSelect} disabled={locked} />
+  // Only the phase, through the selector, so the bar does not re-render on every tick of a running timer.
+  const phase = useShowupSelector((s) => s.phase)
+  const locked: AppTab[] = phase === 'checking' ? ['pause', 'squad', 'profile'] : !profileReady ? ['profile'] : []
+  // The Squad badge: refreshed here (when the app opens and when the page is visible again) and read from its own
+  // store, so a new count re-renders this bar alone and never App or Home.
+  useSquadBadgeRefresh(true)
+  const incoming = useSquadBadgeCount()
+  const text = badgeText(incoming)
+  const badges = text ? { squad: { text, label: squadTabLabel(incoming) } } : {}
+  return <BottomNav active={active} onSelect={onSelect} disabled={locked} badges={badges} />
 }
