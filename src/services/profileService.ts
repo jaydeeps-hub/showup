@@ -18,12 +18,22 @@ interface ProfileRow {
   is_admin: boolean
   place_search_mode: string
   quickstart_completed_at: string | null
+  username: string | null
+  username_changed_at: string | null
   created_at: string
   updated_at: string
 }
 
+/**
+ * `username` and `username_changed_at` come from docs/backend/phase11a_username.sql, which is applied by hand (not a
+ * migration). A database without it has no such columns, so this select would fail there and the profile would not
+ * load: apply that SQL before deploying this version.
+ */
 const PROFILE_COLUMNS =
-  'id, first_name, last_name, date_of_birth, is_admin, place_search_mode, quickstart_completed_at, created_at, updated_at'
+  'id, first_name, last_name, date_of_birth, is_admin, place_search_mode, quickstart_completed_at, username, username_changed_at, created_at, updated_at'
+
+/** A non-empty text, or null. Anything else (missing from an older row, blank, not text) counts as "none". */
+const textOrNull = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null)
 
 export type ProfileResult =
   | { status: 'found'; profile: Profile }
@@ -49,7 +59,10 @@ function toProfile(row: ProfileRow): Profile {
     isAdmin: row.is_admin,
     placeSearchMode: toEffectiveMode(row),
     // Anything that is not a non-empty text (null, missing from an older row, blank) counts as "not finished".
-    quickstartCompletedAt: typeof row.quickstart_completed_at === 'string' && row.quickstart_completed_at !== '' ? row.quickstart_completed_at : null,
+    quickstartCompletedAt: textOrNull(row.quickstart_completed_at),
+    // No username is normal (everyone from before Phase 11). The app only reads these two; it never writes them.
+    username: textOrNull(row.username),
+    usernameChangedAt: textOrNull(row.username_changed_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

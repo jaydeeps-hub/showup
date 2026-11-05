@@ -83,6 +83,21 @@ Applied manually from `docs/backend/10a_onboarding_mascot.sql` (version 2 of tha
 | 36 | Seven `mascot_messages` rows for the goal screen: `goal_1` ... `goal_7` | `screen = 'goal'`, priority 1 to 7, one row per number of days, inserted only if the key did not exist for `en`. The bubble is the same for all seven; the face and the label differ (see [overview.md](overview.md)) |
 | 37 | Two `config` rows: `config.gym_search_radius_meters` = `5000`, `config.gym_search_max_results` = `20` | Inserted only if the key did not exist; the SQL writes to `config`, or to `cms` if the Phase 9a rename had not happened. **For the "Gyms near me" step: the app does not read them yet** |
 
+## Phase 11a (usernames), applied before 2026-11-05
+
+Applied manually from `docs/backend/phase11a_username.sql`. All **applied manually, not in migrations**. The owner reports it as applied; **the exact date and the live result are unverified** (the snapshot has not been regenerated since Phase 9a). The file arrived as `Phase11a username.sql` and was renamed to `phase11a_username.sql` to match the other files here; its content is unchanged. Safe to run twice. It sets **nobody's** username: every existing profile keeps `null`.
+
+| # | Object | Notes |
+|---|---|---|
+| 38 | Columns `profiles.username` (`text`) and `profiles.username_changed_at` (`timestamptz`) | Both nullable. Constraint `profiles_username_format`: `username ~ '^[a-z][a-z0-9_]{2,19}$'`. Unique index `profiles_username_key` on `(username)`. Column comments describe the rules |
+| 39 | Table `reserved_usernames` (`name` primary key, lowercase and at least 3 characters; `note`) | RLS on, no policy, all rights revoked from `anon` and `authenticated`. 70 seeded names (`on conflict do nothing`, so re-running adds no duplicates) |
+| 40 | Function `profiles_guard_username()` and trigger `profiles_guard_username` | `BEFORE INSERT OR UPDATE` on `profiles`; refuses `username` and `username_changed_at` changes from `anon` and `authenticated` with `username_locked: use set_username()` |
+| 41 | Internal functions `username_problem(text)`, `username_taken(text)`, `username_suggestion(text)` | Not executable by `anon` or `authenticated` |
+| 42 | Functions `is_username_available(text)` and `set_username(text)` | `SECURITY DEFINER`, `authenticated` only. See [overview.md](overview.md#username-rpcs-phase-11a) |
+| 43 | `config` row `config.username_change_cooldown_days` = `0` | Inserted only if the key did not exist (into `config`, or `cms` before the rename), with a remark suggesting 30 before launch. **Current value: unverified** |
+
+**Deploy order:** the app now reads `username` and `username_changed_at` with the profile. On a database where this SQL was NOT applied, those columns do not exist, so the profile would fail to load. Apply this SQL before deploying the app version that reads them.
+
 ## Also in the live database but in no migration (origin unverified)
 
 - Function `rls_auto_enable()` (an event trigger function that turns on row level security for new tables in `public`). It appears in the snapshot with `EXECUTE` for `anon` and `authenticated`. It may be a Supabase default or may have been added by hand; this cannot be told from the repo.

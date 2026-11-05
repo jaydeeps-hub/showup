@@ -54,6 +54,11 @@ vi.mock('../services/showupSessionService', () => ({
 vi.mock('../services/wakeLock', () => ({ acquireWakeLock: vi.fn(), releaseWakeLock: vi.fn(), reacquireWakeLockIfWanted: vi.fn() }))
 vi.mock('../hooks/useMascot', () => ({ useMascotContent: () => ({ version: 0, images: {}, messages: [] }) }))
 
+// The username RPCs. Saving one writes it into the fake profile row, the way set_username writes the real one, so the
+// profile that comes back from the next save (and any reload) carries it.
+const usernames = vi.hoisted(() => ({ checkUsername: vi.fn(), saveUsername: vi.fn() }))
+vi.mock('../services/usernameService', () => usernames)
+
 const gymApi = vi.hoisted(() => ({ fetchActiveGym: vi.fn(), saveActiveGym: vi.fn() }))
 vi.mock('../services/gymService', () => ({ fetchActiveGym: gymApi.fetchActiveGym, saveActiveGym: gymApi.saveActiveGym }))
 
@@ -76,6 +81,8 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     isAdmin: false,
     placeSearchMode: 'fitness_only',
     quickstartCompletedAt: '2026-10-19T10:00:00Z',
+    username: null,
+    usernameChangedAt: null,
     createdAt: '2026-10-19T10:00:00Z',
     updatedAt: '2026-10-19T10:00:00Z',
     ...overrides,
@@ -91,6 +98,15 @@ function setUpDatabase(start: { profile?: Profile; gym?: Gym | null; goal?: Goal
   storedGym = start.gym ?? null
   storedGoal = start.goal ?? noGoal
   people.fetchProfile.mockImplementation(async () => ({ status: 'found', profile: storedProfile }))
+  usernames.checkUsername.mockImplementation(async (value: string) => ({
+    status: 'ok',
+    check: { username: value, available: true, reason: value === storedProfile.username ? 'own' : null, suggestion: null },
+  }))
+  usernames.saveUsername.mockImplementation(async (value: string) => {
+    const changed = storedProfile.username !== value
+    storedProfile = { ...storedProfile, username: value }
+    return { status: 'saved', username: value, changed }
+  })
   people.updateProfile.mockImplementation(async (_id: string, edits: ProfileEdits) => {
     storedProfile = { ...storedProfile, ...edits }
     return { status: 'saved', profile: storedProfile }
@@ -123,6 +139,8 @@ const homeButton = () => screen.findByRole('button', { name: /^show up$/i }, { t
 
 async function fillDetails(user: ReturnType<typeof userEvent.setup>) {
   await detailsTitle()
+  await user.type(screen.getByLabelText('Username'), 'asha_rao')
+  await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 }) // Continue waits for the check
   await user.type(screen.getByLabelText('First name'), 'Asha')
   await user.type(screen.getByLabelText(/^last name/i), 'Rao')
   await user.click(screen.getByRole('button', { name: 'Continue' }))
@@ -284,7 +302,10 @@ describe('the Back arrow (bug 2): on Add gym and Set goal, not on "What should w
     await detailsTitle()
     expect(screen.getByText('1 of 3')).toBeTruthy()
 
-    // forward again: the names are saved already, so Continue is on straight away
+    // forward again: the names AND the username are saved already, so the username is filled in and accepted, and
+    // Continue is on straight away without typing anything
+    expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('asha_rao')
+    expect(screen.getByText('This is your username')).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(false)
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await gymTitle()).toBeTruthy()

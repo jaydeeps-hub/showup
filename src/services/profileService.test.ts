@@ -36,6 +36,8 @@ const row = {
   is_admin: false,
   place_search_mode: 'fitness_only',
   quickstart_completed_at: null as string | null,
+  username: null as string | null,
+  username_changed_at: null as string | null,
   created_at: '2026-10-17T10:00:00Z',
   updated_at: '2026-10-17T10:05:00Z',
 }
@@ -68,6 +70,8 @@ describe('updateProfile', () => {
         isAdmin: false,
         placeSearchMode: 'fitness_only',
         quickstartCompletedAt: null,
+        username: null,
+        usernameChangedAt: null,
         createdAt: '2026-10-17T10:00:00Z',
         updatedAt: '2026-10-17T10:05:00Z',
       },
@@ -170,6 +174,54 @@ describe('quickstartCompletedAt on a loaded profile', () => {
     await fetchProfile('user-1')
     expect(calls.select).toHaveBeenCalledTimes(1)
     expect(String(calls.select.mock.calls[0][0])).toContain('quickstart_completed_at')
+  })
+})
+
+describe('username on a loaded profile', () => {
+  const load = async (overrides: Record<string, unknown>) => {
+    calls.maybeSingle.mockResolvedValue({ data: { ...row, ...overrides }, error: null })
+    const result = await fetchProfile('user-1')
+    if (result.status !== 'found') throw new Error('profile not found')
+    return result.profile
+  }
+
+  it('is null for a person who has no username yet: a normal state for everyone from before Phase 11', async () => {
+    const profile = await load({ username: null, username_changed_at: null })
+    expect(profile.username).toBeNull()
+    expect(profile.usernameChangedAt).toBeNull()
+  })
+
+  it('is the saved username and when it was last changed', async () => {
+    const profile = await load({ username: 'jay_shows_up', username_changed_at: '2026-11-05T09:00:00+00:00' })
+    expect(profile.username).toBe('jay_shows_up')
+    expect(profile.usernameChangedAt).toBe('2026-11-05T09:00:00+00:00')
+  })
+
+  it('has a username set by hand but no change time (the database leaves username_changed_at empty then)', async () => {
+    const profile = await load({ username: 'official', username_changed_at: null })
+    expect(profile.username).toBe('official')
+    expect(profile.usernameChangedAt).toBeNull()
+  })
+
+  it.each([undefined, '', 0, false, {}, []])('counts %j as no username, so a missing or odd value never shows as one', async (value) => {
+    expect((await load({ username: value })).username).toBeNull()
+  })
+
+  it('asks for both columns in the same read as the rest of the profile (no extra call)', async () => {
+    calls.maybeSingle.mockResolvedValue({ data: row, error: null })
+    await fetchProfile('user-1')
+    expect(calls.select).toHaveBeenCalledTimes(1)
+    const columns = String(calls.select.mock.calls[0][0]).split(',').map((column) => column.trim())
+    expect(columns).toContain('username')
+    expect(columns).toContain('username_changed_at')
+  })
+
+  it('never sends the username when saving the profile (only set_username may change it)', async () => {
+    calls.maybeSingle.mockResolvedValue({ data: { ...row, username: 'jay' }, error: null })
+    await updateProfile('user-1', { ...edits, username: 'someone_else', usernameChangedAt: 'x' } as typeof edits)
+    const sent = Object.keys(calls.update.mock.calls[0][0] as object)
+    expect(sent).not.toContain('username')
+    expect(sent).not.toContain('username_changed_at')
   })
 })
 

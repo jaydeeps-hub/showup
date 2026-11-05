@@ -32,6 +32,10 @@ vi.mock('../services/authService', () => ({
 }))
 
 const db = vi.hoisted(() => ({ fetchProfile: vi.fn(), updateProfile: vi.fn() }))
+// The username RPCs used by onboarding step 1. These tests are about the names, so every profile starts with a username
+// (filled in and accepted) and a check or a save of it always succeeds.
+const usernames = vi.hoisted(() => ({ checkUsername: vi.fn(), saveUsername: vi.fn() }))
+vi.mock('../services/usernameService', () => usernames)
 vi.mock('../services/profileService', () => ({
   fetchProfile: db.fetchProfile,
   updateProfile: db.updateProfile,
@@ -74,6 +78,8 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     isAdmin: false,
     placeSearchMode: 'fitness_only',
     quickstartCompletedAt: '2026-10-17T10:00:00Z', // these tests predate the Quick Start: treat the person as done
+    username: 'asha_rao',
+    usernameChangedAt: null,
     createdAt: '2026-10-17T10:00:00Z',
     updatedAt: '2026-10-17T10:00:00Z',
     ...overrides,
@@ -87,6 +93,15 @@ let stored: Profile
 function useFakeDatabase(initial: Profile) {
   stored = initial
   db.fetchProfile.mockImplementation(async () => ({ status: 'found', profile: stored }))
+  usernames.checkUsername.mockImplementation(async (value: string) => ({
+    status: 'ok',
+    check: { username: value, available: true, reason: value === stored.username ? 'own' : null, suggestion: null },
+  }))
+  usernames.saveUsername.mockImplementation(async (value: string) => {
+    const changed = stored.username !== value
+    stored = { ...stored, username: value }
+    return { status: 'saved', username: value, changed }
+  })
   db.updateProfile.mockImplementation(async (_id: string, edits: ProfileEdits) => {
     stored = { ...stored, ...edits, updatedAt: '2026-10-17T11:00:00Z' }
     return { status: 'saved', profile: stored }

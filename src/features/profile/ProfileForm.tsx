@@ -3,6 +3,9 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { Loader } from '../../components/Loader'
+import { UsernameField } from '../../components/UsernameField'
+import { useUsernameCheck, type UsernameCheckStatus } from '../../hooks/useUsernameCheck'
+import { saveUsername } from '../../services/usernameService'
 import { NAME_BACKSTOP_FACTOR, PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
 import { tokens } from '../../design-system/tokens'
 import type { ProfileEdits, SaveResult } from '../../types'
@@ -16,9 +19,15 @@ import {
   type ProfileFormErrors,
   type ProfileFormValues,
 } from '../../utils/profileValidation'
+import { cleanUsernameInput } from '../../utils/username'
 
 interface ProfileFormProps {
   initialValues: ProfileFormValues
+  /**
+   * The username the person already has (from the profile), or null. A person resuming onboarding with one sees it
+   * filled in and accepted ("This is your username"), so they can continue without typing it again.
+   */
+  initialUsername: string | null
   /** Label for the submit button, e.g. "Continue" or "Save changes". */
   submitLabel: string
   /** Saves the edits. Resolves to `{ ok: false, message }` when saving failed. */
@@ -90,31 +99,49 @@ const dateInputSx = {
 } as const
 
 /**
- * The "What should we call you?" form of onboarding: first name, last name and an optional date of birth, and a
- * Continue button pushed to the bottom of the screen.
+ * The "What should we call you?" form of onboarding: username, first name, an optional last name and an optional date
+ * of birth, and a Continue button pushed to the bottom of the screen.
  *
  * Checks, as in the design:
- *   - an empty first or last name is flagged when the field loses focus (red border and an inline message), and
- *     the flag goes away as soon as the person types;
- *   - Continue stays off until both names have some text;
- *   - Enter in First name moves to Last name, and Enter in Last name moves to Date of birth.
- * What is SAVED is still decided by `validateProfileForm`, so the length limits, the age rule and the date checks
- * apply exactly as before.
+ *   - the username is cleaned on every keystroke and checked live (`useUsernameCheck`): the hint under it says
+ *     whether it is free, and the field turns red when it cannot be used;
+ *   - an empty first name is flagged when the field loses focus (red border and an inline message), and the flag goes
+ *     away as soon as the person types; the last name is optional;
+ *   - Continue stays off until the first name has text AND the username can be used;
+ *   - Enter in Username moves to First name, in First name to Last name, and in Last name to Date of birth.
+ *
+ * Continue saves the username FIRST, through `set_username` (the only way it is ever written). If that is refused, its
+ * message shows under the username and nothing else is saved. Only then are the names and the birthday saved, and what
+ * is saved is still decided by `validateProfileForm`.
  *
  * Everything typed lives in this component's own state, and a failed save never clears it, so a network or
- * database error does not lose anything. Pressing the button again retries.
+ * database error does not lose anything. Pressing the button again retries. (If the username was saved but the names
+ * were not, a retry sends the same username again, which the database accepts as "no change".)
  */
 export function ProfileForm(props: ProfileFormProps) {
-  const { initialValues, submitLabel, onSave, onSaved, birthdayHelp, children } = props
+  const { initialValues, initialUsername, submitLabel, onSave, onSaved, birthdayHelp, children } = props
   const [values, setValues] = useState<ProfileFormValues>(initialValues)
+  const [username, setUsername] = useState(() => cleanUsernameInput(initialUsername ?? ''))
+  // What set_username said when Continue was pressed, shown in place of the live hint until the username is edited.
+  const [usernameSaveError, setUsernameSaveError] = useState<string | null>(null)
+  const usernameCheck = useUsernameCheck(username, initialUsername)
   const [errors, setErrors] = useState<ProfileFormErrors>({})
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [justSaved, setJustSaved] = useState(false)
   // The latest selectable birth date (exactly 15 years before today, the app's rule), fixed when the form opens.
   const [latestBirthday] = useState(() => latestBirthDate(new Date()))
+  const firstNameInput = useRef<HTMLInputElement>(null)
   const lastNameInput = useRef<HTMLInputElement>(null)
   const birthdayInput = useRef<HTMLInputElement>(null)
+
+  /** Gets the cleaned username (the field cleans every keystroke, as the prototype does). */
+  function setUsernameField(cleaned: string) {
+    setUsername(cleaned)
+    setUsernameSaveError(null) // an edit replaces the old refusal with the live check
+    setSaveError(null)
+    setJustSaved(false)
+  }
 
   function setField(field: keyof ProfileFormValues, value: string) {
     // A name field never holds more than PROFILE_NAME_MAX_LENGTH characters, typed or pasted.
@@ -144,10 +171,11 @@ export function ProfileForm(props: ProfileFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSaving) return // ignore a second press while the first save is in flight
-    if (!hasNameText(values.firstName)) return // Continue is off in this case
+    if (!hasNameText(values.firstName) || usernameCheck.status !== 'ok') return // Continue is off in this case
 
     setSaveError(null)
     setJustSaved(false)
+    // The names are checked on the device first, so a mistake there is shown before anything at all is saved.
     const validation = validateProfileForm(values)
     if (!validation.ok) {
       setErrors(validation.errors)
@@ -155,6 +183,16 @@ export function ProfileForm(props: ProfileFormProps) {
     }
 
     setIsSaving(true)
+    // The username first. If the database refuses it, say why under the field and save nothing else.
+    const usernameResult = await saveUsername(username)
+    if (usernameResult.status === 'error') {
+      setIsSaving(false)
+      setUsernameSaveError(usernameResult.message)
+      // Someone took it in the meantime: ask again, so the hint can offer a free alternative ("Try @...").
+      if (usernameResult.taken) usernameCheck.recheck()
+      return
+    }
+
     const result = await onSave(validation.edits)
     setIsSaving(false)
 
@@ -166,8 +204,15 @@ export function ProfileForm(props: ProfileFormProps) {
     }
   }
 
-  // Only the first name is needed. A name with a character that is not allowed is stopped by the message, not by a dead button.
-  const canContinue = hasNameText(values.firstName)
+  // The first name and a username that can be used. A name with a character that is not allowed is stopped by the
+  // message, not by a dead button.
+  const canContinue = hasNameText(values.firstName) && usernameCheck.status === 'ok'
+  // After a refused save, the refusal is shown until the person edits the username. A "taken" refusal makes way for
+  // the fresh check's answer as soon as it is back, because that one can offer an alternative.
+  const usernameHint: { status: UsernameCheckStatus; text: string } =
+    usernameSaveError !== null && usernameCheck.status !== 'error'
+      ? { status: 'error', text: usernameSaveError }
+      : { status: usernameCheck.status, text: usernameCheck.hint }
   // The browser's own limit is only a backstop for a huge paste. It counts code units, which are never fewer than the
   // characters a person sees, so it cannot cut a name short; limitNameInput (in setField) enforces the real limit.
   const nameLimit = { maxLength: PROFILE_NAME_MAX_LENGTH * NAME_BACKSTOP_FACTOR }
@@ -181,10 +226,24 @@ export function ProfileForm(props: ProfileFormProps) {
       sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}
     >
       <Box sx={{ mt: '20px' }}>
+        <UsernameField
+          id="onboarding-username"
+          value={username}
+          onChange={setUsernameField}
+          status={usernameHint.status}
+          hint={usernameHint.text}
+          disabled={isSaving}
+          onEnter={() => firstNameInput.current?.focus()}
+          required
+        />
+      </Box>
+
+      <Box sx={{ mt: '20px' }}>
         <FieldLabel htmlFor="onboarding-first-name">First name</FieldLabel>
         <Box
           component="input"
           id="onboarding-first-name"
+          ref={firstNameInput}
           value={values.firstName}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => setField('firstName', event.target.value)}
           onBlur={() => checkName('firstName')}
@@ -296,3 +355,4 @@ function FieldError({ id, children }: { id: string; children?: string }) {
     </Box>
   )
 }
+

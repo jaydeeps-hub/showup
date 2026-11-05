@@ -14,7 +14,8 @@ interface OnboardingScreenProps {
 
 /**
  * Step 1 of 3 of onboarding, "What should we call you?". When the save succeeds the app moves on to the gym step.
- * Names Google already provided are filled in, so most people only check and continue.
+ * Names Google already provided are filled in, and so is a username the person already has (someone resuming
+ * onboarding), so most people only check and continue. A new person picks a username here.
  *
  * There is no tab bar on onboarding screens. The top row has the progress bar and "1 of 3", and no back arrow.
  */
@@ -41,6 +42,7 @@ export function OnboardingScreen({ profile, onSave }: OnboardingScreenProps) {
 
       <ProfileForm
         initialValues={profileToFormValues(profile)}
+        initialUsername={profile.username}
         submitLabel="Continue"
         onSave={onSave}
         birthdayHelp="You can add this later."

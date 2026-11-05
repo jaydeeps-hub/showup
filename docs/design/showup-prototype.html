@@ -196,6 +196,27 @@ pre{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding
 .bh img{width:44px;height:44px;display:block}.hbrand .logo{font:700 24px var(--fd);letter-spacing:-.03em}
 .k2.kb{background:var(--acs);border:1.5px dashed #5C78E6;cursor:pointer;justify-content:space-between;align-items:flex-start}.k2.kb:hover{background:#1B2A60}.k2 b.kt{font:700 16px/1.2 var(--fd)}.k2.kb span{color:#C3CCE8;font-size:13px}
 .fromhome .bar,.fromhome .step,.fromhome #gskip{display:none}
+.sqh{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.inv{display:flex;align-items:center;gap:8px;height:46px;padding:0 16px;border:0;border-radius:14px;background:var(--ac);color:#fff;font:600 15px var(--fb);cursor:pointer}.inv:hover{background:#3258E6}
+.fl{display:flex;flex-direction:column;gap:8px}.fr{display:flex;align-items:center;gap:14px;min-height:68px;padding:10px 14px;border-radius:16px;background:var(--s1)}
+.fa{width:48px;height:48px;border-radius:50%;background:var(--s2);border:2px solid #2A3C7A;display:grid;place-items:center;overflow:hidden;flex:none}.fa svg{width:38px;height:34px}
+.ft{flex:1;min-width:0}.ft b{display:block;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ft span{display:block;font-size:13px;color:var(--mu)}
+.ab{height:40px;padding:0 16px;border-radius:12px;border:1.5px solid #2A3C7A;background:var(--acs);color:#C3CCE8;font:600 14px var(--fb);cursor:pointer;flex:none}.ab.fin{display:grid;place-items:center;border:0;background:none;color:var(--mu);font-weight:500}
+.unw{position:relative}.unw .at{position:absolute;left:16px;top:0;height:54px;display:grid;place-items:center;color:var(--mu);font-size:16px}.unw .in{padding-left:34px}
+.uh{font-size:13px;color:var(--mu);margin-top:6px;display:flex;align-items:center;gap:8px;min-height:20px}.uh.ok{color:var(--ok)}.uh.er{color:var(--er)}
+.lkb{display:flex;align-items:center;gap:10px;background:var(--s2);border-radius:14px;padding:6px 6px 6px 14px;margin-bottom:12px;font-size:14px}.lkb span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cp{height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--s1);color:#8FA6FF;font:600 14px var(--fb);cursor:pointer}
+.btn.s2{background:var(--s2);color:var(--tx);margin-top:8px}.sp .btn.g{margin-top:6px}
+input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
+.ab.fin{white-space:nowrap;font-size:13px;padding:0 4px}#s1 .field:last-of-type{margin-bottom:18px}
+.nav button{position:relative}.bdg{position:absolute;top:0;left:calc(50% + 4px);min-width:18px;height:18px;border-radius:9px;background:var(--ac);color:#fff;font:700 11px/18px var(--fb);text-align:center;padding:0 5px}.bdg[hidden]{display:none}
+.stt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#B4B9C4;margin-top:4px}.stt b{display:inline;color:var(--tx);font-weight:600;font-size:12px}.stt i{width:3px;height:3px;border-radius:50%;background:#5C626E}
+.rq{background:var(--s1);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:12px}.rt{display:flex;align-items:center;gap:14px}.rb{display:flex;gap:8px}.rb .ab{flex:1;height:42px}.ab.p{background:var(--ac);border-color:var(--ac);color:#fff}.ab.cn{background:none;border-color:var(--line);color:var(--mu);font-weight:500}
+.ft{min-width:96px}.ft>b{white-space:normal;overflow:visible;word-break:break-all}.fr>.ab{flex:none}
+#s1>*,#s3>*{flex-shrink:0}#cont{flex:none;height:58px;min-height:58px;font-size:17px;border-radius:16px;margin-top:auto}#s1{padding-bottom:28px}#s1 .field:last-of-type{margin-bottom:22px}
+.sx{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.sp{display:inline-flex;align-items:baseline;gap:5px;padding:5px 11px;border-radius:999px;font-size:11px;line-height:1.2;white-space:nowrap;background:var(--acs);border:1px solid #2A3C7A;color:#B8C4EE}.sp b{font:700 15px var(--fd);color:#fff}
+.sp.w{background:var(--s2);border-color:#2E3A55;color:#A7AFBD}.sp.w b{color:#F4F4F6}
+.toast.warn{background:#F5A524;color:#2B1A00}
 </style>
 </head>
 <body>
@@ -223,9 +244,10 @@ pre{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding
 <div class="top"><button class="back" data-go="0" aria-label="Back">←</button><div class="bar"><b style="width:33%"></b></div><span class="step">1 of 3</span></div>
 <h2 class="t">What should we call you?</h2>
 <p class="note" style="margin:0">Just the basics. It takes a few seconds.</p>
+<div class="field"><label class="lab" for="un">Username</label><div class="unw"><span class="at">@</span><input class="in" id="un" maxlength="20" autocapitalize="none" autocomplete="username" spellcheck="false" enterkeyhint="next" placeholder="jay_shows_up"></div><div class="uh" id="uh" aria-live="polite"></div></div>
 <div class="field"><label class="lab" for="fn">First name</label>
 <input class="in" id="fn" autocomplete="given-name" autocapitalize="words" enterkeyhint="next" placeholder="Jay"><div class="err" id="e1" role="alert"></div></div>
-<div class="field"><label class="lab" for="ln">Last name</label>
+<div class="field"><label class="lab" for="ln">Last name <span>Optional</span></label>
 <input class="in" id="ln" autocomplete="family-name" autocapitalize="words" enterkeyhint="next" placeholder="Mehta"><div class="err" id="e2" role="alert"></div></div>
 <div class="field"><label class="lab" for="dob">Date of birth <span>Optional</span></label>
 <input class="in" id="dob" type="date" max="2012-12-31" autocomplete="bday"><div class="help">You can add this later.</div></div>
@@ -269,13 +291,14 @@ pre{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding
 </section>
 
 <section class="scr nv" id="s5" aria-label="Profile">
-<div class="pav" id="pav"></div><div class="pn"><h2 class="t" id="pname"></h2></div>
+<div class="pav" id="pav"></div><div class="pn"><h2 class="t" id="pname"></h2><div class="note" id="punm" style="margin-top:2px"></div></div>
 <div class="dh"><b>Your details</b><button class="pen" id="pen" aria-label="Edit details"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button></div>
 <div id="pview"></div>
 <button class="qg" id="qg"><span class="qi">?</span>Quick start guide</button>
 <div id="pedit" hidden>
+<div class="field"><label class="lab" for="pun">Username</label><div class="unw"><span class="at">@</span><input class="in" id="pun" maxlength="20" autocapitalize="none" autocomplete="username" spellcheck="false" enterkeyhint="next" placeholder="jay_shows_up"></div><div class="uh" id="puh" aria-live="polite"></div></div>
 <div class="field"><label class="lab" for="pfn">First name</label><input class="in" id="pfn" autocomplete="given-name"><div class="err" id="pe1" role="alert"></div></div>
-<div class="field"><label class="lab" for="pln">Last name</label><input class="in" id="pln" autocomplete="family-name"><div class="err" id="pe2" role="alert"></div></div>
+<div class="field"><label class="lab" for="pln">Last name <span>Optional</span></label><input class="in" id="pln" autocomplete="family-name"><div class="err" id="pe2" role="alert"></div></div>
 <div class="field"><label class="lab" for="pdob">Date of birth <span>Optional</span></label><input class="in" id="pdob" type="date" max="2012-12-31"></div>
 <div class="field"><div class="lab">Your gym</div><button class="row" id="pgym"><span class="tx"><span class="n" id="pgn"></span><span class="a">Tap to choose a different gym</span></span><span class="dist">Change</span></button></div>
 <div class="field"><div class="lab">Weekly goal</div><div class="st2"><button id="gm" aria-label="Fewer days">−</button><span><b id="gv">3</b><span id="gu"> days a week</span></span><button id="gp" aria-label="More days">+</button></div></div>
@@ -295,14 +318,20 @@ pre{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding
 <div class="cd" id="cd8" aria-hidden="true"></div>
 <button class="btn p" id="cn8">Next</button>
 </section>
+<section class="scr nv" id="s9" aria-label="My squad">
+<div class="sqh"><div><h2 class="t" style="margin:0">My squad</h2><div class="note" id="sqc" style="margin-top:2px"></div></div><button class="inv" id="invb"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="8" r="3.5"/><path d="M3 20c.8-4.5 12.2-4.5 14 0M19 8v6M16 11h6"/></svg>Invite</button></div>
+<div class="sbox" style="margin-top:18px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8D93A0" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input class="in" id="sqq" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" placeholder="Search by username or name" aria-label="Search people on Showup"><button class="clr" id="sqclr" aria-label="Clear search">✕</button></div>
+<div id="sqbody" style="margin-top:16px"></div>
+</section>
+<div class="sheet" id="invs"><div class="sp" role="dialog" aria-label="Invite friends"><b>Invite friends to Showup</b><p>Share your link. When they join, they can find you by username and you can add them to your squad.</p><div class="lkb"><span id="invl"></span><button class="cp" id="invc">Copy</button></div><button class="btn p" id="invsh">Share invite</button><button class="btn s2" id="invwa">Send on WhatsApp</button><button class="btn g" id="invx">Close</button></div></div>
 <div class="sheet" id="srcs"><div class="sp" role="dialog" aria-label="Sources"><b>Backed by published research</b><p>The ideas behind these cards come from peer-reviewed work.</p><ul class="sl2" id="srcl"></ul><button class="btn p" id="srcc">Got it</button></div></div>
 <div class="sheet" id="skipsheet"><div class="sp" role="dialog" aria-label="Skip goal"><b>Skip setting a goal?</b><p>A weekly goal is optional, but it gives every visit a target and makes it easier to stay committed. You can set one anytime from Home.</p><button class="btn p" id="sk_set">Set a goal</button><button class="btn g" id="sk_go">Skip for now</button></div></div>
 <div class="pact" id="pact" hidden><button class="btn g" id="pcan">Cancel</button><button class="btn p lg" id="psave">Save changes</button></div>
-<nav class="nav" id="nav" aria-label="Main"><button id="nv6" data-go="6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>Pause</button><button id="nv4" data-go="4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/></svg>Home</button><button id="nv5" data-go="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 15-5 16 0"/></svg>Profile</button></nav>
+<nav class="nav" id="nav" aria-label="Main"><button id="nv6" data-go="6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>Pause</button><button id="nv4" data-go="4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/></svg>Home</button><button id="nv9" data-go="9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-4 11.2-4 12 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2c3-.3 5 1 5.5 4"/></svg>Squad<span class="bdg" id="bdg" hidden></span></button><button id="nv5" data-go="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 15-5 16 0"/></svg>Profile</button></nav>
 <div class="sheet" id="sheet"><div class="sp" role="dialog" aria-label="Confirm pause"><b>Use 1 pause pass?</b><p id="spt"></p><button class="btn p" id="sy">Use pass</button><button class="btn g" id="sn">Not now</button></div></div>
 <div class="toast" id="tt" role="status"></div>
 </div>
-<div class="sw" style="margin-bottom:6px" role="group" aria-label="Jump to screen"><button class="chip" data-jump="0">Landing</button><button class="chip" data-jump="1">Details</button><button class="chip" data-jump="2">Add gym</button><button class="chip" data-jump="3">Goal</button><button class="chip" data-jump="8">Quick start</button><button class="chip" data-jump="4">Home</button><button class="chip" data-jump="5">Profile</button><button class="chip" data-jump="6">Pause</button></div>
+<div class="sw" style="margin-bottom:6px" role="group" aria-label="Jump to screen"><button class="chip" data-jump="0">Landing</button><button class="chip" data-jump="1">Details</button><button class="chip" data-jump="2">Add gym</button><button class="chip" data-jump="3">Goal</button><button class="chip" data-jump="8">Quick start</button><button class="chip" data-jump="4">Home</button><button class="chip" data-jump="5">Profile</button><button class="chip" data-jump="6">Pause</button><button class="chip" data-jump="9">Squad</button><button class="chip" data-sq="0">Squad: empty</button><button class="chip" data-sq="1">Squad: with requests</button><button class="chip" data-sq="2">Squad: request accepted</button></div>
 <p class="note" style="text-align:center;margin:14px 0 0">Preview Home scenario</p><div class="sw" style="margin-top:8px" role="group" aria-label="Home scenarios"><button class="chip" data-sc="fresh">0 weeks: new</button><button class="chip" data-sc="miss">0 weeks: after a miss</button><button class="chip" data-sc="start">New week 0/3</button><button class="chip" data-sc="mid">2 of 3</button><button class="chip" data-sc="hit">Goal hit</button><button class="chip" data-sc="extra">Extra visits</button><button class="chip" data-sc="g5">Goal 5 days</button><button class="chip" data-sc="g7">Goal 7 days</button><button class="chip" data-sc="nogoal">No goal set</button><button class="chip" data-sc="pause">Paused</button></div>
 <p class="note" style="text-align:center;margin:14px 0 0">Add gym states</p><div class="sw" style="margin-top:8px" role="group" aria-label="Add gym states">
 <button class="chip" data-st="ok" aria-pressed="true">Results</button><button class="chip" data-st="load" aria-pressed="false">Loading</button><button class="chip" data-st="none" aria-pressed="false">No results</button><button class="chip" data-st="err" aria-pressed="false">Error</button>
@@ -390,13 +419,13 @@ var G=[["Ironworks Fitness","Linking Road, Bandra West"],["Crossfield Gym","Lokh
 var D=[1.2,4.8,9.5,12.1,6.3,22.4];var $=function(i){return document.getElementById(i)},st="ok",sel=-1,tm;
 $("goog").onclick=function(){google(8)};$("signin").onclick=function(){google(4)};
 function chk(id,eid,msg){var v=$(id).value.trim();$(id).classList.toggle("bad",!v);$(eid).textContent=v?"":msg;return !!v}
-function valid(){$("cont").disabled=!($("fn").value.trim()&&$("ln").value.trim())}
+function valid(){$("cont").disabled=!($("fn").value.trim()&&uOK)}
 $("fn").onblur=function(){chk("fn","e1","Enter your first name")};
-$("ln").onblur=function(){chk("ln","e2","Enter your last name")};
+
 ["fn","ln"].forEach(function(i){$(i).oninput=function(){valid();if($(i).value.trim()){$(i).classList.remove("bad");$(i=="fn"?"e1":"e2").textContent=""}}});
 $("fn").onkeydown=function(e){if(e.key=="Enter")$("ln").focus()};
-$("ln").onkeydown=function(e){if(e.key=="Enter")$("dob").focus()};
-$("cont").onclick=function(){if(chk("fn","e1","Enter your first name")&chk("ln","e2","Enter your last name")){S.fn=$("fn").value.trim();S.ln=$("ln").value.trim();S.dob=$("dob").value;go(2)}};
+$("ln").onkeydown=function(e){if(e.key=="Enter")$("dob").focus()};$("un").onkeydown=function(e){if(e.key=="Enter")$("fn").focus()};
+$("cont").onclick=function(){if(chk("fn","e1","Enter your first name")){S.fn=$("fn").value.trim();S.ln=$("ln").value.trim();S.dob=$("dob").value;S.un=$("un").value;go(2)}};
 function row(g,i){return '<button class="row'+(i==sel?' sel':'')+'" role="radio" aria-checked="'+(i==sel)+'" data-i="'+i+'"><span class="tx"><span class="n">'+g[0]+'</span><span class="a">'+g[1]+'</span></span>'+($("near").checked?'<span class="dist">'+D[i]+' km</span>':'')+'<span class="chk">✓</span></button>'}
 function render(){
  var q=$("q").value.trim().toLowerCase(),L=$("list"),h="";
@@ -421,7 +450,7 @@ var cur=0,tk,tt_,pgoal=3,mo=0,edit=false,left=false,ph="idle",el=0,sx=null;
 function ed(y,m,d){return Math.floor(Date.UTC(y,m,d)/864e5)}
 function mon(e){return e-((new Date(e*864e5).getUTCDay()+6)%7)}
 var TE=ed(2026,9,22),CM=mon(TE),pw=CM;
-var S={fn:"Jay",ln:"Mehta",dob:"1996-03-12",gym:"Ironworks Fitness",goal:3,wk:9,total:47,pass:3,pm:-1,tw:[CM,CM+1],miss:1/0,ret:null};
+var S={un:"jay_shows_up",fn:"Jay",ln:"Mehta",dob:"1996-03-12",gym:"Ironworks Fitness",goal:3,wk:9,total:47,pass:3,pm:-1,tw:[CM,CM+1],miss:1/0,ret:null};
 var SC={fresh:{goal:3,wk:0,total:0,tw:[],miss:-1/0,pm:-1},miss:{goal:3,wk:0,total:31,tw:[CM+1],miss:CM-14,pm:-1},start:{goal:3,wk:9,total:47,tw:[],miss:1/0,pm:-1},mid:{goal:3,wk:9,total:47,tw:[CM,CM+1],miss:1/0,pm:-1},hit:{goal:3,wk:10,total:48,tw:[CM,CM+1,TE],miss:1/0,pm:-1},extra:{goal:3,wk:10,total:48,tw:[CM,CM+1,CM+2],miss:1/0,pm:-1},g5:{goal:5,wk:4,total:47,tw:[CM,CM+1],miss:1/0,pm:-1},g7:{goal:7,wk:2,total:47,tw:[CM,CM+1,CM+2],miss:1/0,pm:-1},pause:{goal:3,wk:9,total:47,tw:[CM],miss:1/0,pm:CM},nogoal:{goal:0,wk:0,total:12,tw:[CM+1],miss:1/0,pm:-1}};
 var MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
 var GL=["","A gentle start","Light and steady","Steady","Committed","A strong week","Nearly every day","Every day"];
@@ -457,8 +486,8 @@ function mas(e,h){var d="#252D42",bl="#1549E9",bd="#092EA7",g="#A9B3C7",gs="#94A
  if(!h){if(e=="cheer")o+=pa(66,690,-35)+pa(634,690,35)+st;else if(e=="lift")o+='<path d="M170 770H530" stroke="'+d+'" stroke-width="18" stroke-linecap="round"/><rect x="120" y="712" width="42" height="116" rx="12" fill="'+bl+'"/><rect x="538" y="712" width="42" height="116" rx="12" fill="'+bl+'"/>'+pa(282,774,0)+pa(418,774,0)+st;else if(e=="wave")o+=pa(284,790,0)+pa(612,640,-25)+'<path d="M660 570Q688 596 676 628" stroke="#8FA6FF" stroke-width="9" fill="none" stroke-linecap="round"/>';else o+=pa(284,790,0)+pa(416,790,0);
  if(e=="sleep")o+='<text x="580" y="130" font-size="70" font-weight="700" fill="#8FA6FF" font-family="Lexend,sans-serif">z</text><text x="628" y="76" font-size="48" font-weight="700" fill="#8FA6FF" font-family="Lexend,sans-serif">z</text>';if(e=="focus")o+='<text x="610" y="130" font-size="84" fill="#8FA6FF">♪</text>'}
  return o+'</svg>'}
-function toast2(m,bad){var t=$("tt");t.textContent=m;t.className="toast on"+(bad?" bad":"");clearTimeout(tt_);tt_=setTimeout(function(){t.className="toast"},2600)}
-function go(n){if(n!=3)gctx="onb";if(cur==5&&n!=2)edit=false;cur=n;if(n!=5)$("pact").hidden=true;[0,1,2,3,4,5,6,8].forEach(function(i){$("s"+i).classList.toggle("on",i==n)});$("nav").classList.toggle("on",n>3&&n<7);[4,5,6].forEach(function(i){$("nv"+i).className=i==n?"a":""});if(n==2)render();if(n==3){gsel=S.goal||3;goalUI()}if(n==4)home();if(n==5)pv();if(n==6)pause();if(n==0)pitch();if(n==8)carInit(8);document.querySelector(".scr.on").scrollTop=0}
+function toast2(m,bad){var t=$("tt");t.textContent=m;t.className="toast on"+(bad?(bad=="w"?" warn":" bad"):"");clearTimeout(tt_);tt_=setTimeout(function(){t.className="toast"},2600)}
+function go(n){if(n!=3)gctx="onb";if(cur==5&&n!=2)edit=false;cur=n;if(n!=5)$("pact").hidden=true;[0,1,2,3,4,5,6,8,9].forEach(function(i){$("s"+i).classList.toggle("on",i==n)});$("nav").classList.toggle("on",(n>3&&n<7)||n==9);[4,5,6,9].forEach(function(i){$("nv"+i).className=i==n?"a":""});if(n==2)render();if(n==3){gsel=S.goal||3;goalUI()}if(n==4)home();if(n==5)pv();if(n==6)pause();if(n==9)squad();if(n==0)pitch();if(n==8)carInit(8);document.querySelector(".scr.on").scrollTop=0}
 document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){go(+b.dataset.go)}});
 document.querySelectorAll("[data-jump]").forEach(function(b){b.onclick=function(){go(+b.dataset.jump)}});
 document.querySelectorAll("[data-sc]").forEach(function(b){b.onclick=function(){var x=SC[b.dataset.sc];for(var p in x)S[p]=x[p];S.tw=x.tw.slice();clearInterval(tk);ph="idle";el=0;left=false;mo=0;go(4)}});
@@ -499,15 +528,15 @@ var W=$("cgw");W.addEventListener("pointerdown",function(e){sx=e.clientX});W.add
 $("sb").onclick=function(){left=false;ph="check";home();setTimeout(function(){ph="run";el=0;home();tk=setInterval(function(){el+=60;if(el>=900){clearInterval(tk);ph="done";S.tw.push(TE);S.total++;if(S.tw.length==S.goal&&S.pm!=CM)S.wk++;home();toast2("You showed up. Showup #"+S.total)}else home()},1000)},1200)};
 $("leave").onclick=function(){clearInterval(tk);ph="idle";el=0;left=true;home();toast2("You left before 15 minutes. Timer reset.",1)};
 function fmt(d){return d?new Date(d+"T00:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"Not added"}
-function pv(){$("pav").innerHTML=mas("smile",1);$("pname").textContent=S.fn+" "+S.ln;$("pgn").textContent=S.gym;
- $("pview").innerHTML=[["First name",S.fn],["Last name",S.ln],["Date of birth",fmt(S.dob)],["Gym",S.gym],["Weekly goal",(S.goal?S.goal+(S.goal==1?" day a week":" days a week"):"Not set")]].map(function(x){return '<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>'}).join("");
+function pv(){$("pav").innerHTML=mas("smile",1);$("pname").textContent=(S.fn+" "+S.ln).trim();$("punm").textContent="@"+S.un;$("pgn").textContent=S.gym;
+ $("pview").innerHTML=[["Username","@"+S.un],["First name",S.fn],["Last name",S.ln||"Not added"],["Date of birth",fmt(S.dob)],["Gym",S.gym],["Weekly goal",(S.goal?S.goal+(S.goal==1?" day a week":" days a week"):"Not set")]].map(function(x){return '<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>'}).join("");
  $("pview").hidden=edit;$("pedit").hidden=!edit;$("pact").hidden=!edit;$("pen").hidden=edit;$("qg").hidden=edit;$("s5").classList.toggle("ed",edit)}
-$("pen").onclick=function(){edit=true;$("pfn").value=S.fn;$("pln").value=S.ln;$("pdob").value=S.dob;pgoal=S.goal;gvu();$("pe1").textContent=$("pe2").textContent="";pv();$("pfn").focus()};
+$("pen").onclick=function(){edit=true;$("pun").value=S.un;puOK=true;$("puh").className="uh ok";$("puh").textContent="This is your username";$("pun").classList.remove("bad");$("pfn").value=S.fn;$("pln").value=S.ln;$("pdob").value=S.dob;pgoal=S.goal;gvu();$("pe1").textContent=$("pe2").textContent="";pv();$("pfn").focus()};
 $("pcan").onclick=function(){edit=false;pv()};
 function gvu(){$("gv").textContent=pgoal||"No goal";$("gu").hidden=!pgoal}
 $("gm").onclick=function(){pgoal=Math.max(0,pgoal-1);gvu()};$("gp").onclick=function(){pgoal=Math.min(7,pgoal+1);gvu()};
 $("pgym").onclick=function(){S.ret=5;go(2)};
-$("psave").onclick=function(){var a=$("pfn").value.trim(),b=$("pln").value.trim();$("pe1").textContent=a?"":"Enter your first name";$("pe2").textContent=b?"":"Enter your last name";$("pfn").classList.toggle("bad",!a);$("pln").classList.toggle("bad",!b);if(!a||!b)return;var p=$("psave");p.disabled=true;p.innerHTML='<span class="ld w"></span>Saving…';setTimeout(function(){S.fn=a;S.ln=b;S.dob=$("pdob").value;S.goal=pgoal;p.disabled=false;p.textContent="Save changes";edit=false;pv();toast2("Changes saved")},800)};
+$("psave").onclick=function(){var a=$("pfn").value.trim(),b=$("pln").value.trim();$("pe1").textContent=a?"":"Enter your first name";$("pe2").textContent="";$("pfn").classList.toggle("bad",!a);if(!a||!puOK){if(!puOK)$("pun").focus();return}var p=$("psave");p.disabled=true;p.innerHTML='<span class="ld w"></span>Saving…';setTimeout(function(){S.fn=a;S.ln=b;S.un=$("pun").value;S.dob=$("pdob").value;S.goal=pgoal;p.disabled=false;p.textContent="Save changes";edit=false;pv();toast2("Changes saved")},800)};
 function wl(e){var a=new Date(e*864e5),z=new Date((e+6)*864e5);return MS[a.getUTCMonth()]+" "+a.getUTCDate()+"–"+(z.getUTCMonth()!=a.getUTCMonth()?MS[z.getUTCMonth()]+" ":"")+z.getUTCDate()}
 function pause(){if(!S.goal){$("pp").innerHTML="";$("pbody").innerHTML='<div class="act"><b>Pause needs a weekly goal</b><p>A pause pass protects your weeks in a row. Set a goal first and it will be ready.</p></div><button class="btn p push" id="pg">Set a weekly goal</button>';$("pg").onclick=function(){gctx="home";go(3)};return}var p="";for(var i=0;i<3;i++)p+='<i'+(i<S.pass?' class="on"':'')+'></i>';$("pp").innerHTML=p+'<span>'+S.pass+' of 3 passes left this month</span>';var b=$("pbody");
  if(S.pm>-1){b.innerHTML='<div class="act"><b>Paused: '+wl(S.pm)+'</b><p>Your weeks in a row are safe. Showing up still counts if you feel like it.</p></div><button class="btn g" id="endp" style="margin-top:12px">End pause</button>';$("endp").onclick=function(){S.pm=-1;pause();toast2("Pause ended")};return}
@@ -569,6 +598,55 @@ $("qg").onclick=function(){qsFrom=5;go(8)};
 $("srcb").onclick=function(){var h="";sd("pitch").forEach(function(x){if(x.source)h+='<li><b>'+esc(x.label)+'</b>'+esc(x.source)+'</li>'});$("srcl").innerHTML=h;$("srcs").classList.add("on")};$("srcc").onclick=function(){$("srcs").classList.remove("on")};
 (function(){var b=$("bn");b.onerror=function(){b.onerror=null;b.src=BANNER};b.src=CMSROWS["landing.banner"]||BANNER})();
 $("k2").onclick=function(){if(!S.goal){gctx="home";go(3)}};$("k2").onkeydown=function(e){if((e.key=="Enter"||e.key==" ")&&!S.goal){e.preventDefault();gctx="home";go(3)}};
+var unT={},uOK=false,puOK=true,UH="Friends find you with this. 3–20 letters, numbers or underscores.";
+var TAKEN=["jay","jaynav","admin","showup","squad","support","rahul_k","priya_fit","gymbro_91","arjun_l","neha_runs","karan_m","ananya_zaveri","dev_lifts","sana_92","vikram_b","meera_s"];
+function unRule(v){return v.length<3?"Use at least 3 characters":!/^[a-z][a-z0-9_]*$/.test(v)?"Start with a letter, then use letters, numbers or underscores":""}
+function unCheck(i,h,own,cb){var el=$(i),hint=$(h),v=el.value=el.value.toLowerCase().replace(/[^a-z0-9_]/g,"");clearTimeout(unT[i]);el.classList.remove("bad");
+ if(!v){hint.className="uh";hint.textContent=i=="un"?UH:"";cb(false);return}
+ var r=unRule(v);if(r){hint.className="uh er";hint.textContent=r;el.classList.add("bad");cb(false);return}
+ if(v==own){hint.className="uh ok";hint.textContent="This is your username";cb(true);return}
+ hint.className="uh";hint.innerHTML='<span class="ld"></span>Checking @'+v+'…';cb(false);
+ unT[i]=setTimeout(function(){if(el.value!=v)return;if(TAKEN.indexOf(v)>-1){hint.className="uh er";hint.textContent="@"+v+" is taken. Try @"+v+"_22";el.classList.add("bad");cb(false)}else{hint.className="uh ok";hint.textContent="✓ @"+v+" is available";cb(true)}},500)}
+$("uh").textContent=UH;
+$("un").oninput=function(){unCheck("un","uh","",function(ok){uOK=ok;valid()})};
+$("pun").oninput=function(){unCheck("pun","puh",S.un,function(ok){puOK=ok})};
+var FR=[{u:"rahul_k",f:"Rahul",l:"Kapoor",t:128,w:12},{u:"priya_fit",f:"Priya",l:"Shah",t:64,w:5},{u:"gymbro_91",t:0,w:0},{u:"arjun_l",f:"Arjun",l:"Lal",t:23,w:0},{u:"neha_runs",f:"Neha",l:"Iyer",t:9,w:1}];
+var RQ=[{u:"karan_m",f:"Karan",l:"Mehta",t:31,w:3},{u:"sana_92",f:"Sana",l:"Qureshi",t:7,w:0}];
+var DIR=FR.concat(RQ,[{u:"ananya_zaveri",f:"Ananya",l:"Zaveri",t:15,w:2},{u:"dev_lifts"},{u:"vikram_b",f:"Vikram",l:"Bhatt",t:40,w:4},{u:"meera_s",f:"Meera"}]);
+var uu=function(x){return x.u},SQ=FR.map(uu),IN=RQ.map(uu),OUT=[],sqT,sqLoad=false,AV=null;
+function P(u){return DIR.filter(function(p){return p.u==u})[0]}
+function nm(p){return((p.f||"")+" "+(p.l||"")).trim()}
+function stats(p){var a="";if(p.t>0)a+='<span class="sp"><b>'+p.t+'</b> '+(p.t==1?"showup":"showups")+'</span>';if(p.w>0)a+='<span class="sp w"><b>'+p.w+'</b> '+(p.w==1?"week":"weeks")+' in a row</span>';return a?'<div class="sx">'+a+'</div>':""}
+function who(p,st){var n=nm(p);return '<span class="fa">'+(AV||(AV=mas("smile",1)))+'</span><div class="ft"><b>@'+esc(p.u)+'</b>'+(n?'<span>'+esc(n)+'</span>':'')+'</div>'+(st?stats(p):'')}
+function frow(p,act,st){return '<div class="fr">'+who(p,st)+(act||"")+'</div>'}
+function rq(p){return '<div class="rq"><div class="rt">'+who(p)+'</div><div class="rb"><button class="ab p" data-acc="'+p.u+'" aria-label="Accept @'+p.u+'">Accept</button><button class="ab" data-dec="'+p.u+'" aria-label="Reject @'+p.u+'">Reject</button></div></div>'}
+function without(a,u){return a.filter(function(x){return x!=u})}
+function bind(b){[].forEach.call(b.querySelectorAll("[data-req]"),function(x){x.onclick=function(){OUT.push(x.dataset.req);toast2("Request sent to @"+x.dataset.req);squad()}});
+ [].forEach.call(b.querySelectorAll("[data-acc]"),function(x){x.onclick=function(){var u=x.dataset.acc;IN=without(IN,u);SQ.push(u);toast2("@"+u+" joined your squad");squad()}});
+ [].forEach.call(b.querySelectorAll("[data-dec]"),function(x){x.onclick=function(){IN=without(IN,x.dataset.dec);toast2("Request rejected","w");squad()}});
+ [].forEach.call(b.querySelectorAll("[data-can]"),function(x){x.onclick=function(){OUT=without(OUT,x.dataset.can);toast2("Request cancelled","w");squad()}})}
+function squad(){var q=$("sqq").value.trim().toLowerCase().replace(/^@/,""),b=$("sqbody"),n=SQ.length,h="";$("sqc").textContent=n+(n==1?" friend":" friends");$("sqclr").style.display=q?"block":"none";$("bdg").textContent=IN.length;$("bdg").hidden=!IN.length;
+ if(!q){if(!n&&!IN.length&&!OUT.length){b.innerHTML='<div class="msg" style="padding-top:36px"><div style="width:96px;height:96px;margin:0 auto 12px">'+mas("wave")+'</div><b>Your squad is empty</b><p>Invite friends, or search for people who are already on Showup.</p><button class="btn" id="sqinv">Invite friends</button></div>';$("sqinv").onclick=openInv;return}
+  if(IN.length){h+='<div class="gl" style="margin:0 0 8px">Squad requests · '+IN.length+'</div><div class="fl" style="margin-bottom:22px">';IN.forEach(function(u){h+=rq(P(u))});h+='</div>'}
+  if(n){h+='<div class="gl" style="margin:0 0 8px">Your squad</div><div class="fl">';SQ.forEach(function(u){h+=frow(P(u),"",1)});h+='</div>'}else h+='<p class="note">No one in your squad yet. Accept a request or search for people.</p>';
+  if(OUT.length){h+='<div class="gl" style="margin:22px 0 8px">Sent requests</div><div class="fl">';OUT.forEach(function(u){h+=frow(P(u),'<button class="ab cn" data-can="'+u+'" aria-label="Cancel request to @'+u+'">Cancel</button>')});h+='</div>'}
+  b.innerHTML=h;bind(b);return}
+ if(sqLoad){b.innerHTML='<div class="ldw"><span class="ld"></span>Finding people…</div>';return}
+ var r=DIR.filter(function(p){return p.u!=S.un&&(p.u.indexOf(q)>-1||nm(p).toLowerCase().indexOf(q)>-1)});
+ if(!r.length){b.innerHTML='<div class="msg" style="padding-top:28px"><b>No one found for “'+esc(q)+'”</b><p>Check the username, or invite them to join Showup.</p><button class="btn" id="sqinv">Invite friends</button></div>';$("sqinv").onclick=openInv;return}
+ h='<div class="gl" style="margin:0 0 8px">People on Showup</div><div class="fl">';r.forEach(function(p){h+=frow(p,SQ.indexOf(p.u)>-1?'<span class="ab fin">In squad</span>':IN.indexOf(p.u)>-1?'<button class="ab p" data-acc="'+p.u+'">Accept</button>':OUT.indexOf(p.u)>-1?'<span class="ab fin">Requested</span>':'<button class="ab" data-req="'+p.u+'" aria-label="Send squad request to @'+p.u+'">Request</button>')});b.innerHTML=h+'</div>';bind(b)}
+$("sqq").oninput=function(){clearTimeout(sqT);if(!this.value.trim()){sqLoad=false;squad();return}sqLoad=true;squad();sqT=setTimeout(function(){sqLoad=false;squad()},450)};
+$("sqclr").onclick=function(){$("sqq").value="";sqLoad=false;squad();$("sqq").focus()};
+document.querySelectorAll("[data-sq]").forEach(function(b){b.onclick=function(){var k=b.dataset.sq;if(k=="0"){SQ=[];IN=[];OUT=[]}else if(k=="1"){SQ=FR.map(uu);IN=RQ.map(uu);OUT=[]}$("sqq").value="";go(9);if(k=="2"){if(OUT.length){var u=OUT.shift();SQ.push(u);squad();toast2("@"+u+" accepted your request")}else toast2("Send a request first, then preview acceptance")}}});
+function invMsg(){return "Join me on Showup. Show up for yourself and keep each other going: https://"+$("invl").textContent}
+function openInv(){$("invl").textContent="showup.app/join/"+S.un;$("invc").textContent="Copy";$("invs").classList.add("on")}
+$("invb").onclick=openInv;$("invx").onclick=function(){$("invs").classList.remove("on")};
+function cp(t,ok){try{navigator.clipboard.writeText(t).then(ok,function(){toast2("Copy the link from the box")})}catch(e){toast2("Copy the link from the box")}}
+$("invc").onclick=function(){cp("https://"+$("invl").textContent,function(){$("invc").textContent="Copied";toast2("Invite link copied")})};
+$("invsh").onclick=function(){var t=invMsg();if(navigator.share){navigator.share({title:"Showup",text:"Join me on Showup. Show up for yourself and keep each other going.",url:"https://"+$("invl").textContent}).catch(function(){})}else cp(t,function(){toast2("Invite message copied")})};
+$("invwa").onclick=function(){window.open("https://wa.me/?text="+encodeURIComponent(invMsg()),"_blank","noopener")};
+
+squad();
 pitch();
 </script>
 </body>

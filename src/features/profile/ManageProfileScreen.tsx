@@ -140,9 +140,17 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
       <Stack spacing={6}>
         <Stack sx={{ alignItems: 'center', textAlign: 'center' }} spacing={3}>
           <ProfileAvatar initials={getInitials(profile)} />
-          <Typography variant="h1" component="h1" title={fullName} sx={{ m: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
-            <ShortText text={fullName} />
-          </Typography>
+          <Box sx={{ maxWidth: '100%' }}>
+            <Typography variant="h1" component="h1" title={fullName} sx={{ m: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
+              <ShortText text={fullName} />
+            </Typography>
+            {/* The design's #punm: "@username", muted, under the name. Nothing at all for someone with no username. */}
+            {profile.username && (
+              <Box component="p" data-testid="profile-username" sx={{ m: 0, mt: '2px', fontSize: 14, color: c.muted, overflowWrap: 'anywhere' }}>
+                @{profile.username}
+              </Box>
+            )}
+          </Box>
         </Stack>
 
         <Box>
@@ -187,6 +195,7 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
             <Box sx={{ mt: 3 }}>
               <ProfileEditForm
                 initialValues={profileToFormValues(profile)}
+                username={profile.username}
                 onSave={saveProfileAndGoal}
                 onSaved={() => setIsEditing(false)}
                 onCancel={() => setIsEditing(false)}
@@ -267,8 +276,10 @@ export function ManageProfileScreen(props: ManageProfileScreenProps) {
             </Box>
           ) : (
             <Box>
+              {/* The design's order: Username first. */}
+              <DetailRow label="Username" value={profile.username ? `@${profile.username}` : 'Not set'} />
               <DetailRow label="First name" value={profile.firstName ?? ''} />
-              <DetailRow label="Last name" value={(profile.lastName ?? '').trim() || 'Not set'} />
+              <DetailRow label="Last name" value={(profile.lastName ?? '').trim() || 'Not added'} />
               <DetailRow label="Date of birth" value={formatBirthDate(profile.dateOfBirth) ?? 'Not set'} />
               <DetailRow
                 label="Weekly goal"

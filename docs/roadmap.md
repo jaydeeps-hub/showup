@@ -66,6 +66,15 @@ Design changes in `docs/design/showup-prototype.html` that Phase 10 has to build
 | `logo_white` on the landing page, Quick Start, Pause, Profile and the error screen (design change 4) | **Done** (not tried in a browser or on a phone) | `BrandMarkImage` and `logoFrom`: the logo from `mascot_images`, 28 x 28, falling back to the blue dot or the tick square. Not verified in a real browser |
 | `logo_white` on Home's own header (design change 4); "This week" progress bar above the calendar hidden without a goal (design change 3) | Not done | The week block under the cards is already empty without a goal, but the calendar's legend entry "Week goal hit" is still shown; check what the design means by "above the calendar" before calling this done |
 
+## Phase 11 progress (usernames, the first social step)
+
+| Step | Status | Notes |
+|---|---|---|
+| 11a Database: usernames | Done (applied manually, per the owner; live result unverified) | `docs/backend/phase11a_username.sql`, logged as items 38 to 43. `profiles.username` and `username_changed_at`, `reserved_usernames` (70 names), the guard trigger, `is_username_available` and `set_username`, `config.username_change_cooldown_days` (0). Nobody's username is set. The schema snapshot is not regenerated yet |
+| 11d Profile username | **Done** (UI only; not tried in a browser or on a phone) | "@username" under the name (nothing without one); Username first in the details list ("Not set" when empty) and "Not added" for an empty last name; the shared `UsernameField` first in the edit view (their name accepted, "This is your username"); Save blocked (cursor to the username) while it is not ok or still checking, except an empty field for someone with none; a changed username saved FIRST with `set_username` (a refusal, the cooldown included, shows under the field and saves nothing else), an unchanged one never sent; the header and list update from the saved row. Onboarding now uses the same `UsernameField` |
+| 11c Details screen with username | **Done** (UI only; not tried in a browser or on a phone) | Username first on "What should we call you?": the "@" field, the live hint from `useUsernameCheck` (muted, green, red), Enter to First name, Continue only with a first name and an ok username, `set_username` saved FIRST (a refusal shows under the field and saves nothing else; "taken" re-checks for a suggestion), then the existing names save. A saved username is filled in and accepted when resuming. Step routing unchanged. Profile, gym and goal screens untouched |
+| 11b Username data layer | **Done** (no visual change) | `checkUsername` / `saveUsername` (`usernameService.ts`), `cleanUsernameInput` and the instant rule (`utils/username.ts`), `useUsernameCheck` (500 ms pause, stale answers ignored), the save error texts, and `username` / `usernameChangedAt` read with the profile. No screen uses any of it yet. **Needs the 11a SQL applied before deploying**, or the profile will not load |
+
 ## Phase 9 progress
 | Step | Status | Notes |
 |---|---|---|

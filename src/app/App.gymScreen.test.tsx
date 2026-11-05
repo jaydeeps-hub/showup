@@ -29,6 +29,8 @@ const profile: Profile = {
   isAdmin: false,
   placeSearchMode: 'fitness_only',
   quickstartCompletedAt: '2026-10-19T10:00:00Z',
+  username: null,
+  usernameChangedAt: null,
   createdAt: '2026-10-19T10:00:00Z',
   updatedAt: '2026-10-19T10:00:00Z',
 }

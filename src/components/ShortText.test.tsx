@@ -138,9 +138,11 @@ describe('the Profile screen: first and last name', () => {
     expect(onSave).not.toHaveBeenCalled()
   })
 
-  it('a person with no last name: the read view says "Not set" like the birthday, and the heading and avatar use the first name only', () => {
+  it('a person with no last name: the read view says "Not added" in the Last name row, and the heading and avatar use the first name only', () => {
     renderProfile(profile({ lastName: null }))
-    expect(screen.getByText('Not set', { selector: 'b span' })).toBeTruthy()
+    // Read the Last name row itself: "Not set" also appears elsewhere now (the Username row of someone with none).
+    const lastNameRow = screen.getByText('Last name', { selector: 'span' }).parentElement as HTMLElement
+    expect(lastNameRow.querySelector('b')?.textContent).toBe('Not added')
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Asha')
     expect(screen.getByText('A', { selector: 'span, div' })).toBeTruthy() // one initial, not "A" plus an empty one
   })

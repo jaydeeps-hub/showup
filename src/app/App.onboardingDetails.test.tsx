@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeProvider } from '@mui/material/styles'
 import type { Session } from '@supabase/supabase-js'
@@ -25,6 +25,9 @@ vi.mock('../services/authService', () => ({
 }))
 
 const db = vi.hoisted(() => ({ fetchProfile: vi.fn(), updateProfile: vi.fn() }))
+// The username RPCs (the real hook and form use them; only the database calls are faked).
+const usernames = vi.hoisted(() => ({ checkUsername: vi.fn(), saveUsername: vi.fn() }))
+vi.mock('../services/usernameService', () => usernames)
 vi.mock('../services/profileService', () => ({
   fetchProfile: db.fetchProfile,
   updateProfile: db.updateProfile,
@@ -56,6 +59,10 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     isAdmin: false,
     placeSearchMode: 'fitness_only',
     quickstartCompletedAt: '2026-10-17T10:00:00Z',
+    // Most tests here are about the names, so the person already has a username: it is filled in and accepted, and
+    // Continue depends only on the names. The username tests below start from “no username” instead.
+    username: 'asha_rao',
+    usernameChangedAt: null,
     createdAt: '2026-10-17T10:00:00Z',
     updatedAt: '2026-10-17T10:00:00Z',
     ...overrides,
@@ -65,6 +72,17 @@ function profile(overrides: Partial<Profile> = {}): Profile {
 function useFakeDatabase(initial: Profile) {
   let stored = initial
   db.fetchProfile.mockImplementation(async () => ({ status: 'found', profile: stored }))
+  // A free name unless the test says otherwise; the person's own name is "own", as the database reports it.
+  usernames.checkUsername.mockImplementation(async (value: string) => ({
+    status: 'ok',
+    check: { username: value, available: true, reason: value === stored.username ? 'own' : null, suggestion: null },
+  }))
+  // set_username writes the row, so the profile the next save returns (and any reload) carries the name.
+  usernames.saveUsername.mockImplementation(async (value: string) => {
+    const changed = stored.username !== value
+    stored = { ...stored, username: value }
+    return { status: 'saved', username: value, changed }
+  })
   db.updateProfile.mockImplementation(async (_id: string, edits: ProfileEdits) => {
     stored = { ...stored, ...edits }
     return { status: 'saved', profile: stored }
@@ -80,6 +98,8 @@ function renderApp() {
 }
 
 const title = () => screen.findByRole('heading', { name: 'What should we call you?' })
+const usernameBox = () => screen.getByLabelText('Username') as HTMLInputElement
+const usernameHint = () => document.getElementById('onboarding-username-hint') as HTMLElement
 const first = () => screen.getByLabelText('First name') as HTMLInputElement
 const last = () => screen.getByLabelText(/^last name/i) as HTMLInputElement // the label also holds the "Optional" tag
 const birthday = () => screen.getByLabelText(/date of birth/i) as HTMLInputElement
@@ -125,6 +145,279 @@ describe('the top row and the words', () => {
     expect(auth.signOut).not.toHaveBeenCalled()
   })
 })
+
+describe('the username field (Phase 11c)', () => {
+  /** A person with no username yet: what a brand-new person sees. */
+  const noUsername = () => profile({ username: null })
+  /** The colour MUI drew for an element, without spaces. */
+  const colourOf = (element: Element) => getComputedStyle(element).color.replace(/\s/g, '')
+  const MUTED = 'rgb(141,147,160)' // tokens.color.textSecondary (#8D93A0), the design's --mu
+  const GREEN = 'rgb(61,190,139)' // tokens.color.success (#3DBE8B), the design's --ok
+  const RED = 'rgb(240,112,122)' // tokens.color.error (#F0707A), the design's --er
+  const typeUsername = async (user: ReturnType<typeof userEvent.setup>, value: string) => {
+    await user.click(usernameBox())
+    await user.keyboard(value)
+  }
+
+  it('comes first: Username, then First name, Last name and Date of birth, in that order', async () => {
+    useFakeDatabase(noUsername())
+    renderApp()
+    await title()
+    const order = [usernameBox(), first(), last(), birthday()]
+    for (let i = 1; i < order.length; i += 1) {
+      expect(Boolean(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+    }
+  })
+
+  it('has the label "Username", an "@" inside the field, and the design’s input settings', async () => {
+    useFakeDatabase(noUsername())
+    renderApp()
+    await title()
+    const box = usernameBox()
+    expect(document.querySelector('label[for="onboarding-username"]')?.textContent).toBe('Username')
+    expect(box.placeholder).toBe('jay_shows_up')
+    expect(box.maxLength).toBe(20)
+    expect(box.getAttribute('autocapitalize')).toBe('none')
+    expect(box.getAttribute('autocomplete')).toBe('username')
+    expect(box.getAttribute('spellcheck')).toBe('false')
+    expect(box.getAttribute('enterkeyhint')).toBe('next')
+    // The "@" sits in the same wrapper as the field, before it, and screen readers skip it.
+    const at = box.parentElement!.firstElementChild as HTMLElement
+    expect(at.textContent).toBe('@')
+    expect(at.getAttribute('aria-hidden')).toBe('true')
+    expect(getComputedStyle(at).position).toBe('absolute')
+    expect(getComputedStyle(box).paddingLeft).toBe('34px') // the text starts after the "@"
+  })
+
+  it('a new person sees the default hint in the muted colour, and Continue is off', async () => {
+    useFakeDatabase(noUsername())
+    renderApp()
+    await title()
+    expect(usernameBox().value).toBe('')
+    expect(usernameHint().textContent).toBe('Friends find you with this. 3–20 letters, numbers or underscores.')
+    expect(colourOf(usernameHint())).toBe(MUTED)
+    expect(usernameHint().getAttribute('aria-live')).toBe('polite')
+    expect(usernameBox().getAttribute('aria-describedby')).toBe('onboarding-username-hint')
+    expect(continueButton().disabled).toBe(true)
+  })
+
+  it('cleans what is typed on every keystroke: lowercase, only a-z, 0-9 and _', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'Jay Mehta!')
+    expect(usernameBox().value).toBe('jaymehta')
+  })
+
+  it('a rule that fails shows at once in red, with a red border, and asks the database nothing', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'ab')
+    expect(usernameHint().textContent).toBe('Use at least 3 characters')
+    expect(colourOf(usernameHint())).toBe(RED)
+    expect(usernameBox().getAttribute('aria-invalid')).toBe('true')
+    // Checked with the cursor ELSEWHERE: the focus style also turns the border red, so checking while focused would
+    // pass even if a field the person has left showed no red border.
+    first().focus()
+    expect(document.activeElement).not.toBe(usernameBox())
+    expect(getComputedStyle(usernameBox()).borderColor.replace(/\s/g, '')).toBe(RED)
+    await user.clear(usernameBox())
+    await typeUsername(user, '1abc')
+    expect(usernameHint().textContent).toBe('Start with a letter, then use letters, numbers or underscores')
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(usernames.checkUsername).not.toHaveBeenCalled()
+  })
+
+  it('shows "Checking @v…", then a free name in green with the ✓, and Continue turns on once the first name is in', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    expect(usernameHint().textContent).toBe('Checking @asha_rao…')
+    expect(await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })).toBeTruthy()
+    expect(colourOf(usernameHint())).toBe(GREEN)
+    expect(usernameBox().getAttribute('aria-invalid')).toBe('false')
+    expect(continueButton().disabled).toBe(true) // the first name is still empty
+    await user.type(first(), 'Asha')
+    expect(continueButton().disabled).toBe(false)
+  })
+
+  it('Continue stays off with a first name while the username is still being checked, or is taken', async () => {
+    useFakeDatabase(noUsername())
+    usernames.checkUsername.mockResolvedValue({ status: 'ok', check: { username: 'jay', available: false, reason: 'taken', suggestion: 'jay_22' } })
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha')
+    expect(continueButton().disabled).toBe(true) // no username
+    await typeUsername(user, 'jay')
+    expect(continueButton().disabled).toBe(true) // still checking
+    expect(await screen.findByText('@jay is taken. Try @jay_22', {}, { timeout: 3000 })).toBeTruthy()
+    expect(colourOf(usernameHint())).toBe(RED)
+    expect(continueButton().disabled).toBe(true) // taken
+  })
+
+  it('a failed check says "Couldn’t check right now" and keeps Continue off', async () => {
+    useFakeDatabase(noUsername())
+    usernames.checkUsername.mockResolvedValue({ status: 'error' })
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await user.type(first(), 'Asha')
+    await typeUsername(user, 'asha_rao')
+    expect(await screen.findByText('Couldn’t check right now', {}, { timeout: 3000 })).toBeTruthy()
+    expect(continueButton().disabled).toBe(true)
+  })
+
+  it('Enter in Username moves to First name and does not submit', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao{Enter}')
+    expect(document.activeElement).toBe(first())
+    expect(usernames.saveUsername).not.toHaveBeenCalled()
+    expect(db.updateProfile).not.toHaveBeenCalled()
+  })
+
+  it('Continue saves the username FIRST, then the names and birthday, then moves on to step 2', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha')
+    await user.click(continueButton())
+    expect(usernames.saveUsername).toHaveBeenCalledWith('asha_rao')
+    expect(db.updateProfile).toHaveBeenCalledWith('user-1', { firstName: 'Asha', lastName: null, dateOfBirth: null })
+    expect(usernames.saveUsername.mock.invocationCallOrder[0]).toBeLessThan(db.updateProfile.mock.invocationCallOrder[0])
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' }, { timeout: 4000 })).toBeTruthy()
+  })
+
+  it('a username refused as taken: the message under the field, the suggestion when the fresh check has one, nothing else saved, and the screen stays', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha')
+
+    // Someone took it between the check and the press.
+    usernames.saveUsername.mockResolvedValue({ status: 'error', message: '@asha_rao is taken', taken: true })
+    usernames.checkUsername.mockResolvedValue({ status: 'ok', check: { username: 'asha_rao', available: false, reason: 'taken', suggestion: 'asha_rao_22' } })
+    await user.click(continueButton())
+
+    expect(await screen.findByText('@asha_rao is taken. Try @asha_rao_22', {}, { timeout: 3000 })).toBeTruthy()
+    expect(colourOf(usernameHint())).toBe(RED)
+    expect(db.updateProfile).not.toHaveBeenCalled() // nothing else saved
+    expect(await title()).toBeTruthy() // still on this screen
+    expect(continueButton().disabled).toBe(true)
+    expect(first().value).toBe('Asha') // what was typed is kept
+  })
+
+  it('a username refused for the cooldown: its message under the field, and nothing else saved', async () => {
+    useFakeDatabase(noUsername())
+    usernames.saveUsername.mockResolvedValue({ status: 'error', message: 'You can change your username again in 12 day(s).', taken: false })
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha')
+    await user.click(continueButton())
+    expect(await screen.findByText('You can change your username again in 12 day(s).')).toBeTruthy()
+    expect(colourOf(usernameHint())).toBe(RED)
+    expect(db.updateProfile).not.toHaveBeenCalled()
+    expect(usernames.checkUsername).toHaveBeenCalledTimes(1) // not taken, so no new check is asked for
+  })
+
+  it('editing the username after a refusal clears it and checks the new name', async () => {
+    useFakeDatabase(noUsername())
+    usernames.saveUsername.mockResolvedValueOnce({ status: 'error', message: 'Something went wrong. Try again.', taken: false })
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha')
+    await user.click(continueButton())
+    expect(await screen.findByText('Something went wrong. Try again.')).toBeTruthy()
+
+    await typeUsername(user, '1')
+    expect(screen.queryByText('Something went wrong. Try again.')).toBeNull()
+    expect(await screen.findByText('✓ @asha_rao1 is available', {}, { timeout: 3000 })).toBeTruthy()
+  })
+
+  it('shows the shared loader and "Saving…" on the button while saving, and refuses a second press', async () => {
+    useFakeDatabase(noUsername())
+    let finish!: (value: unknown) => void
+    usernames.saveUsername.mockImplementation(() => new Promise((resolve) => (finish = resolve)))
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha')
+    await user.click(continueButton())
+
+    const button = screen.getByRole('button', { name: /saving/i }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(button.getAttribute('aria-busy')).toBe('true')
+    expect(button.querySelector('[aria-hidden="true"] svg, svg')).toBeTruthy() // the loader
+    expect(usernameBox().disabled).toBe(true)
+    fireEvent.click(button) // a disabled button cannot be pressed with the pointer; even a forced click does nothing
+    fireEvent.submit(button.closest('form')!) // and a second submit while saving is ignored
+    expect(usernames.saveUsername).toHaveBeenCalledTimes(1)
+
+    await act(async () => finish({ status: 'saved', username: 'asha_rao', changed: true }))
+    expect(await screen.findByRole('heading', { name: 'Where do you work out?' }, { timeout: 4000 })).toBeTruthy()
+  })
+
+  it('a mistake in the names is shown before anything is saved, the username included', async () => {
+    useFakeDatabase(noUsername())
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, 'asha_rao')
+    await screen.findByText('✓ @asha_rao is available', {}, { timeout: 3000 })
+    await user.type(first(), 'Asha1')
+    await user.click(continueButton())
+    expect((await screen.findAllByRole('alert')).some((node) => node.textContent === 'Special characters are not allowed.')).toBe(true)
+    expect(usernames.saveUsername).not.toHaveBeenCalled()
+    expect(db.updateProfile).not.toHaveBeenCalled()
+  })
+
+  it('a person resuming with a username: it is filled in, says "This is your username" in green, and asks nothing', async () => {
+    useFakeDatabase(profile({ username: 'asha_rao', firstName: null }))
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    expect(usernameBox().value).toBe('asha_rao')
+    expect(usernameHint().textContent).toBe('This is your username')
+    expect(colourOf(usernameHint())).toBe(GREEN)
+    await user.type(first(), 'Asha')
+    expect(continueButton().disabled).toBe(false) // no retyping needed
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(usernames.checkUsername).not.toHaveBeenCalled()
+  })
+
+  it('a person resuming with a username can still change it: a different name is checked as usual', async () => {
+    useFakeDatabase(profile({ username: 'asha_rao' }))
+    const user = userEvent.setup()
+    renderApp()
+    await title()
+    await typeUsername(user, '2') // asha_rao2
+    expect(usernameHint().textContent).toBe('Checking @asha_rao2…')
+    expect(await screen.findByText('✓ @asha_rao2 is available', {}, { timeout: 3000 })).toBeTruthy()
+  })
+})
+
 
 describe('the fields', () => {
   it('first name: given-name, words capitalised, Next on the keyboard', async () => {

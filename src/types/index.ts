@@ -68,8 +68,28 @@ export interface Profile {
    * as done in advance: an empty value means "show the Quick Start".
    */
   quickstartCompletedAt: string | null
+  /**
+   * The person's public handle (3 to 20 lowercase letters, digits and underscores, starting with a letter), or null.
+   * Null is a NORMAL state: everyone who joined before Phase 11 has none until they pick one. The app never writes
+   * this column; it changes only through the database function `set_username`.
+   */
+  username: string | null
+  /** When the person last changed their username through `set_username`, as an ISO timestamp, or null. */
+  usernameChangedAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * What `is_username_available` says about a name. `username` is the database's cleaned version (trimmed, lowercase).
+ * `reason` is null when the name is free, `own` when it is the person's current username (also "available"), or why
+ * it cannot be used. `suggestion` is a free alternative, only when the name is taken.
+ */
+export interface UsernameCheck {
+  username: string
+  available: boolean
+  reason: 'own' | 'empty' | 'too_short' | 'too_long' | 'invalid_format' | 'taken' | null
+  suggestion: string | null
 }
 
 /**

@@ -4,7 +4,10 @@ import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { UsernameField } from '../../components/UsernameField'
 import { NAME_BACKSTOP_FACTOR, PROFILE_NAME_MAX_LENGTH } from '../../config/constants'
+import { useUsernameCheck } from '../../hooks/useUsernameCheck'
+import { saveUsername } from '../../services/usernameService'
 import type { ProfileEdits, SaveResult } from '../../types'
 import {
   latestBirthDate,
@@ -14,6 +17,7 @@ import {
   type ProfileFormErrors,
   type ProfileFormValues,
 } from '../../utils/profileValidation'
+import { usernameCannotBeRemovedMessage, usernameSaveStep } from '../../utils/username'
 import { ProfileActionBar } from './ProfileActionBar'
 
 interface FieldProps {
@@ -53,6 +57,8 @@ function Field({ id, label, hint, error, children }: FieldProps) {
 
 interface ProfileEditFormProps {
   initialValues: ProfileFormValues
+  /** The person's current username, or null (everyone from before Phase 11 has none). */
+  username: string | null
   /** Saves the edits. Resolves to `{ ok: false, message }` when saving failed. */
   onSave: (edits: ProfileEdits) => Promise<SaveResult>
   /** Called after a successful save. */
@@ -64,14 +70,20 @@ interface ProfileEditFormProps {
 }
 
 /**
- * The Profile page's edit view: first name, last name and date of birth, then whatever the screen
+ * The Profile page's edit view: username, first name, last name and date of birth, then whatever the screen
  * passes in, then the Cancel / Save bar pinned above the tab bar.
  *
  * Everything the user types lives in this component's own state, and a failed save never clears it,
  * so they can press Save changes again to retry. Names are checked when Save is pressed.
  */
-export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, children }: ProfileEditFormProps) {
+export function ProfileEditForm({ initialValues, username: ownUsername, onSave, onSaved, onCancel, children }: ProfileEditFormProps) {
   const [values, setValues] = useState<ProfileFormValues>(initialValues)
+  // Starts with their current username (accepted at once, "This is your username"), or empty with the default hint.
+  const [username, setUsername] = useState(ownUsername ?? '')
+  // What set_username said on Save, shown in place of the live hint until the username is edited.
+  const [usernameSaveError, setUsernameSaveError] = useState<string | null>(null)
+  const usernameCheck = useUsernameCheck(username, ownUsername)
+  const usernameInput = useRef<HTMLInputElement>(null)
   const [errors, setErrors] = useState<ProfileFormErrors>({})
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -94,6 +106,12 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
     setErrors((current) => ({ ...current, [field]: isName ? nameCharactersError(next) ?? undefined : undefined }))
   }
 
+  function setUsernameField(cleaned: string) {
+    setUsername(cleaned)
+    setUsernameSaveError(null) // an edit replaces the old refusal with the live check
+    setSaveError(null)
+  }
+
   /** On leaving a name field: flag a character that is not allowed. (An empty first name is flagged on Save.) */
   function checkName(field: 'firstName' | 'lastName') {
     const message = nameCharactersError(values[field])
@@ -111,7 +129,34 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
       return
     }
 
+    // A username that cannot be used (or is still being checked) stops the save, with the cursor in its field. An
+    // empty field is fine for someone who never had a username, so they can still save their other changes.
+    const step = usernameSaveStep(username, ownUsername, usernameCheck.status)
+    if (step === 'blocked') {
+      // An emptied field is the one block with no red hint of its own (empty shows the grey default), so say why.
+      // The other blocks already say why under the field (a rule, taken, could not check, "Checking…").
+      if (username === '' && ownUsername) setUsernameSaveError(usernameCannotBeRemovedMessage(ownUsername))
+      usernameInput.current?.focus()
+      return
+    }
+
     setIsSaving(true)
+    // A changed username goes FIRST. If the database refuses it, say why under the field and save nothing else.
+    // An unchanged one is not sent at all.
+    if (step === 'changed') {
+      const usernameResult = await saveUsername(username)
+      if (usernameResult.status === 'error') {
+        setIsSaving(false)
+        setUsernameSaveError(usernameResult.message)
+        // Someone took it in the meantime: ask again, so the hint can offer a free alternative ("Try @...").
+        if (usernameResult.taken) usernameCheck.recheck()
+        usernameInput.current?.focus()
+        return
+      }
+    }
+
+    // The rest. Its reply is the saved row, read again with the username, so the header and the details list show
+    // the new username straight away.
     const result = await onSave(validation.edits)
     setIsSaving(false)
 
@@ -120,9 +165,26 @@ export function ProfileEditForm({ initialValues, onSave, onSaved, onCancel, chil
   }
 
   const describedBy = (field: keyof ProfileFormValues, id: string) => (errors[field] ? `${id}-error` : undefined)
+  // After a refused save, the refusal is shown until the person edits the username. A "taken" refusal makes way for
+  // the fresh check's answer as soon as it is back, because that one can offer an alternative.
+  const usernameHint =
+    usernameSaveError !== null && usernameCheck.status !== 'error'
+      ? { status: 'error' as const, text: usernameSaveError }
+      : { status: usernameCheck.status, text: usernameCheck.hint }
 
   return (
     <Stack component="form" onSubmit={(event) => void handleSubmit(event)} noValidate spacing={5}>
+      <UsernameField
+        id="profile-username"
+        value={username}
+        onChange={setUsernameField}
+        status={usernameHint.status}
+        hint={usernameHint.text}
+        disabled={isSaving}
+        onEnter={() => firstNameInput.current?.focus()}
+        inputRef={usernameInput}
+      />
+
       <Field id="profile-first-name" label="First name" error={errors.firstName}>
         <TextField
           id="profile-first-name"

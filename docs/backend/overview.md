@@ -17,6 +17,11 @@ The snapshot was refreshed on 2026-10-26 and now also contains the Phase 6 table
 | `place_search_mode` text, default `fitness_only` | `fitness_only` or `any_place`; changed only through `set_place_search_mode` |
 | `quickstart_completed_at` timestamptz, null | When the person finished the Quick Start; **null until they do**. Nobody is marked as done in advance. Set once by `complete_quickstart()` (never overwritten). Read with the rest of the profile (table-level `select` grant, so no extra grant is needed). **Applied manually** (Phase 9a) |
 | `timezone` text, default `Asia/Kolkata` | The user's timezone. Drives `local_today`, `showups.local_date` and every week boundary. Set by `set_my_timezone`. **Applied manually** |
+| `username` text, null | The person's public handle. **Null for everyone who existed before Phase 11a** (the SQL sets nobody's), and null is a normal state. Check `profiles_username_format`: `^[a-z][a-z0-9_]{2,19}$` (3 to 20 characters, lowercase letters, digits and underscores, starting with a letter). Unique index `profiles_username_key` (many nulls are allowed; two people can never share a name; since only lowercase is allowed, it is case-insensitive). **The app never writes it**: the trigger `profiles_guard_username` refuses any change from `anon` or `authenticated`, so it changes only through `set_username()`. Read with the rest of the profile. **Applied manually** (Phase 11a) |
+| `username_changed_at` timestamptz, null | When the person last changed their username through `set_username()`. Empty for a name set by hand in the SQL editor. Used for the cooldown between changes. Guarded the same way. **Applied manually** (Phase 11a) |
+
+### `reserved_usernames` (names nobody can pick, Phase 11a) — applied manually
+`name` text, primary key, with a check that it is already lowercase and trimmed and at least 3 characters; `note` text. Seeded with 70 names (`admin`, `support`, `showup`, `squad`, `profile`, `settings`, `login`, `api`, `null`, `gym` and so on, each with the note "seeded in Phase 11a"); add rows any time. RLS is on and `anon` and `authenticated` have **no** rights on it at all, so the app cannot read the list: `set_username()` and `is_username_available()` consult it and report a reserved name exactly like a taken one ("taken"). A reserved name can still be set by hand in the SQL editor (for an official account), because the list is only enforced inside `set_username()`. Source: `docs/backend/phase11a_username.sql`.
 
 ### `gyms`
 `id`, `user_id` (default `auth.uid()`), `name`, `google_place_id`, `address`, `latitude`, `longitude` (used by `record_showup` for distance), `is_active` (at most one active gym per user, enforced by the partial unique index `gyms_one_active_per_user_idx`), `created_at`, `updated_at`. Changing gym deactivates the old row and inserts a new one.
@@ -172,6 +177,34 @@ item = { id, slug, position, heading, subheading, image_url, image_alt, v }
 ### `complete_quickstart()` → boolean
 `SECURITY DEFINER`, `authenticated` only, takes no arguments (it uses `auth.uid()`). Sets `profiles.quickstart_completed_at` to now **only if it is still empty** (a second call changes nothing), and returns `true` if a profile row was updated, `false` if there was none. Error: `not_signed_in`.
 
+## Username RPCs (Phase 11a)
+
+Source: `docs/backend/phase11a_username.sql`, applied manually (the snapshot has not been regenerated since Phase 9a, so the grants below are from the SQL file and are **unverified** against the live database). Both are `SECURITY DEFINER` and executable by **`authenticated` only**; `anon` cannot call them. Both clean the value the same way first: `lower(btrim(coalesce(p_username, '')))`.
+
+### `is_username_available(p_username text)` → json
+`STABLE`. The live "is it free?" check while someone types. Never raises for a bad name; it reports it. Returns
+```
+{ username: text, available: boolean, reason: text | null, suggestion: text | null }
+```
+- `username` is the cleaned value. `reason` is `null` (free), `own` (it is the caller's current username; `available` is `true`), `empty`, `too_short`, `too_long`, `invalid_format` or `taken`. **A reserved name gives `taken`**, the same as one someone else has.
+- `suggestion` is a free alternative, **only** when the name is taken: the name (shortened if needed) plus `_` and one of `22`, `23`, ... `29`, `99`, `11`, `10`, `21`, the first that is free and valid. `null` if none of those is free, and `null` for every other reason.
+- Raises `not_signed_in` if there is no signed-in user.
+
+### `set_username(p_username text)` → json
+The **only** way a username is set or changed. Returns `{ username: text, changed: boolean }`; `changed` is `false` when the person already had exactly that name (nothing is written). Locks the caller's row (`for update`). Errors (the message **starts with** the code):
+- `not_signed_in`, `profile_not_found`;
+- `invalid_username: <reason>` with the same `empty`, `too_short`, `too_long`, `invalid_format`;
+- `username_taken`: someone has it or it is reserved. Also raised if two people race for the same name and the unique index catches it (`unique_violation` is turned into `username_taken`);
+- `username_cooldown: N day(s) left`: a CHANGE within `config.username_change_cooldown_days` of the last one. The first time a username is set is never limited, and a name set by hand (no `username_changed_at`) is never limited either.
+
+Sets `username`, `username_changed_at = now()` and `updated_at`.
+
+### The guard: `profiles_guard_username()` and trigger `profiles_guard_username`
+`BEFORE INSERT OR UPDATE` on `profiles`. When the current role is `anon` or `authenticated`, it raises `username_locked: use set_username()` for an insert that sets `username` or `username_changed_at`, and for an update that changes either. `set_username()` runs as its owner, so it is not affected, and nor is the SQL editor. So the existing profile update (first name, last name, birthday) keeps working, as long as it does not send the username columns; the app never sends them.
+
+### The setting `config.username_change_cooldown_days`
+Inserted as `0` (no limit, fine while testing) only if the key did not exist, into `config` (or `cms` if the Phase 9a rename had not happened), with a remark suggesting 30 before launch. **Current value: unverified.**
+
 ## Mascot RPC (Phase 7)
 
 Source: `docs/backend/phase7a_mascot_tables.sql` (Phase 7), redefined by `docs/backend/10a_onboarding_mascot.sql` (Phase 10a, adds `screen` and `label`). The live snapshot file has not been regenerated since Phase 9a, so it does not show the Phase 10a changes yet.
@@ -205,6 +238,9 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `cfg_int(p_key text, p_default int)` | int | A config value as a whole number, or the default if missing or not a number |
 | `passes_used_in_month(p_user, p_month)` | int | Count of `week_pauses` whose `used_month` is that month (ended pauses included) |
 | `goal_for_week(p_user uuid, p_week date)` | smallint | The goal in force that week, or null. **Applied manually. Executable by `anon` and `authenticated`**; it is not `SECURITY DEFINER`, so it only sees rows the caller's row level security allows (their own `goal_history`) |
+| `username_problem(p_username text)` | text | `null` when the format is fine, else `empty`, `too_short`, `too_long` or `invalid_format`. `IMMUTABLE`. **Phase 11a, applied manually**; not executable by `anon` or `authenticated` |
+| `username_taken(p_username text)` | boolean | True if a profile has that username **or** it is in `reserved_usernames`. `SECURITY DEFINER`. **Phase 11a, applied manually**; not executable by the app |
+| `username_suggestion(p_username text)` | text | A free alternative (see `is_username_available`), or null. `SECURITY DEFINER`. **Phase 11a, applied manually**; not executable by the app |
 | `cfg(k text, d text)` | text | Newest `config.value` for `content_type = k`, else `d`. **Applied manually. Executable by `anon` and `authenticated`**; not `SECURITY DEFINER`, and `config` is readable by everyone per the snapshot (see rules, Security) |
 
 ## Other functions in the snapshot
@@ -227,3 +263,4 @@ Not granted to `anon` or `authenticated` in the snapshot, except where noted, so
 | `goal_history`, `week_pauses`, `weekly_results` | read own rows (`user_id = auth.uid()`); no write policy, so only the SQL functions write |
 | `config` (was `cms`) | `Enable read access for all users` and `config read` (renamed from `cms read`; both select, `using true`, role `public`); `cms: public can read landing page content` (select, `anon`/`authenticated`, only `lpage_banner` and `tnc`); `config admin write` (renamed from `cms admin write`; all, admins only). Based on the pre-rename snapshot; the policy names after the rename are from `phase9a_cms_and_config.sql`, and the live policy list has not been re-read |
 | `cms` (new) | `public read` (select, `anon` and `authenticated`, `using true`); no write grant |
+| `reserved_usernames` (Phase 11a) | RLS on, **no** policy, and every right revoked from `anon` and `authenticated`: the app cannot read or write it. Only the username functions use it |
